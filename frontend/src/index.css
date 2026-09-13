@@ -1,0 +1,267 @@
+@import "tailwindcss";
+
+@layer base {
+  :root[data-theme="neo-dark"] {
+    --bg-base: #050507;
+    --bg-secondary: #0b0a10;
+    --bg-surface: #121019;
+    --bg-surface-elevated: #1a1726;
+    --bg-surface-glass: rgba(18, 16, 25, 0.65);
+
+    --text-primary: #f4f3f8;
+    --text-secondary: #c2bece;
+    --text-muted: #8e8a9f;
+
+    --border-subtle: rgba(177, 124, 254, 0.12);
+    --border-glass: rgba(177, 124, 254, 0.2);
+    --border-strong: rgba(177, 124, 254, 0.35);
+
+    --brand-primary: #b17cfe;
+    --brand-vivid: #b656f5;
+    --brand-soft: #c5a9ff;
+    --brand-glow: rgba(177, 124, 254, 0.25);
+
+    --color-success: #41d49a;
+    --color-success-bg: rgba(65, 212, 154, 0.12);
+    --color-danger: #ff5f78;
+    --color-danger-bg: rgba(255, 95, 120, 0.12);
+    --color-warning: #fbbf24;
+    --color-warning-bg: rgba(251, 191, 36, 0.12);
+    --color-info: #60a5fa;
+    --color-info-bg: rgba(96, 165, 250, 0.12);
+  }
+
+  :root[data-theme="neo-light"] {
+    --bg-base: #f7f6fa;
+    --bg-secondary: #ece9f3;
+    --bg-surface: #ffffff;
+    --bg-surface-elevated: #ffffff;
+    --bg-surface-glass: rgba(255, 255, 255, 0.85);
+
+    --text-primary: #18151f;
+    --text-secondary: #484353;
+    --text-muted: #6f6979;
+
+    --border-subtle: #e8e3ee;
+    --border-glass: rgba(141, 88, 231, 0.2);
+    --border-strong: #d0c7de;
+
+    --brand-primary: #8d58e7;
+    --brand-vivid: #7c3aed;
+    --brand-soft: #a78bfa;
+    --brand-glow: rgba(141, 88, 231, 0.18);
+
+    --color-success: #10b981;
+    --color-success-bg: rgba(16, 185, 129, 0.1);
+    --color-danger: #ef4444;
+    --color-danger-bg: rgba(239, 68, 68, 0.1);
+    --color-warning: #f59e0b;
+    --color-warning-bg: rgba(245, 158, 11, 0.1);
+    --color-info: #3b82f6;
+    --color-info-bg: rgba(59, 130, 246, 0.1);
+  }
+
+  body {
+    background-color: var(--bg-base);
+    color: var(--text-primary);
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    transition: background-color 0.25s ease, color 0.25s ease;
+  }
+}
+
+/* ── Neo Glass Utilities ─────────────────────────────────────────────────── */
+.neo-glass {
+  background: var(--bg-surface-glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-glass);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.12);
+}
+
+.neo-glass-card {
+  background: var(--bg-surface-glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-glass);
+  border-radius: 1rem;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.neo-glass-card:hover {
+  border-color: var(--brand-primary);
+  box-shadow: 0 12px 40px -10px var(--brand-glow);
+}
+
+.neo-glass-panel {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 1rem;
+}
+
+.neo-glow-text {
+  background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-vivid) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* ── Monospace Numbers ───────────────────────────────────────────────────── */
+.font-mono-num {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Custom Scrollbar ────────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 11px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-base);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 9999px;
+  border: 2px solid var(--bg-base);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--brand-primary);
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: var(--brand-vivid);
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  border: 1px solid var(--bg-base);
+}
+
+/* ── Animations ──────────────────────────────────────────────────────────── */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-slide-up {
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s ease forwards;
+}
+
+/* Landing page — testimonial carousel */
+@keyframes tb-progress {
+  from {
+    width: 0%;
+  }
+
+  to {
+    width: 100%;
+  }
+}
+
+/* Hero chart glow pulse */
+@keyframes heroPulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.6;
+  }
+}
+
+@keyframes testimonial-enter-right {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateX(40px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1.05) translateX(0);
+  }
+}
+
+@keyframes testimonial-enter-left {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateX(-40px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1.05) translateX(0);
+  }
+}
+
+@keyframes testimonial-fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+
+  to {
+    opacity: 0.5;
+    transform: scale(0.95);
+  }
+}
+
+/* ── Utilities ───────────────────────────────────────────────────────────── */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Ensure all interactive elements show pointer cursor */
+button,
+[role="button"],
+a,
+select,
+summary,
+input[type="button"],
+input[type="submit"],
+input[type="reset"],
+input[type="checkbox"],
+input[type="radio"],
+label[for],
+.cursor-pointer {
+  cursor: pointer !important;
+}
+
+button:disabled,
+[role="button"][aria-disabled="true"],
+input:disabled {
+  cursor: not-allowed !important;
+}
