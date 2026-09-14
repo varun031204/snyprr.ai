@@ -126,6 +126,7 @@ export const ZoneLinesChart: React.FC<ZoneLinesChartProps> = ({
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<any>(null);
   const { theme } = useUIStore();
+  const themeRef = useRef(theme);
 
   const binanceSymbol = INSTRUMENT_TO_BINANCE[instrument];
   // Explicit prop takes priority, then prediction timeframe, then default 1h
@@ -134,20 +135,20 @@ export const ZoneLinesChart: React.FC<ZoneLinesChartProps> = ({
   ] ?? '1h';
 
   // ── Helper to resolve current CSS theme colors ─────────────────────────────
-  const getThemeColors = useCallback(() => {
-    const isLight = theme === 'neo-light';
+  const getThemeColors = useCallback((t: string) => {
+    const isLight = t === 'neo-light';
     return {
       bgColor: isLight ? '#ffffff' : '#121019',
       borderColor: isLight ? 'rgba(141, 88, 231, 0.15)' : 'rgba(177, 124, 254, 0.12)',
       textColor: isLight ? '#6f6979' : '#8e8a9f',
     };
-  }, [theme]);
+  }, []);
 
-  // ── Create / mount chart ───────────────────────────────────────────────────
+  // ── Create / mount chart (runs once only) ─────────────────────────────────
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const { bgColor, borderColor, textColor } = getThemeColors();
+    const { bgColor, borderColor, textColor } = getThemeColors(themeRef.current);
 
     const chart = createChart(containerRef.current, {
       width: containerRef.current.clientWidth,
@@ -309,17 +310,15 @@ export const ZoneLinesChart: React.FC<ZoneLinesChartProps> = ({
       chartRef.current = null;
       seriesRef.current = null;
     };
-  }, [height, getThemeColors]);
+  }, [height]); // intentionally excludes getThemeColors — theme changes are handled below
 
-  // ── Update chart theme colors when theme changes ───────────────────────────
+  // ── Update chart theme colors when theme changes (no remount) ───────────────
   useEffect(() => {
+    themeRef.current = theme;
     if (!chartRef.current) return;
-    const { bgColor, borderColor, textColor } = getThemeColors();
+    const { bgColor, borderColor, textColor } = getThemeColors(theme);
     chartRef.current.applyOptions({
-      layout: {
-        background: { color: bgColor },
-        textColor,
-      },
+      layout: { background: { color: bgColor }, textColor },
       grid: {
         vertLines: { color: borderColor },
         horzLines: { color: borderColor },
@@ -327,6 +326,7 @@ export const ZoneLinesChart: React.FC<ZoneLinesChartProps> = ({
       rightPriceScale: { borderColor, textColor },
       timeScale: { borderColor },
     });
+    chartRef.current.timeScale().fitContent();
   }, [theme, getThemeColors]);
 
   // ── Load candle data (Binance live for crypto, high-fidelity for Gold/Silver) ─

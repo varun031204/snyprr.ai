@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   TrendingUp, TrendingDown, CheckCircle2, Clock,
@@ -14,7 +14,6 @@ import { usePredictions, useCreatePrediction } from '../../hooks/usePredictionsQ
 import { useAuthStore } from '../../state/useAuthStore';
 import { useMarketStore } from '../../state/useMarketStore';
 import { useUIStore } from '../../state/useUIStore';
-import { AdvancedRealTimeChart } from 'react-ts-tradingview-widgets';
 import { ZoneLinesChart } from '../../components/charts/ZoneLinesChart';
 import { CHART_ITEMS } from '../../constants';
 import type { PredictionDirection } from '../../types';
@@ -35,10 +34,66 @@ const TIMEFRAME_OPTIONS = [
   { value: '1w', label: '1w' },
 ];
 
+// ── TradingView iframe chart (official embed, no third-party wrapper) ─────────
+const TV_INTERVAL_MAP: Record<string, string> = {
+  '1m': '1', '3m': '3', '5m': '5', '15m': '15', '30m': '30',
+  '1h': '60', '2h': '120', '4h': '240', '6h': '360', '12h': '720',
+  '1d': 'D', '3d': '3D', '1w': 'W',
+};
+
+const TradingViewChart: React.FC<{ symbol: string; interval: string; theme: string; height: number }> = ({
+  symbol, interval, theme, height,
+}) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const tvInterval = TV_INTERVAL_MAP[interval] ?? '60';
+  const tvTheme = theme === 'neo-light' ? 'light' : 'dark';
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    container.innerHTML = '';
+
+    const script = document.createElement('script');
+    script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
+    script.type = 'text/javascript';
+    script.async = true;
+    script.innerHTML = JSON.stringify({
+      autosize: true,
+      symbol,
+      interval: tvInterval,
+      timezone: 'Etc/UTC',
+      theme: tvTheme,
+      style: '1',
+      locale: 'en',
+      allow_symbol_change: true,
+      calendar: false,
+      support_host: 'https://www.tradingview.com',
+    });
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'tradingview-widget-container__widget';
+    wrapper.style.height = '100%';
+    wrapper.style.width = '100%';
+    container.appendChild(wrapper);
+    container.appendChild(script);
+
+    return () => { container.innerHTML = ''; };
+  }, [symbol, tvInterval, tvTheme]);
+
+  return (
+    <div
+      className="w-full rounded-2xl overflow-hidden border border-[var(--border-subtle)] bg-[var(--bg-surface)]"
+      style={{ height }}
+    >
+      <div ref={containerRef} className="tradingview-widget-container" style={{ height: '100%', width: '100%' }} />
+    </div>
+  );
+};
+
 export default function TraderDashboardPage() {
   const { currentUser } = useAuthStore();
   const { tickers } = useMarketStore();
-  const { addToast } = useUIStore();
+  const { addToast, theme } = useUIStore();
   const navigate = useNavigate();
   const createMutation = useCreatePrediction();
 
@@ -154,7 +209,7 @@ export default function TraderDashboardPage() {
 
   const handlePublishPrediction = async () => {
     if (!buyNum || !sellNum || !slNum || !tp1Num) {
-      addToast({ type: 'danger', title: 'Validation Error', message: 'Buying Zone, Selling Zone, Stop Loss and TP1 are required.' });
+      addToast({ type: 'danger', title: 'Validation Error', message: 'Buying Wall, Selling Wall, Stop Loss and TP1 are required.' });
       return;
     }
     setIsPublishing(true);
@@ -173,7 +228,7 @@ export default function TraderDashboardPage() {
         takeProfit3: tp3Num || undefined,
         timeframe: effectiveTimeframe,
         strategy: 'Key Price Zones',
-        analysis: analysis.trim() || `Trade setup for ${panelInstrument} (${effectiveTimeframe}).\n- Buying Zone: ${buyNum.toLocaleString()}\n- Selling Zone: ${sellNum.toLocaleString()}\n- SL: ${slNum.toLocaleString()} | TP1: ${tp1Num.toLocaleString()}`,
+        analysis: analysis.trim() || `Trade setup for ${panelInstrument} (${effectiveTimeframe}).\n- Buying Wall: ${buyNum.toLocaleString()}\n- Selling Wall: ${sellNum.toLocaleString()}\n- SL: ${slNum.toLocaleString()} | TP1: ${tp1Num.toLocaleString()}`,
         status: 'PUBLISHED',
         visibility: 'PUBLIC',
         tags: [panelInstrument.split('/')[0], direction, effectiveTimeframe],
@@ -256,22 +311,12 @@ export default function TraderDashboardPage() {
           {chartMode === 'zonelines' ? (
             <ZoneLinesChart tvSymbol={chartSymbol} instrument={activeChartInstrument} prediction={chartPrediction} timeframe={effectiveTimeframe} height={620} />
           ) : (
-            <div className="w-full h-[620px] rounded-2xl overflow-hidden border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
-              <AdvancedRealTimeChart
-                theme="dark"
-                symbol={chartSymbol}
-                width="100%"
-                height="100%"
-                allow_symbol_change={true}
-                interval={effectiveTimeframe as any}
-                save_image={false}
-                show_popup_button={false}
-                withdateranges={false}
-                details={false}
-                hotlist={false}
-                calendar={false}
-              />
-            </div>
+            <TradingViewChart
+              symbol={chartSymbol}
+              interval={effectiveTimeframe}
+              theme={theme}
+              height={620}
+            />
           )}
         </div>
 
@@ -280,17 +325,17 @@ export default function TraderDashboardPage() {
           <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--brand-glow)] rounded-full blur-3xl opacity-20 pointer-events-none -mr-6 -mt-6" />
 
           {/* Panel header */}
-          <div className="flex items-center justify-between relative z-10">
-            <div>
-              <h3 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2">
-                Create Prediction
-                <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] border border-[var(--brand-primary)]/20">
+          <div className="flex items-center justify-between relative z-10 min-w-0">
+            <div className="min-w-0 flex-1">
+              <h3 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2 min-w-0">
+                <span className="truncate">Create Prediction</span>
+                <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] border border-[var(--brand-primary)]/20 flex-shrink-0">
                   {panelInstrument}
                 </span>
               </h3>
-              <p className="text-[11px] text-[var(--text-muted)] mt-0.5">Publish setup to member feeds</p>
+              <p className="text-[11px] text-[var(--text-muted)] mt-0.5 truncate">Publish setup to member feeds</p>
             </div>
-            <span className="flex items-center gap-1 text-[10px] font-bold text-[var(--color-success)]">
+            <span className="flex items-center gap-1 text-[10px] font-bold text-[var(--color-success)] flex-shrink-0 ml-2">
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-success)] animate-pulse" />
               LIVE
             </span>
@@ -392,57 +437,57 @@ export default function TraderDashboardPage() {
 
           {/* Buy / Sell zones */}
           <div className="grid grid-cols-2 gap-2 relative z-10">
-            <div className="p-2 rounded-xl bg-[var(--color-success-bg)] border border-[var(--color-success)]/20 space-y-1">
-              <label className="text-[10px] font-bold text-[var(--color-success)] block uppercase">Buying Zone ($)</label>
+            <div className="p-2 rounded-xl bg-[var(--color-success-bg)] border border-[var(--color-success)]/20 space-y-1 min-w-0">
+              <label className="text-[10px] font-bold text-[var(--color-success)] block uppercase truncate">Buying Wall ($)</label>
               <input type="number" step="any" value={buyingZone} onChange={(e) => setBuyingZone(e.target.value)}
-                className="w-full bg-transparent font-mono text-xs font-bold text-[var(--color-success)] focus:outline-none" />
+                className="w-full min-w-0 bg-[var(--color-success-bg)] border border-[var(--color-success)]/30 rounded-lg px-2 py-1 font-mono text-xs font-bold text-[var(--color-success)] focus:outline-none focus:border-[var(--color-success)]/60" />
             </div>
-            <div className="p-2 rounded-xl bg-[var(--color-danger-bg)] border border-[var(--color-danger)]/20 space-y-1">
-              <label className="text-[10px] font-bold text-[var(--color-danger)] block uppercase">Selling Zone ($)</label>
+            <div className="p-2 rounded-xl bg-[var(--color-danger-bg)] border border-[var(--color-danger)]/20 space-y-1 min-w-0">
+              <label className="text-[10px] font-bold text-[var(--color-danger)] block uppercase truncate">Selling Wall ($)</label>
               <input type="number" step="any" value={sellingZone} onChange={(e) => setSellingZone(e.target.value)}
-                className="w-full bg-transparent font-mono text-xs font-bold text-[var(--color-danger)] focus:outline-none" />
+                className="w-full min-w-0 bg-[var(--color-danger-bg)] border border-[var(--color-danger)]/30 rounded-lg px-2 py-1 font-mono text-xs font-bold text-[var(--color-danger)] focus:outline-none focus:border-[var(--color-danger)]/60" />
             </div>
           </div>
 
           {/* Entry + Spread */}
-          <div className="p-2.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] flex items-center justify-between gap-2 relative z-10">
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px] font-semibold text-[var(--text-muted)]">Entry:</span>
+          <div className="p-2.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] flex items-center justify-between gap-2 relative z-10 min-w-0">
+            <div className="flex items-center gap-1.5 min-w-0 flex-1">
+              <span className="text-[11px] font-semibold text-[var(--text-muted)] flex-shrink-0">Entry:</span>
               <input type="number" step="any" value={entryPrice} onChange={(e) => setEntryPrice(e.target.value)}
-                className="w-24 bg-transparent font-mono text-xs font-bold text-[var(--text-primary)] focus:outline-none" />
+                className="min-w-0 flex-1 bg-transparent font-mono text-xs font-bold text-[var(--text-primary)] focus:outline-none" />
             </div>
-            <span className={`text-[11px] font-bold font-mono px-2 py-0.5 rounded ${spreadPct >= 0 ? 'text-[var(--color-success)] bg-[var(--color-success-bg)]' : 'text-[var(--color-danger)] bg-[var(--color-danger-bg)]'}`}>
+            <span className={`text-[11px] font-bold font-mono px-2 py-0.5 rounded flex-shrink-0 ${spreadPct >= 0 ? 'text-[var(--color-success)] bg-[var(--color-success-bg)]' : 'text-[var(--color-danger)] bg-[var(--color-danger-bg)]'}`}>
               {spreadPct >= 0 ? '+' : ''}{spreadPct.toFixed(2)}%
             </span>
           </div>
 
           {/* SL + TP1 */}
           <div className="grid grid-cols-2 gap-2 relative z-10">
-            <div className="p-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] space-y-1">
-              <label className="text-[10px] font-bold text-orange-400 block uppercase">Stop Loss ($)</label>
+            <div className="p-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] space-y-1 min-w-0">
+              <label className="text-[10px] font-bold text-orange-400 block uppercase truncate">Stop Loss ($)</label>
               <input type="number" step="any" value={stopLoss} onChange={(e) => setStopLoss(e.target.value)}
-                className="w-full bg-transparent font-mono text-xs font-bold text-orange-400 focus:outline-none" />
+                className="w-full min-w-0 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg px-2 py-1 font-mono text-xs font-bold text-orange-400 focus:outline-none focus:border-orange-400/50" />
             </div>
-            <div className="p-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] space-y-1">
-              <label className="text-[10px] font-bold text-emerald-400 block uppercase">TP1 ($) *</label>
+            <div className="p-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] space-y-1 min-w-0">
+              <label className="text-[10px] font-bold text-emerald-400 block uppercase truncate">TP1 ($) *</label>
               <input type="number" step="any" value={takeProfit1} onChange={(e) => setTakeProfit1(e.target.value)}
-                className="w-full bg-transparent font-mono text-xs font-bold text-emerald-400 focus:outline-none" />
+                className="w-full min-w-0 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg px-2 py-1 font-mono text-xs font-bold text-emerald-400 focus:outline-none focus:border-emerald-400/50" />
             </div>
           </div>
 
           {/* TP2 + TP3 */}
           <div className="grid grid-cols-2 gap-2 relative z-10">
-            <div className="p-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] space-y-1">
-              <label className="text-[10px] font-semibold text-[var(--text-muted)] block uppercase">TP2 ($) opt.</label>
+            <div className="p-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] space-y-1 min-w-0">
+              <label className="text-[10px] font-semibold text-[var(--text-muted)] block uppercase truncate">TP2 ($) opt.</label>
               <input type="number" step="any" value={takeProfit2} onChange={(e) => setTakeProfit2(e.target.value)}
                 placeholder="—"
-                className="w-full bg-transparent font-mono text-xs font-bold text-[var(--text-secondary)] focus:outline-none placeholder:text-[var(--text-muted)]" />
+                className="w-full min-w-0 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg px-2 py-1 font-mono text-xs font-bold text-[var(--text-secondary)] focus:outline-none focus:border-[var(--border-strong)] placeholder:text-[var(--text-muted)]" />
             </div>
-            <div className="p-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] space-y-1">
-              <label className="text-[10px] font-semibold text-[var(--text-muted)] block uppercase">TP3 ($) opt.</label>
+            <div className="p-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] space-y-1 min-w-0">
+              <label className="text-[10px] font-semibold text-[var(--text-muted)] block uppercase truncate">TP3 ($) opt.</label>
               <input type="number" step="any" value={takeProfit3} onChange={(e) => setTakeProfit3(e.target.value)}
                 placeholder="—"
-                className="w-full bg-transparent font-mono text-xs font-bold text-[var(--text-secondary)] focus:outline-none placeholder:text-[var(--text-muted)]" />
+                className="w-full min-w-0 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg px-2 py-1 font-mono text-xs font-bold text-[var(--text-secondary)] focus:outline-none focus:border-[var(--border-strong)] placeholder:text-[var(--text-muted)]" />
             </div>
           </div>
 
@@ -511,16 +556,16 @@ export default function TraderDashboardPage() {
             : predictions.length === 0
             ? <GlassCard hoverEffect={false}><p className="text-sm text-[var(--text-muted)] text-center py-2">No predictions yet.</p></GlassCard>
             : predictions.slice(0, 5).map((p) => (
-              <GlassCard key={p.id} className="flex items-center gap-4 cursor-pointer" onClick={() => navigate(`/predictions/${p.id}`)}>
+              <GlassCard key={p.id} className="flex items-center gap-3 cursor-pointer" onClick={() => navigate(`/predictions/${p.id}`)}>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs text-[var(--text-muted)] mb-1">{p.instrument} · {p.timeframe}</p>
+                  <p className="text-xs text-[var(--text-muted)] mb-1 truncate">{p.instrument} · {p.timeframe}</p>
                   <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{p.title}</p>
                   {(p.stopLoss || p.takeProfit) && (
-                    <div className="flex items-center gap-3 mt-1">
-                      {p.stopLoss && <span className="text-[10px] font-mono text-orange-400">SL: {p.stopLoss.toLocaleString()}</span>}
-                      {p.takeProfit && <span className="text-[10px] font-mono text-emerald-400">TP1: {p.takeProfit.toLocaleString()}</span>}
-                      {p.takeProfit2 && <span className="text-[10px] font-mono text-emerald-300">TP2: {p.takeProfit2.toLocaleString()}</span>}
-                      {p.takeProfit3 && <span className="text-[10px] font-mono text-emerald-200">TP3: {p.takeProfit3.toLocaleString()}</span>}
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1">
+                      {p.stopLoss && <span className="text-[10px] font-mono text-orange-400 whitespace-nowrap">SL: {p.stopLoss.toLocaleString()}</span>}
+                      {p.takeProfit && <span className="text-[10px] font-mono text-emerald-400 whitespace-nowrap">TP1: {p.takeProfit.toLocaleString()}</span>}
+                      {p.takeProfit2 && <span className="text-[10px] font-mono text-emerald-300 whitespace-nowrap">TP2: {p.takeProfit2.toLocaleString()}</span>}
+                      {p.takeProfit3 && <span className="text-[10px] font-mono text-emerald-200 whitespace-nowrap">TP3: {p.takeProfit3.toLocaleString()}</span>}
                     </div>
                   )}
                 </div>
