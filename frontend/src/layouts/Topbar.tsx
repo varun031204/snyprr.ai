@@ -1,4 +1,4 @@
-import { Bell, Menu, Search, UserCircle, ChevronDown, Home } from 'lucide-react';
+import { Bell, Menu, Search, UserCircle, ChevronDown, Home, Mail } from 'lucide-react';
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ThemeToggle } from '../components/ui/ThemeToggle';
@@ -167,7 +167,7 @@ export const Topbar: React.FC = () => {
             <div
               role="menu"
               aria-label="Profile menu"
-              className="absolute right-0 top-full mt-2 w-56 bg-[var(--bg-surface-glass)] backdrop-blur-xl border border-[var(--border-glass)] rounded-2xl shadow-2xl py-2 z-50"
+              className="absolute right-0 top-full mt-2 w-56 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl shadow-2xl py-2 z-50"
               onKeyDown={(e) => {
                 if (e.key === 'Tab') {
                   // Trap focus inside the dropdown
@@ -205,6 +205,15 @@ export const Topbar: React.FC = () => {
                 className="flex items-center gap-2.5 px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-colors focus:outline-none focus:bg-[var(--bg-secondary)]"
               >
                 <UserCircle className="w-4 h-4" /> Profile
+              </Link>
+
+              <Link
+                to="/contact"
+                role="menuitem"
+                onClick={() => setProfileOpen(false)}
+                className="flex items-center gap-2.5 px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-colors focus:outline-none focus:bg-[var(--bg-secondary)]"
+              >
+                <Mail className="w-4 h-4" /> Contact Us
               </Link>
 
               <button
