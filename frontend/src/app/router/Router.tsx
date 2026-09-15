@@ -1,10 +1,9 @@
 import React, { lazy, Suspense } from 'react';
-import { createBrowserRouter, Navigate, RouterProvider, Outlet, ScrollRestoration } from 'react-router-dom';
+import { createBrowserRouter, Navigate, RouterProvider, Outlet, ScrollRestoration, useNavigation } from 'react-router-dom';
 import { AppShell } from '../../layouts/AppShell';
 import { AuthLayout } from '../../layouts/AuthLayout';
 import { AuthGuard } from '../guards/AuthGuard';
 import { RoleGuard } from '../guards/RoleGuard';
-import { Skeleton } from '../../components/ui/Skeleton';
 import { useAuthStore } from '../../state/useAuthStore';
 
 // Lazy-loaded pages
@@ -46,20 +45,55 @@ const TestimonialsPage = lazy(() => import('../../features/landing/TestimonialsP
 const PublicContactPage = lazy(() => import('../../features/landing/PublicContactPage'));
 const TermsPage = lazy(() => import('../../features/landing/TermsPage'));
 const NewsPage = lazy(() => import('../../features/news/NewsPage'));
+const PaperTradingPage = lazy(() => import('../../features/paper-trading/PaperTradingPage'));
 
 const PageLoader = () => (
-  <div className="flex flex-col gap-4 p-6">
-    <Skeleton className="h-10 w-64 rounded-xl" />
-    <div className="grid grid-cols-4 gap-4">
-      {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-2xl" />)}
+  <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-[var(--bg-base)]/60 backdrop-blur-sm">
+    <div className="flex flex-col items-center gap-4">
+      <div className="w-12 h-12 rounded-full border-[3px] border-[var(--brand-primary)]/20 border-t-[var(--brand-primary)] animate-spin shadow-[0_0_20px_var(--brand-primary)]" />
+      <p className="text-xs font-semibold text-[var(--text-muted)] tracking-widest uppercase animate-pulse">Loading...</p>
     </div>
-    <Skeleton className="h-64 rounded-2xl" />
   </div>
 );
+
+// Top progress bar + spinner shown during every route transition
+const NavigationProgress = () => {
+  const navigation = useNavigation();
+  const [visible, setVisible] = React.useState(false);
+
+  React.useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    if (navigation.state !== 'idle') {
+      // Show immediately
+      setVisible(true);
+    } else {
+      // Keep visible briefly so it doesn't flash away too fast
+      timer = setTimeout(() => setVisible(false), 300);
+    }
+    return () => clearTimeout(timer);
+  }, [navigation.state]);
+
+  if (!visible) return null;
+
+  return (
+    <>
+      {/* Slim top bar */}
+      <div className="fixed top-0 left-0 right-0 z-[9999] h-[3px] bg-[var(--brand-primary)]/20">
+        <div
+          className="h-full bg-[var(--brand-primary)] rounded-full shadow-[0_0_8px_var(--brand-primary)]"
+          style={{ animation: 'nav-progress 1s ease-in-out infinite' }}
+        />
+      </div>
+      {/* Spinner in top-right corner */}
+      <div className="fixed top-4 right-4 z-[9999] w-8 h-8 rounded-full border-2 border-[var(--brand-primary)]/20 border-t-[var(--brand-primary)] animate-spin shadow-[0_0_12px_var(--brand-primary)]" />
+    </>
+  );
+};
 
 // Root Layout with scroll restoration on route change
 const RootLayout = () => (
   <>
+    <NavigationProgress />
     <ScrollRestoration />
     <Outlet />
   </>
@@ -164,6 +198,7 @@ const router = createBrowserRouter([
           { path: '/settings', element: <SettingsPage /> },
           { path: '/contact', element: <ContactPage /> },
           { path: '/news', element: <NewsPage /> },
+          { path: '/paper-trading', element: <PaperTradingPage /> },
 
           // Trader routes
           {

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   TrendingUp, TrendingDown, CheckCircle2, Clock,
@@ -14,10 +14,9 @@ import { usePredictions, useCreatePrediction } from '../../hooks/usePredictionsQ
 import { useAuthStore } from '../../state/useAuthStore';
 import { useMarketStore } from '../../state/useMarketStore';
 import { useUIStore } from '../../state/useUIStore';
-import { ZoneLinesChart } from '../../components/charts/ZoneLinesChart';
+import { TradingChartPro } from '../../components/charts/TradingChartPro';
 import { CHART_ITEMS } from '../../constants';
-
-import type { PredictionDirection } from '../../types';
+import type { Prediction, PredictionDirection } from '../../types';
 
 const TIMEFRAME_OPTIONS = [
   { value: '1m', label: '1m' },
@@ -38,7 +37,7 @@ const TIMEFRAME_OPTIONS = [
 export default function TraderDashboardPage() {
   const { currentUser } = useAuthStore();
   const { tickers } = useMarketStore();
-  const { addToast } = useUIStore();
+  const { addToast, theme } = useUIStore();
   const navigate = useNavigate();
   const createMutation = useCreatePrediction();
 
@@ -67,6 +66,7 @@ export default function TraderDashboardPage() {
   const [takeProfit3, setTakeProfit3] = useState('');
   const [isPublishing, setIsPublishing] = useState(false);
   const [analysis, setAnalysis] = useState('');
+  const [entryPrice, setEntryPrice] = useState('');
 
   const effectiveTimeframe = isCustomTimeframe
     ? `${customTimeValue.trim() || '1'}${customTimeUnit}`
@@ -146,7 +146,7 @@ export default function TraderDashboardPage() {
   const spreadPct = buyNum > 0 && sellNum > 0 ? ((sellNum - buyNum) / buyNum) * 100 : 0;
   const handlePublishPrediction = async () => {
     if (!buyNum || !sellNum || !slNum || !tp1Num) {
-      addToast({ type: 'danger', title: 'Validation Error', message: 'Buying Zone, Selling Zone, Stop Loss and TP1 are required.' });
+      addToast({ type: 'danger', title: 'Validation Error', message: 'Buying Wall, Selling Wall, Stop Loss and TP1 are required.' });
       return;
     }
     setIsPublishing(true);
@@ -164,7 +164,7 @@ export default function TraderDashboardPage() {
         takeProfit3: tp3Num || undefined,
         timeframe: effectiveTimeframe,
         strategy: 'Key Price Zones',
-        analysis: analysis.trim() || `Trade setup for ${panelInstrument} (${effectiveTimeframe}).\n- Buying Zone: ${buyNum.toLocaleString()}\n- Selling Zone: ${sellNum.toLocaleString()}\n- SL: ${slNum.toLocaleString()} | TP1: ${tp1Num.toLocaleString()}`,
+        analysis: analysis.trim() || `Trade setup for ${panelInstrument} (${effectiveTimeframe}).\n- Buying Wall: ${buyNum.toLocaleString()}\n- Selling Wall: ${sellNum.toLocaleString()}\n- SL: ${slNum.toLocaleString()} | TP1: ${tp1Num.toLocaleString()}`,
         status: 'PUBLISHED',
         visibility: 'PUBLIC',
         tags: [panelInstrument.split('/')[0], direction, effectiveTimeframe],
@@ -186,6 +186,31 @@ export default function TraderDashboardPage() {
     }
   };
 
+  const activePredictionForChart = useMemo(() => {
+    if (panelInstrument.toLowerCase() === activeChartInstrument.toLowerCase() && buyNum > 0 && sellNum > 0) {
+      return {
+        id: chartPrediction?.id ?? `draft-${activeChartInstrument}`,
+        title: `${activeChartInstrument} Setup`,
+        instrument: activeChartInstrument,
+        category: activeChartInstrument === 'GOLD' || activeChartInstrument === 'SILVER' ? 'COMMODITIES' : 'CRYPTO',
+        direction,
+        entryPrice: parseFloat(entryPrice) || buyNum,
+        buyingZone: buyNum,
+        sellingZone: sellNum,
+        stopLoss: slNum || undefined,
+        takeProfit: tp1Num || undefined,
+        takeProfit2: tp2Num || undefined,
+        takeProfit3: tp3Num || undefined,
+        timeframe: effectiveTimeframe,
+        strategy: 'Key Price Zones',
+        analysis: '',
+        status: 'ACTIVE',
+        createdAt: new Date().toISOString(),
+      } as unknown as Prediction;
+    }
+    return chartPrediction;
+  }, [panelInstrument, activeChartInstrument, buyNum, sellNum, direction, entryPrice, slNum, tp1Num, tp2Num, tp3Num, effectiveTimeframe, chartPrediction]);
+
   return (
     <div className="max-w-7xl mx-auto space-y-8">
       {/* Header */}
@@ -195,7 +220,7 @@ export default function TraderDashboardPage() {
       </div>
 
       {/* Instrument selector bar */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+      <div className="flex items-center justify-between gap-2 overflow-x-auto pb-1 scrollbar-thin">
         <div className="flex gap-2">
           {CHART_ITEMS.map((item) => {
             const hasActiveSetup = predictions.some(
@@ -219,20 +244,22 @@ export default function TraderDashboardPage() {
             );
           })}
         </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-[var(--text-muted)] font-medium">Unified Chart & Drawing Suite</span>
+        </div>
       </div>
 
       {/* Chart + Create Panel — side by side */}
       <div className="grid lg:grid-cols-[1fr_380px] gap-4 items-start">
         {/* Chart — ZoneLinesChart with TradingView + signal levels overlay */}
         <div className="w-full">
-          <ZoneLinesChart
+          <TradingChartPro
             tvSymbol={chartSymbol}
             instrument={activeChartInstrument}
-            prediction={chartPrediction ?? null}
+            prediction={activePredictionForChart}
             timeframe={effectiveTimeframe}
-            height={640}
-            showTimeframeBar={false}
-            allowDrawing={true}
+            height={620}
+            predictionId={activePredictionForChart?.id ?? activeChartInstrument}
           />
         </div>
 
@@ -241,17 +268,17 @@ export default function TraderDashboardPage() {
           <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--brand-glow)] rounded-full blur-3xl opacity-20 pointer-events-none -mr-6 -mt-6" />
 
           {/* Panel header */}
-          <div className="flex items-center justify-between relative z-10">
-            <div>
-              <h3 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2">
-                Create Prediction
-                <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] border border-[var(--brand-primary)]/20">
+          <div className="flex items-center justify-between relative z-10 min-w-0">
+            <div className="min-w-0 flex-1">
+              <h3 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2 min-w-0">
+                <span className="truncate">Create Prediction</span>
+                <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] border border-[var(--brand-primary)]/20 flex-shrink-0">
                   {panelInstrument}
                 </span>
               </h3>
-              <p className="text-[11px] text-[var(--text-muted)] mt-0.5">Publish setup to member feeds</p>
+              <p className="text-[11px] text-[var(--text-muted)] mt-0.5 truncate">Publish setup to member feeds</p>
             </div>
-            <span className="flex items-center gap-1 text-[10px] font-bold text-[var(--color-success)]">
+            <span className="flex items-center gap-1 text-[10px] font-bold text-[var(--color-success)] flex-shrink-0 ml-2">
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-success)] animate-pulse" />
               LIVE
             </span>
@@ -350,45 +377,57 @@ export default function TraderDashboardPage() {
 
           {/* Buy / Sell zones */}
           <div className="grid grid-cols-2 gap-2 relative z-10">
-            <div className="p-2 rounded-xl bg-[var(--color-success-bg)] border border-[var(--color-success)]/20 space-y-1">
-              <label className="text-[10px] font-bold text-[var(--color-success)] block uppercase">Buying Zone ($)</label>
+            <div className="p-2 rounded-xl bg-[var(--color-success-bg)] border border-[var(--color-success)]/20 space-y-1 min-w-0">
+              <label className="text-[10px] font-bold text-[var(--color-success)] block uppercase truncate">Buying Wall ($)</label>
               <input type="number" step="any" value={buyingZone} onChange={(e) => setBuyingZone(e.target.value)}
-                className="w-full bg-transparent font-mono text-xs font-bold text-[var(--color-success)] focus:outline-none" />
+                className="w-full min-w-0 bg-[var(--color-success-bg)] border border-[var(--color-success)]/30 rounded-lg px-2 py-1 font-mono text-xs font-bold text-[var(--color-success)] focus:outline-none focus:border-[var(--color-success)]/60" />
             </div>
-            <div className="p-2 rounded-xl bg-[var(--color-danger-bg)] border border-[var(--color-danger)]/20 space-y-1">
-              <label className="text-[10px] font-bold text-[var(--color-danger)] block uppercase">Selling Zone ($)</label>
+            <div className="p-2 rounded-xl bg-[var(--color-danger-bg)] border border-[var(--color-danger)]/20 space-y-1 min-w-0">
+              <label className="text-[10px] font-bold text-[var(--color-danger)] block uppercase truncate">Selling Wall ($)</label>
               <input type="number" step="any" value={sellingZone} onChange={(e) => setSellingZone(e.target.value)}
-                className="w-full bg-transparent font-mono text-xs font-bold text-[var(--color-danger)] focus:outline-none" />
+                className="w-full min-w-0 bg-[var(--color-danger-bg)] border border-[var(--color-danger)]/30 rounded-lg px-2 py-1 font-mono text-xs font-bold text-[var(--color-danger)] focus:outline-none focus:border-[var(--color-danger)]/60" />
             </div>
+          </div>
+
+          {/* Entry + Spread */}
+          <div className="p-2.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] flex items-center justify-between gap-2 relative z-10 min-w-0">
+            <div className="flex items-center gap-1.5 min-w-0 flex-1">
+              <span className="text-[11px] font-semibold text-[var(--text-muted)] flex-shrink-0">Entry:</span>
+              <input type="number" step="any" value={entryPrice} onChange={(e) => setEntryPrice(e.target.value)}
+                className="min-w-0 flex-1 bg-transparent font-mono text-xs font-bold text-[var(--text-primary)] focus:outline-none" />
+            </div>
+            <span className={`text-[11px] font-bold font-mono px-2 py-0.5 rounded flex-shrink-0 ${spreadPct >= 0 ? 'text-[var(--color-success)] bg-[var(--color-success-bg)]' : 'text-[var(--color-danger)] bg-[var(--color-danger-bg)]'}`}>
+              {spreadPct >= 0 ? '+' : ''}{spreadPct.toFixed(2)}%
+            </span>
           </div>
 
           {/* SL + TP1 */}
           <div className="grid grid-cols-2 gap-2 relative z-10">
-            <div className="p-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] space-y-1">
-              <label className="text-[10px] font-bold text-orange-400 block uppercase">Stop Loss ($)</label>
+            <div className="p-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] space-y-1 min-w-0">
+              <label className="text-[10px] font-bold text-orange-400 block uppercase truncate">Stop Loss ($)</label>
               <input type="number" step="any" value={stopLoss} onChange={(e) => setStopLoss(e.target.value)}
-                className="w-full bg-transparent font-mono text-xs font-bold text-orange-400 focus:outline-none" />
+                className="w-full min-w-0 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg px-2 py-1 font-mono text-xs font-bold text-orange-400 focus:outline-none focus:border-orange-400/50" />
             </div>
-            <div className="p-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] space-y-1">
-              <label className="text-[10px] font-bold text-emerald-400 block uppercase">TP1 ($) *</label>
+            <div className="p-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] space-y-1 min-w-0">
+              <label className="text-[10px] font-bold text-emerald-400 block uppercase truncate">TP1 ($) *</label>
               <input type="number" step="any" value={takeProfit1} onChange={(e) => setTakeProfit1(e.target.value)}
-                className="w-full bg-transparent font-mono text-xs font-bold text-emerald-400 focus:outline-none" />
+                className="w-full min-w-0 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg px-2 py-1 font-mono text-xs font-bold text-emerald-400 focus:outline-none focus:border-emerald-400/50" />
             </div>
           </div>
 
           {/* TP2 + TP3 */}
           <div className="grid grid-cols-2 gap-2 relative z-10">
-            <div className="p-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] space-y-1">
-              <label className="text-[10px] font-semibold text-[var(--text-muted)] block uppercase">TP2 ($) opt.</label>
+            <div className="p-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] space-y-1 min-w-0">
+              <label className="text-[10px] font-semibold text-[var(--text-muted)] block uppercase truncate">TP2 ($) opt.</label>
               <input type="number" step="any" value={takeProfit2} onChange={(e) => setTakeProfit2(e.target.value)}
                 placeholder="—"
-                className="w-full bg-transparent font-mono text-xs font-bold text-[var(--text-secondary)] focus:outline-none placeholder:text-[var(--text-muted)]" />
+                className="w-full min-w-0 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg px-2 py-1 font-mono text-xs font-bold text-[var(--text-secondary)] focus:outline-none focus:border-[var(--border-strong)] placeholder:text-[var(--text-muted)]" />
             </div>
-            <div className="p-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] space-y-1">
-              <label className="text-[10px] font-semibold text-[var(--text-muted)] block uppercase">TP3 ($) opt.</label>
+            <div className="p-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] space-y-1 min-w-0">
+              <label className="text-[10px] font-semibold text-[var(--text-muted)] block uppercase truncate">TP3 ($) opt.</label>
               <input type="number" step="any" value={takeProfit3} onChange={(e) => setTakeProfit3(e.target.value)}
                 placeholder="—"
-                className="w-full bg-transparent font-mono text-xs font-bold text-[var(--text-secondary)] focus:outline-none placeholder:text-[var(--text-muted)]" />
+                className="w-full min-w-0 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg px-2 py-1 font-mono text-xs font-bold text-[var(--text-secondary)] focus:outline-none focus:border-[var(--border-strong)] placeholder:text-[var(--text-muted)]" />
             </div>
           </div>
 
@@ -455,27 +494,27 @@ export default function TraderDashboardPage() {
           {isLoading
             ? Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-20 rounded-2xl" />)
             : predictions.length === 0
-              ? <GlassCard hoverEffect={false}><p className="text-sm text-[var(--text-muted)] text-center py-2">No predictions yet.</p></GlassCard>
-              : predictions.slice(0, 5).map((p) => (
-                <GlassCard key={p.id} className="flex items-center gap-4 cursor-pointer" onClick={() => navigate(`/predictions/${p.id}`)}>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-[var(--text-muted)] mb-1">{p.instrument} · {p.timeframe}</p>
-                    <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{p.title}</p>
-                    {(p.stopLoss || p.takeProfit) && (
-                      <div className="flex items-center gap-3 mt-1">
-                        {p.stopLoss && <span className="text-[10px] font-mono text-orange-400">SL: {p.stopLoss.toLocaleString()}</span>}
-                        {p.takeProfit && <span className="text-[10px] font-mono text-emerald-400">TP1: {p.takeProfit.toLocaleString()}</span>}
-                        {p.takeProfit2 && <span className="text-[10px] font-mono text-emerald-300">TP2: {p.takeProfit2.toLocaleString()}</span>}
-                        {p.takeProfit3 && <span className="text-[10px] font-mono text-emerald-200">TP3: {p.takeProfit3.toLocaleString()}</span>}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <DirectionBadge direction={p.direction} />
-                    <StatusBadge status={p.status} />
-                  </div>
-                </GlassCard>
-              ))}
+            ? <GlassCard hoverEffect={false}><p className="text-sm text-[var(--text-muted)] text-center py-2">No predictions yet.</p></GlassCard>
+            : predictions.slice(0, 5).map((p) => (
+              <GlassCard key={p.id} className="flex items-center gap-3 cursor-pointer" onClick={() => navigate(`/predictions/${p.id}`)}>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-[var(--text-muted)] mb-1 truncate">{p.instrument} · {p.timeframe}</p>
+                  <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{p.title}</p>
+                  {(p.stopLoss || p.takeProfit) && (
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1">
+                      {p.stopLoss && <span className="text-[10px] font-mono text-orange-400 whitespace-nowrap">SL: {p.stopLoss.toLocaleString()}</span>}
+                      {p.takeProfit && <span className="text-[10px] font-mono text-emerald-400 whitespace-nowrap">TP1: {p.takeProfit.toLocaleString()}</span>}
+                      {p.takeProfit2 && <span className="text-[10px] font-mono text-emerald-300 whitespace-nowrap">TP2: {p.takeProfit2.toLocaleString()}</span>}
+                      {p.takeProfit3 && <span className="text-[10px] font-mono text-emerald-200 whitespace-nowrap">TP3: {p.takeProfit3.toLocaleString()}</span>}
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <DirectionBadge direction={p.direction} />
+                  <StatusBadge status={p.status} />
+                </div>
+              </GlassCard>
+            ))}
         </div>
 
         <div className="space-y-4">

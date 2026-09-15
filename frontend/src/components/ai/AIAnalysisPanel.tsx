@@ -226,8 +226,6 @@ export function AIAnalysisPanel({ instrument, prediction, isSubscribed, onUnlock
                         ))}
                     </div>
                     <p className="text-xs text-[var(--text-muted)]">Running analysis on {instrument}…</p>
-                </div>
-            )}
 
             {/* ── ERROR STATE ──────────────────────────────────────────────────── */}
             {analysisError && !isAnalyzing && (

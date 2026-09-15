@@ -1,4 +1,4 @@
-import { Bell, Menu, Search, UserCircle, ChevronDown, Home } from 'lucide-react';
+import { Bell, Menu, Search, UserCircle, ChevronDown, Home, Mail, Coins } from 'lucide-react';
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ThemeToggle } from '../components/ui/ThemeToggle';
@@ -7,6 +7,7 @@ import { InlineSearch } from '../components/search/InlineSearch';
 import { useAuthStore } from '../state/useAuthStore';
 import { useUIStore } from '../state/useUIStore';
 import { useNotifications, useMarkAllNotificationsAsRead } from '../hooks/useNotificationsQuery';
+import { usePaperTradingStore } from '../state/usePaperTradingStore';
 import { UserRole } from '../types';
 
 const ROLE_LABELS: Record<UserRole, string> = {
@@ -27,6 +28,7 @@ export const Topbar: React.FC = () => {
   const { data: notificationsData } = useNotifications();
   const markAllAsRead = useMarkAllNotificationsAsRead();
   const unreadCount = notificationsData?.data?.filter((n) => !n.read).length || 0;
+  const { balance } = usePaperTradingStore();
   const navigate = useNavigate();
   const [profileOpen, setProfileOpen] = useState(false);
   const [roleMenuOpen, setRoleMenuOpen] = useState(false);
@@ -94,7 +96,12 @@ export const Topbar: React.FC = () => {
             {(['USER', 'TRADER', 'ADMIN'] as UserRole[]).map((r) => (
               <button
                 key={r}
-                onClick={() => switchRoleDemo(r)}
+                onClick={() => {
+                  switchRoleDemo(r);
+                  if (r === 'ADMIN') navigate('/admin');
+                  else if (r === 'TRADER') navigate('/trader/dashboard');
+                  else navigate('/dashboard');
+                }}
                 className={`text-[10px] font-semibold px-2 py-0.5 rounded-md transition-all ${activeRole === r
                   ? 'bg-[var(--brand-glow)] text-[var(--brand-primary)]'
                   : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
@@ -115,6 +122,18 @@ export const Topbar: React.FC = () => {
         >
           <Search className="w-4.5 h-4.5" />
         </button>
+
+        {/* Paper Trading Balance — USER only */}
+        {activeRole === 'USER' && (
+        <Link
+          to="/paper-trading"
+          className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--brand-primary)]/40 transition-all"
+          title="Paper Trading"
+        >
+          <Coins className="w-4 h-4 text-[var(--color-warning)] flex-shrink-0" />
+          <span className="text-xs font-bold font-mono-num text-[var(--color-warning)]">${balance.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+        </Link>
+        )}
 
         {/* Home */}
         <Link
@@ -167,7 +186,7 @@ export const Topbar: React.FC = () => {
             <div
               role="menu"
               aria-label="Profile menu"
-              className="absolute right-0 top-full mt-2 w-56 bg-[var(--bg-surface-glass)] backdrop-blur-xl border border-[var(--border-glass)] rounded-2xl shadow-2xl py-2 z-50"
+              className="absolute right-0 top-full mt-2 w-56 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl shadow-2xl py-2 z-50"
               onKeyDown={(e) => {
                 if (e.key === 'Tab') {
                   // Trap focus inside the dropdown
@@ -205,6 +224,15 @@ export const Topbar: React.FC = () => {
                 className="flex items-center gap-2.5 px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-colors focus:outline-none focus:bg-[var(--bg-secondary)]"
               >
                 <UserCircle className="w-4 h-4" /> Profile
+              </Link>
+
+              <Link
+                to="/contact"
+                role="menuitem"
+                onClick={() => setProfileOpen(false)}
+                className="flex items-center gap-2.5 px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-colors focus:outline-none focus:bg-[var(--bg-secondary)]"
+              >
+                <Mail className="w-4 h-4" /> Contact Us
               </Link>
 
               <button

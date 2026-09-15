@@ -214,6 +214,7 @@ export const ZoneLinesChart: React.FC<Props> = ({
   const chartRef = useRef<IChartApi | null>(null);
   const candleRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const { theme } = useUIStore();
+  const themeRef = useRef(theme);
 
   const [activeTF, setActiveTF] = useState(tframeProp ?? prediction?.timeframe ?? '1h');
   const binanceSym = INSTRUMENT_TO_BINANCE[instrument];

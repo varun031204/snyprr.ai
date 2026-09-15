@@ -19,37 +19,30 @@ export const StatCard: React.FC<StatCardProps> = ({
   subtext,
 }) => {
   return (
-    <GlassCard className="flex flex-col justify-between relative overflow-hidden">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-[var(--text-muted)] tracking-wider uppercase">
+    <GlassCard className="flex flex-col gap-3 p-4 relative overflow-hidden min-w-0">
+      <div className="flex items-start justify-between gap-2">
+        <span className="text-[11px] font-medium text-[var(--text-muted)] uppercase leading-tight break-words min-w-0">
           {title}
         </span>
         {icon && (
-          <div className="w-9 h-9 rounded-xl bg-[var(--brand-glow)] text-[var(--brand-primary)] flex items-center justify-center">
+          <div className="w-8 h-8 rounded-xl bg-[var(--brand-glow)] text-[var(--brand-primary)] flex items-center justify-center flex-shrink-0">
             {icon}
           </div>
         )}
       </div>
 
-      <div className="mt-3">
+      <div>
         <div className="text-2xl font-bold font-mono-num text-[var(--text-primary)] tracking-tight">
           {value}
         </div>
         {change && (
-          <div className="flex items-center gap-1 mt-1 text-xs font-medium">
-            <span
-              className={
-                isPositive !== undefined
-                  ? isPositive
-                    ? 'text-[var(--color-success)]'
-                    : 'text-[var(--color-danger)]'
-                  : 'text-[var(--text-muted)]'
-              }
-            >
-              {isPositive !== undefined ? (isPositive ? '↑' : '↓') : ''} {change}
-            </span>
-            {subtext && <span className="text-[var(--text-muted)]">vs last period</span>}
-          </div>
+          <p className={`text-[11px] font-medium mt-1 leading-snug ${
+            isPositive !== undefined
+              ? isPositive ? 'text-[var(--color-success)]' : 'text-[var(--color-danger)]'
+              : 'text-[var(--text-muted)]'
+          }`}>
+            {isPositive !== undefined ? (isPositive ? '↑ ' : '↓ ') : ''}{change}
+          </p>
         )}
       </div>
     </GlassCard>
