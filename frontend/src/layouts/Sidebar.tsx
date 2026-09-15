@@ -169,8 +169,7 @@ export const Sidebar: React.FC = () => {
                     if (window.innerWidth < 768) setSidebarOpen(false);
                   }}
                   title={!sidebarOpen ? item.label : undefined}
-                  className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all duration-150 relative w-full ${!sidebarOpen ? 'md:justify-center md:px-0' : ''
-                    } text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)]`}
+                  className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all duration-150 relative w-full text-left border-0 bg-transparent outline-none ${!sidebarOpen ? 'md:justify-center md:px-0' : ''} text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)]`}
                 >
                   <span className="flex-shrink-0 transition-transform group-hover:scale-110">
                     {item.icon}

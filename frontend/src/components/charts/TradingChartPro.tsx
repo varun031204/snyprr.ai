@@ -295,6 +295,8 @@ export const TradingChartPro: React.FC<TradingChartProProps> = ({
   const seriesRef    = useRef<ISeriesApi<'Candlestick'>|null>(null);
   const priceLineRefs = useRef<any[]>([]);
   const textInputRef  = useRef<HTMLInputElement>(null);
+  // Drag state for movable lines (horizontal / vertical)
+  const dragState = useRef<{ id: string; type: 'horizontal' | 'vertical' } | null>(null);
   const { theme } = useUIStore();
   const themeRef = useRef(theme);
 
@@ -536,7 +538,6 @@ export const TradingChartPro: React.FC<TradingChartProProps> = ({
 
   // ── Tools that require multiple clicks (not drag) ─────────────────────────
   const CLICK_TOOLS: DrawingTool[] = [
-    'vertical','horizontal','arrow_up','arrow_down',
     'pitchfork','fibextension','fibchannel','triangle',
     'channel',
   ];

@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '../types/database.types.js';
 import { AppError } from '../middleware/error.middleware.js';
+import { supabaseAdmin } from '../config/supabaseClient.js';
 
 export type SignalDirection = 'LONG' | 'SHORT';
 export type SignalStatus =

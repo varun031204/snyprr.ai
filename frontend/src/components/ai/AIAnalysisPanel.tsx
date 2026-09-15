@@ -1,4 +1,4 @@
-/**
+﻿/**
  * AIAnalysisPanel
  *
  * Side panel that:
@@ -165,8 +165,8 @@ export function AIAnalysisPanel({ instrument, prediction, isSubscribed, onUnlock
                 )}
             </div>
 
-            {/* ── Trader Levels — only shown when a prediction exists ────────── */}
-            {prediction && (
+            {/* ── Trader Levels — revealed only after AI analysis runs ────────── */}
+            {analysis && prediction && (
                 <div className="grid grid-cols-2 gap-2">
                     {buyZone !== null && (
                         <div className="p-2.5 rounded-xl bg-[var(--color-success-bg)] border border-[var(--color-success)]/20 text-center">
@@ -200,14 +200,17 @@ export function AIAnalysisPanel({ instrument, prediction, isSubscribed, onUnlock
                             </p>
                         </div>
                     )}
-                    {prediction.entryPrice && (
-                        <div className="col-span-2 p-2.5 rounded-xl bg-[var(--brand-glow)] border border-[var(--brand-primary)]/20 text-center">
-                            <p className="text-[10px] font-semibold text-[var(--brand-primary)] mb-0.5">Entry Price</p>
-                            <p className="text-xs font-bold font-mono-num text-[var(--brand-primary)]">
-                                ${fmt(prediction.entryPrice, instrument)}
-                            </p>
-                        </div>
-                    )}
+                </div>
+            )}
+
+            {/* ── Pre-analysis locked state hint ─────────────────────────────────── */}
+            {!analysis && !isAnalyzing && prediction && (
+                <div className="flex flex-col items-center gap-2 py-4 px-3 rounded-xl border border-dashed border-[var(--border-subtle)] text-center bg-[var(--bg-secondary)]">
+                    <Sparkles className="w-5 h-5 text-[var(--brand-primary)] opacity-60" />
+                    <p className="text-[11px] font-semibold text-[var(--text-primary)]">Trade Levels Hidden</p>
+                    <p className="text-[10px] text-[var(--text-muted)] leading-relaxed">
+                        Click <span className="font-bold text-[var(--brand-primary)]">AI Analysis</span> below to unlock key levels and get an instant AI market review.
+                    </p>
                 </div>
             )}
 
@@ -322,7 +325,7 @@ export function AIAnalysisPanel({ instrument, prediction, isSubscribed, onUnlock
                     >
                         <span className="flex items-center gap-2 text-xs font-semibold text-[var(--text-primary)]">
                             <Bot className="w-3.5 h-3.5 text-[var(--brand-primary)]" />
-                            Ask Beast AI
+                            Ask snyprr AI
                             <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-success)] animate-pulse" />
                         </span>
                         {chatOpen

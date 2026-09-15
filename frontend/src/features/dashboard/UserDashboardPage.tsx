@@ -133,6 +133,24 @@ export default function UserDashboardPage() {
 
         <div className="flex flex-col gap-3 flex-1 min-w-0">
 
+          {/* Timeframe selector */}
+          <div className="flex items-center gap-1 flex-wrap">
+            {['5m','15m','30m','1h','2h','4h','1d','1w'].map((tf) => (
+              <button
+                key={tf}
+                type="button"
+                onClick={() => setTimeframe(tf)}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer border ${
+                  timeframe === tf
+                    ? 'bg-[var(--brand-primary)] text-white border-[var(--brand-primary)] shadow-sm shadow-[var(--brand-glow)]'
+                    : 'bg-[var(--bg-surface)] text-[var(--text-muted)] border-[var(--border-subtle)] hover:text-[var(--text-primary)] hover:border-[var(--border-strong)]'
+                }`}
+              >
+                {tf}
+              </button>
+            ))}
+          </div>
+
           <TradingChartPro
             tvSymbol={activeAsset.symbol}
             instrument={activeAsset.instrument}
@@ -142,36 +160,11 @@ export default function UserDashboardPage() {
             predictionId={effectiveChartPrediction?.id ?? activeAsset.instrument}
           />
 
-          {/* Levels strip — shown whenever active setup has key levels */}
-          {activePrediction && (() => {
-            const levels = [
-              { label: 'Entry', value: activePrediction.entryPrice, color: 'var(--brand-primary)' },
-              { label: 'Buy Wall', value: activePrediction.buyingZone ?? activePrediction.entryPrice * 0.97, color: 'var(--color-success)' },
-              { label: 'Sell Wall', value: activePrediction.sellingZone ?? activePrediction.entryPrice * 1.06, color: 'var(--color-danger)' },
-              ...(activePrediction.stopLoss ? [{ label: 'SL', value: activePrediction.stopLoss, color: '#fb923c' }] : []),
-              ...(activePrediction.takeProfit ? [{ label: 'TP1', value: activePrediction.takeProfit, color: '#34d399' }] : []),
-              ...(activePrediction.takeProfit2 ? [{ label: 'TP2', value: activePrediction.takeProfit2, color: '#6ee7b7' }] : []),
-              ...(activePrediction.takeProfit3 ? [{ label: 'TP3', value: activePrediction.takeProfit3, color: '#a7f3d0' }] : []),
-            ];
-            return (
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
-                {levels.map((lv) => (
-                  <div key={lv.label} className="flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: lv.color }} />
-                    <span className="text-[10px] text-[var(--text-muted)]">{lv.label}</span>
-                    <span className="text-[11px] font-bold font-mono-num" style={{ color: lv.color }}>
-                      ${lv.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                ))}
-                <span className="ml-auto text-[9px] text-[var(--text-muted)] italic">trader-uploaded · not AI</span>
-              </div>
-            );
-          })()}
+
         </div>
 
         {/* Right Column: AI Analysis + Paper Trade below it */}
-        <div className="w-[340px] lg:w-[380px] flex-shrink-0 space-y-3">
+        <div className="w-[340px] lg:w-[380px] flex-shrink-0 space-y-3 mt-[44px]">
           {/* AI Analysis Box */}
           <GlassCard hoverEffect={false} className="border border-[var(--border-subtle)] relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--brand-glow)] rounded-full blur-3xl opacity-30 pointer-events-none -mr-8 -mt-8" />

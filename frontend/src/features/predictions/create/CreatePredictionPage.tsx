@@ -1,11 +1,11 @@
-import React, { useState, useMemo } from 'react';
+﻿import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Sparkles, CheckCircle2, AlertTriangle, TrendingUp, TrendingDown, RotateCcw } from 'lucide-react';
 import { GlassCard } from '../../../components/ui/GlassCard';
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
 import { SimpleChart } from '../../../components/charts/SimpleChart';
-import { INSTRUMENTS, TIMEFRAMES } from '../../../constants';
+import { INSTRUMENTS } from '../../../constants';
 import { useCreatePrediction } from '../../../hooks/usePredictionsQuery';
 import { useMarketStore } from '../../../state/useMarketStore';
 import { useAuthStore } from '../../../state/useAuthStore';
@@ -22,7 +22,6 @@ export default function CreatePredictionPage() {
 
   const [instrument, setInstrument] = useState('BTC/USDT');
   const [direction, setDirection] = useState<PredictionDirection>('LONG');
-  const [entryPrice, setEntryPrice] = useState<string>('92500');
   const [buyingZone, setBuyingZone] = useState<string>('91200');
   const [sellingZone, setSellingZone] = useState<string>('98500');
   const [stopLoss, setStopLoss] = useState<string>('89000');
@@ -38,7 +37,6 @@ export default function CreatePredictionPage() {
     if (ticker) {
       const price = ticker.price;
       const decimals = ticker.category === 'FOREX' ? 4 : 2;
-      setEntryPrice(price.toString());
       if (direction === 'LONG') {
         setBuyingZone((price * 0.97).toFixed(decimals));
         setSellingZone((price * 1.06).toFixed(decimals));
@@ -52,7 +50,7 @@ export default function CreatePredictionPage() {
   // Switch direction and auto-adjust zones
   const handleDirectionChange = (newDir: PredictionDirection) => {
     setDirection(newDir);
-    const base = parseFloat(entryPrice) || 100;
+    const base = parsedBuying || 100;
     const ticker = tickers.find((t) => t.symbol === instrument);
     const decimals = ticker?.category === 'FOREX' ? 4 : 2;
 
@@ -66,7 +64,6 @@ export default function CreatePredictionPage() {
   };
 
   // Real-time calculation of Zone Spread & Validation
-  const parsedEntry = parseFloat(entryPrice) || 0;
   const parsedBuying = parseFloat(buyingZone) || 0;
   const parsedSelling = parseFloat(sellingZone) || 0;
 
@@ -93,7 +90,6 @@ export default function CreatePredictionPage() {
     setDirection('LONG');
     const ticker = tickers.find((t) => t.symbol === defaultSymbol);
     const price = ticker ? ticker.price : 92500;
-    setEntryPrice(price.toString());
     setBuyingZone((price * 0.97).toFixed(2));
     setSellingZone((price * 1.06).toFixed(2));
     setStopLoss((price * 0.94).toFixed(2));
@@ -101,11 +97,7 @@ export default function CreatePredictionPage() {
     setTimeframe('4h');
     setVisibility('PUBLIC');
     setErrors({});
-    addToast({
-      type: 'info',
-      title: 'Form Reset',
-      message: 'Parameters restored to defaults.',
-    });
+    addToast({ type: 'info', title: 'Form Reset', message: 'Parameters restored to defaults.' });
   };
 
   const handleSave = async (status: 'DRAFT' | 'PUBLISHED') => {
@@ -122,14 +114,14 @@ export default function CreatePredictionPage() {
       instrument,
       category,
       direction,
-      entryPrice: parsedEntry > 0 ? parsedEntry : parsedBuying,
+      entryPrice: parsedBuying,
       buyingZone: parsedBuying,
       sellingZone: parsedSelling,
-      stopLoss: parsedStopLoss,
-      takeProfit: parsedTakeProfit,
+      stopLoss: parsedStopLoss || undefined,
+      takeProfit: parsedTakeProfit || undefined,
       timeframe,
       strategy: 'Key Price Zones',
-      analysis: `Forecast for ${instrument} (${timeframe}).\n- Buying Wall: ${parsedBuying.toLocaleString()}\n- Selling Wall: ${parsedSelling.toLocaleString()}\n- Stop Loss: ${parsedStopLoss.toLocaleString()}\n- Take Profit: ${parsedTakeProfit.toLocaleString()}`,
+      analysis: `Forecast for ${instrument} (${timeframe}).\n- Buying Wall: ${parsedBuying.toLocaleString()}\n- Selling Wall: ${parsedSelling.toLocaleString()}${parsedStopLoss ? `\n- Stop Loss: ${parsedStopLoss.toLocaleString()}` : ''}${parsedTakeProfit ? `\n- Take Profit: ${parsedTakeProfit.toLocaleString()}` : ''}`,
       visibility,
       tags: [instrument.split('/')[0], direction, timeframe],
     };
@@ -163,9 +155,9 @@ export default function CreatePredictionPage() {
         traderId: currentUser.id,
         trader: {
           id: currentUser.id,
-          displayName: 'TradeBeast Desk',
-          handle: '@tradebeast',
-          avatar: '/tradebeast-logo.png',
+          displayName: 'snyprr.ai Desk',
+          handle: '@snyprr',
+          avatar: '/snyprr-logo.png',
           verifiedBadge: true,
           winRate: 78.5,
         },
@@ -223,8 +215,8 @@ export default function CreatePredictionPage() {
               </span>
             </div>
 
-            {/* Instrument, Direction, Timeframe, Audience Visibility */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5">
+            {/* Instrument, Direction, Audience Visibility */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
               <div>
                 <label className="text-xs font-medium text-[var(--text-secondary)] block mb-1.5">
                   Instrument
@@ -270,21 +262,6 @@ export default function CreatePredictionPage() {
                     <TrendingDown className="w-3.5 h-3.5" /> SHORT
                   </button>
                 </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-medium text-[var(--text-secondary)] block mb-1.5">
-                  Timeframe
-                </label>
-                <select
-                  value={timeframe}
-                  onChange={(e) => setTimeframe(e.target.value)}
-                  className="w-full bg-[var(--bg-surface)] text-[var(--text-primary)] border border-[var(--border-subtle)] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)] cursor-pointer font-medium"
-                >
-                  {TIMEFRAMES.map((tf) => (
-                    <option key={tf} value={tf}>{tf}</option>
-                  ))}
-                </select>
               </div>
 
               <div>
@@ -446,7 +423,6 @@ export default function CreatePredictionPage() {
             <div className="h-56">
               <SimpleChart
                 candles={currentCandles}
-                entryPrice={parsedEntry}
                 buyingZone={parsedBuying}
                 sellingZone={parsedSelling}
                 direction={direction}
@@ -488,7 +464,7 @@ export default function CreatePredictionPage() {
 
           {/* Guidelines info card */}
           <div className="p-4 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] text-xs text-[var(--text-muted)] space-y-2">
-            <p className="font-semibold text-[var(--text-primary)]">💡 Trade Beast Prediction Guidelines</p>
+            <p className="font-semibold text-[var(--text-primary)]">💡 snyprr.ai Prediction Guidelines</p>
             <p>
               • Predictions declare buying zone and selling zone levels for technical analysis.
             </p>

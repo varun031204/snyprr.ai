@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+﻿import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   TrendingUp, TrendingDown, CheckCircle2, Clock,
@@ -18,8 +18,90 @@ import { TradingChartPro } from '../../components/charts/TradingChartPro';
 import { CHART_ITEMS } from '../../constants';
 import type { Prediction, PredictionDirection } from '../../types';
 
+function relativeTime(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+// ── TradingView iframe chart (official embed, no third-party wrapper) ─────────
+const TV_INTERVAL_MAP: Record<string, string> = {
+  '1m': '1',
+  '3m': '3',
+  '5m': '5',
+  '15m': '15',
+  '30m': '30',
+  '45m': '45',
+  '1h': '60',
+  '2h': '120',
+  '3h': '180',
+  '4h': '240',
+  '6h': '360',
+  '8h': '480',
+  '12h': '720',
+  '1d': 'D',
+  '3d': '3D',
+  '1w': 'W',
+  '1M': 'M',
+};
+
+const TradingViewChart: React.FC<{ symbol: string; interval: string; theme: string; height: number }> = ({
+  symbol, interval, theme, height,
+}) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const tvInterval = TV_INTERVAL_MAP[interval] ?? '60';
+  const tvTheme = theme === 'neo-light' ? 'light' : 'dark';
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    container.innerHTML = '';
+
+    const script = document.createElement('script');
+    script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
+    script.type = 'text/javascript';
+    script.async = true;
+    script.innerHTML = JSON.stringify({
+      autosize: true,
+      symbol,
+      interval: tvInterval,
+      timezone: 'Etc/UTC',
+      theme: tvTheme,
+      style: '1',
+      locale: 'en',
+      allow_symbol_change: true,
+      calendar: false,
+      support_host: 'https://www.tradingview.com',
+    });
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'tradingview-widget-container__widget';
+    wrapper.style.height = '100%';
+    wrapper.style.width = '100%';
+    container.appendChild(wrapper);
+    container.appendChild(script);
+
+    return () => {
+      container.innerHTML = '';
+    };
+  }, [symbol, tvInterval, tvTheme]);
+
+  return (
+    <div
+      className="w-full rounded-2xl overflow-hidden border border-[var(--border-subtle)] bg-[var(--bg-surface)]"
+      style={{ height }}
+    >
+      <div ref={containerRef} className="tradingview-widget-container" style={{ height: '100%', width: '100%' }} />
+    </div>
+  );
+};
+
 const TIMEFRAME_OPTIONS = [
-  { value: '1m', label: '1m' },
   { value: '3m', label: '3m' },
   { value: '5m', label: '5m' },
   { value: '15m', label: '15m' },
@@ -42,6 +124,7 @@ export default function TraderDashboardPage() {
   const createMutation = useCreatePrediction();
 
   const [chartSymbol, setChartSymbol] = useState('BINANCE:BTCUSDT');
+  const [chartMode, setChartMode] = useState<'tradingview' | 'pro'>('tradingview');
 
   const { data, isLoading } = usePredictions({ page: 1, pageSize: 50 });
   const predictions = data?.data || [];
@@ -178,16 +261,26 @@ export default function TraderDashboardPage() {
         traderId: currentUser?.id || '',
         trader: {
           id: currentUser?.id || '',
-          displayName: currentUser?.name || 'TradeBeast Desk',
-          handle: '@tradebeast',
-          avatar: currentUser?.avatar || '/tradebeast-logo.png',
+          displayName: currentUser?.name || 'snyprr.ai Desk',
+          handle: '@snyprr',
+          avatar: currentUser?.avatar || '/snyprr-logo.png',
           verifiedBadge: true,
           winRate: 0,
         },
       });
       addToast({ type: 'success', title: 'Published!', message: `${panelInstrument} setup is now live.` });
-    } catch {
-      addToast({ type: 'danger', title: 'Publish Failed', message: 'Could not publish prediction. Please try again.' });
+    } catch (err: any) {
+      // Surface the real error message so we can diagnose what's going wrong
+      const detail =
+        err?.message ||
+        err?.response?.message ||
+        (typeof err === 'string' ? err : JSON.stringify(err));
+      addToast({
+        type: 'danger',
+        title: 'Publish Failed',
+        message: detail || 'Unknown error — check browser console for details.',
+      });
+      console.error('[Publish Prediction Error]', err);
     } finally {
       setIsPublishing(false);
     }
@@ -252,27 +345,79 @@ export default function TraderDashboardPage() {
             );
           })}
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-[var(--text-muted)] font-medium">Unified Chart & Drawing Suite</span>
+        <div className="flex items-center gap-1 p-0.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] flex-shrink-0">
+          <button
+            type="button"
+            onClick={() => setChartMode('tradingview')}
+            className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all cursor-pointer flex items-center gap-1.5 ${
+              chartMode === 'tradingview'
+                ? 'bg-[var(--brand-primary)] text-white shadow-sm'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+            }`}
+          >
+            TradingView
+          </button>
+          <button
+            type="button"
+            onClick={() => setChartMode('pro')}
+            className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all cursor-pointer flex items-center gap-1.5 ${
+              chartMode === 'pro'
+                ? 'bg-[var(--brand-primary)] text-white shadow-sm'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+            }`}
+          >
+            <BarChart2 className="w-3.5 h-3.5" /> Pro Chart
+          </button>
         </div>
       </div>
 
       {/* Chart + Create Panel — side by side */}
       <div className="grid lg:grid-cols-[1fr_380px] gap-4 items-start">
-        {/* Chart */}
-        <div className="w-full">
-          <TradingChartPro
-            tvSymbol={chartSymbol}
-            instrument={activeChartInstrument}
-            prediction={activePredictionForChart}
-            timeframe={effectiveTimeframe}
-            height={620}
-            predictionId={activePredictionForChart?.id ?? activeChartInstrument}
-          />
+        {/* Chart Column */}
+        <div className="flex flex-col gap-3 w-full min-w-0">
+          {/* Timeframe selector */}
+          <div className="flex items-center gap-1 flex-wrap">
+            {['5m', '15m', '30m', '1h', '2h', '4h', '1d', '1w'].map((tf) => (
+              <button
+                key={tf}
+                type="button"
+                onClick={() => {
+                  setTimeframe(tf);
+                  setIsCustomTimeframe(false);
+                }}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer border ${
+                  effectiveTimeframe === tf
+                    ? 'bg-[var(--brand-primary)] text-white border-[var(--brand-primary)] shadow-sm shadow-[var(--brand-glow)]'
+                    : 'bg-[var(--bg-surface)] text-[var(--text-muted)] border-[var(--border-subtle)] hover:text-[var(--text-primary)] hover:border-[var(--border-strong)]'
+                }`}
+              >
+                {tf}
+              </button>
+            ))}
+          </div>
+
+          {chartMode === 'tradingview' ? (
+            <TradingViewChart
+              symbol={chartSymbol}
+              interval={effectiveTimeframe}
+              theme={theme}
+              height={620}
+            />
+          ) : (
+            <TradingChartPro
+              tvSymbol={chartSymbol}
+              instrument={activeChartInstrument}
+              prediction={activePredictionForChart}
+              timeframe={effectiveTimeframe}
+              height={620}
+              predictionId={activePredictionForChart?.id ?? activeChartInstrument}
+            />
+          )}
         </div>
 
         {/* Create Prediction Panel */}
-        <GlassCard hoverEffect={false} className="flex flex-col gap-3 p-4 border border-[var(--border-subtle)] relative overflow-hidden">
+        <div className="lg:mt-[44px]">
+          <GlassCard hoverEffect={false} className="flex flex-col gap-3 p-4 border border-[var(--border-subtle)] relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--brand-glow)] rounded-full blur-3xl opacity-20 pointer-events-none -mr-6 -mt-6" />
 
           {/* Panel header */}
@@ -316,73 +461,34 @@ export default function TraderDashboardPage() {
             })}
           </div>
 
-          {/* Direction + Timeframe */}
+          {/* Direction */}
           <div className="space-y-1.5 relative z-10">
-            <div className="flex items-center justify-between text-[11px] font-semibold text-[var(--text-secondary)]">
-              <span>Trade Bias</span>
-              <span>Timeframe</span>
+            <div className="text-[11px] font-semibold text-[var(--text-secondary)]">
+              Trade Bias
             </div>
-            <div className="flex items-center gap-2">
-              <div className="flex gap-1 bg-[var(--bg-secondary)] p-1 rounded-lg border border-[var(--border-subtle)] flex-1">
-                <button
-                  type="button"
-                  onClick={() => handleDirectionChange('LONG')}
-                  className={`flex-1 flex items-center justify-center gap-1 py-1 px-2 rounded-md text-xs font-bold transition-all cursor-pointer ${
-                    direction === 'LONG'
-                      ? 'bg-[var(--color-success-bg)] text-[var(--color-success)] border border-[var(--color-success)]/40'
-                      : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                  }`}
-                >
-                  <TrendingUp className="w-3.5 h-3.5" /> LONG
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDirectionChange('SHORT')}
-                  className={`flex-1 flex items-center justify-center gap-1 py-1 px-2 rounded-md text-xs font-bold transition-all cursor-pointer ${
-                    direction === 'SHORT'
-                      ? 'bg-[var(--color-danger-bg)] text-[var(--color-danger)] border border-[var(--color-danger)]/40'
-                      : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                  }`}
-                >
-                  <TrendingDown className="w-3.5 h-3.5" /> SHORT
-                </button>
-              </div>
-
-              {isCustomTimeframe ? (
-                <div className="flex items-center gap-1 min-w-[140px]">
-                  <input
-                    type="number" min="1" value={customTimeValue}
-                    onChange={(e) => setCustomTimeValue(e.target.value)}
-                    className="w-12 bg-[var(--bg-secondary)] text-[var(--text-primary)] border border-[var(--border-subtle)] rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none focus:border-[var(--brand-primary)] text-center"
-                  />
-                  <div className="relative flex-1">
-                    <select
-                      value={customTimeUnit}
-                      onChange={(e) => setCustomTimeUnit(e.target.value as any)}
-                      className="w-full bg-[var(--bg-secondary)] text-[var(--text-primary)] border border-[var(--border-subtle)] rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none focus:border-[var(--brand-primary)] appearance-none pr-5 cursor-pointer"
-                    >
-                      <option value="m">mins</option>
-                      <option value="h">hours</option>
-                    </select>
-                    <ChevronDown className="w-3 h-3 text-[var(--text-muted)] absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  </div>
-                  <button type="button" onClick={() => setIsCustomTimeframe(false)} className="p-1 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)]">
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              ) : (
-                <div className="relative min-w-[130px]">
-                  <select
-                    value={timeframe}
-                    onChange={(e) => { if (e.target.value === 'custom') setIsCustomTimeframe(true); else setTimeframe(e.target.value); }}
-                    className="w-full bg-[var(--bg-secondary)] text-[var(--text-primary)] border border-[var(--border-subtle)] rounded-lg px-2.5 py-1.5 text-xs font-bold focus:outline-none focus:border-[var(--brand-primary)] appearance-none pr-7 cursor-pointer"
-                  >
-                    {TIMEFRAME_OPTIONS.map((tf) => <option key={tf.value} value={tf.value}>{tf.label}</option>)}
-                    <option value="custom">+ Custom...</option>
-                  </select>
-                  <ChevronDown className="w-3.5 h-3.5 text-[var(--text-muted)] absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
-                </div>
-              )}
+            <div className="flex gap-1 bg-[var(--bg-secondary)] p-1 rounded-lg border border-[var(--border-subtle)]">
+              <button
+                type="button"
+                onClick={() => handleDirectionChange('LONG')}
+                className={`flex-1 flex items-center justify-center gap-1 py-1 px-2 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                  direction === 'LONG'
+                    ? 'bg-[var(--color-success-bg)] text-[var(--color-success)] border border-[var(--color-success)]/40'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                }`}
+              >
+                <TrendingUp className="w-3.5 h-3.5" /> LONG
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDirectionChange('SHORT')}
+                className={`flex-1 flex items-center justify-center gap-1 py-1 px-2 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                  direction === 'SHORT'
+                    ? 'bg-[var(--color-danger-bg)] text-[var(--color-danger)] border border-[var(--color-danger)]/40'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                }`}
+              >
+                <TrendingDown className="w-3.5 h-3.5" /> SHORT
+              </button>
             </div>
           </div>
 
@@ -400,13 +506,9 @@ export default function TraderDashboardPage() {
             </div>
           </div>
 
-          {/* Entry + Spread */}
+          {/* Zone Spread */}
           <div className="p-2.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] flex items-center justify-between gap-2 relative z-10 min-w-0">
-            <div className="flex items-center gap-1.5 min-w-0 flex-1">
-              <span className="text-[11px] font-semibold text-[var(--text-muted)] flex-shrink-0">Entry:</span>
-              <input type="number" step="any" value={entryPrice} onChange={(e) => setEntryPrice(e.target.value)}
-                className="min-w-0 flex-1 bg-transparent font-mono text-xs font-bold text-[var(--text-primary)] focus:outline-none" />
-            </div>
+            <span className="text-[11px] font-semibold text-[var(--text-muted)]">Zone Spread</span>
             <span className={`text-[11px] font-bold font-mono px-2 py-0.5 rounded flex-shrink-0 ${spreadPct >= 0 ? 'text-[var(--color-success)] bg-[var(--color-success-bg)]' : 'text-[var(--color-danger)] bg-[var(--color-danger-bg)]'}`}>
               {spreadPct >= 0 ? '+' : ''}{spreadPct.toFixed(2)}%
             </span>
@@ -485,6 +587,7 @@ export default function TraderDashboardPage() {
             </button>
           </div>
         </GlassCard>
+        </div>
       </div>
 
       {/* KPIs */}
@@ -509,7 +612,16 @@ export default function TraderDashboardPage() {
             : predictions.slice(0, 5).map((p) => (
               <GlassCard key={p.id} className="flex items-center gap-3 cursor-pointer" onClick={() => navigate(`/predictions/${p.id}`)}>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs text-[var(--text-muted)] mb-1 truncate">{p.instrument} · {p.timeframe}</p>
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <span className="px-1.5 py-0.5 rounded bg-[var(--bg-secondary)] border border-[var(--border-subtle)] text-[10px] font-bold text-[var(--text-secondary)] tracking-wide">
+                      {p.timeframe}
+                    </span>
+                    <span className="flex items-center gap-1 text-[10px] text-[var(--text-muted)]">
+                      <Clock className="w-3 h-3" />
+                      {relativeTime(p.publishedAt ?? p.createdAt)}
+                    </span>
+                  </div>
+                  <p className="text-xs text-[var(--text-muted)] mb-0.5 truncate">{p.instrument} · {p.strategy}</p>
                   <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{p.title}</p>
                   {(p.stopLoss || p.takeProfit) && (
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1">

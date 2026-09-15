@@ -12,7 +12,6 @@ import { CHART_ITEMS } from '../../constants';
 import type { Prediction, PredictionDirection } from '../../types';
 
 const TIMEFRAME_OPTIONS = [
-  { value: '1m', label: '1m' },
   { value: '3m', label: '3m' },
   { value: '5m', label: '5m' },
   { value: '15m', label: '15m' },

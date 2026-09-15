@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Gemini 2.5 Flash service
  *
  * Reads the API key from the VITE_GEMINI_API_KEY env variable.
@@ -8,7 +8,7 @@
 import type { Prediction } from '../../types';
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
-const GEMINI_MODEL = 'gemini-2.5-flash';
+const GEMINI_MODEL = 'gemini-3.6-flash';
 const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -35,7 +35,7 @@ function buildAnalysisPrompt(prediction: Prediction): string {
     const tp = prediction.takeProfit ?? prediction.entryPrice * 1.12;
     const rr = prediction.riskRewardRatio?.toFixed(2) ?? 'N/A';
 
-    return `You are an expert financial analyst specialising in technical and sentiment analysis for cryptocurrency and commodity markets. A trader has published the following trade setup for a TradeBeast platform user. Your task is to objectively evaluate this setup and present a concise, easy-to-understand review.
+    return `You are an expert financial analyst specialising in technical and sentiment analysis for cryptocurrency and commodity markets. A trader has published the following trade setup for a snyprr.ai platform user. Your task is to objectively evaluate this setup and present a concise, easy-to-understand review.
 
 TRADE SETUP:
 - Instrument: ${prediction.instrument}
@@ -63,9 +63,9 @@ Respond strictly in this JSON format (no markdown, no extra text outside the JSO
 function buildChatSystemInstruction(prediction: Prediction | null): string {
     const context = prediction
         ? `The user is currently viewing a ${prediction.direction} setup on ${prediction.instrument} (${prediction.strategy}, ${prediction.timeframe} timeframe). Entry: ${prediction.entryPrice}, SL: ${prediction.stopLoss ?? 'N/A'}, TP: ${prediction.takeProfit ?? 'N/A'}.`
-        : 'The user is on the TradeBeast dashboard viewing market charts.';
+        : 'The user is on the snyprr.ai dashboard viewing market charts.';
 
-    return `You are Beast AI, TradeBeast's intelligent trade analysis assistant. You are helpful, concise, and focused on practical trading insights. ${context} Answer questions about this trade setup, market context, risk management, and trading strategy. Keep responses under 200 words. Do not provide financial advice — frame everything as educational analysis.`;
+    return `You are snyprr AI, snyprr.ai's intelligent trade analysis assistant. You are helpful, concise, and focused on practical trading insights. ${context} Answer questions about this trade setup, market context, risk management, and trading strategy. Keep responses under 200 words. Do not provide financial advice — frame everything as educational analysis.`;
 }
 
 // ─── Core fetch helper ────────────────────────────────────────────────────────

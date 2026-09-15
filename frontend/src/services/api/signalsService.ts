@@ -1,4 +1,4 @@
-/**
+﻿/**
  * signalsService.ts
  * Real HTTP implementation of IPredictionApi — backed by /api/signals
  *
@@ -60,9 +60,9 @@ function toFrontendPrediction(s: BackendSignal): Prediction {
     traderId: s.trader_id,
     trader: {
       id: s.trader?.id ?? s.trader_id,
-      displayName: s.trader?.display_name ?? 'TradeBeast Desk',
-      handle: '@tradebeast',
-      avatar: '/tradebeast-logo.png',
+      displayName: s.trader?.display_name ?? 'snyprr.ai Desk',
+      handle: '@snyprr',
+      avatar: '/snyprr-logo.png',
       verifiedBadge: true,
       winRate: 0,
     },
