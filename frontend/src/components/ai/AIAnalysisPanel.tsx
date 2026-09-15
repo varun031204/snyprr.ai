@@ -148,7 +148,7 @@ export function AIAnalysisPanel({ instrument, prediction, isSubscribed, onUnlock
                         AI Analysis
                     </h3>
                     <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
-                        Get the most accuracy just at one click.
+                        Powered by Gemini · based on trader setup
                     </p>
                 </div>
                 {analysis && (
@@ -167,7 +167,7 @@ export function AIAnalysisPanel({ instrument, prediction, isSubscribed, onUnlock
                 <div className="grid grid-cols-2 gap-2">
                     {buyZone !== null && (
                         <div className="p-2.5 rounded-xl bg-[var(--color-success-bg)] border border-[var(--color-success)]/20 text-center">
-                            <p className="text-[10px] font-semibold text-[var(--color-success)] mb-0.5">Buy Zone</p>
+                            <p className="text-[10px] font-semibold text-[var(--color-success)] mb-0.5">Buy Wall</p>
                             <p className="text-xs font-bold font-mono-num text-[var(--color-success)]">
                                 ${fmt(buyZone, instrument)}
                             </p>
@@ -175,7 +175,7 @@ export function AIAnalysisPanel({ instrument, prediction, isSubscribed, onUnlock
                     )}
                     {sellZone !== null && (
                         <div className="p-2.5 rounded-xl bg-[var(--color-danger-bg)] border border-[var(--color-danger)]/20 text-center">
-                            <p className="text-[10px] font-semibold text-[var(--color-danger)] mb-0.5">Sell Zone</p>
+                            <p className="text-[10px] font-semibold text-[var(--color-danger)] mb-0.5">Sell Wall</p>
                             <p className="text-xs font-bold font-mono-num text-[var(--color-danger)]">
                                 ${fmt(sellZone, instrument)}
                             </p>

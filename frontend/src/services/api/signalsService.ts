@@ -244,3 +244,30 @@ class SignalsService implements IPredictionApi {
 }
 
 export const signalsService = new SignalsService();
+
+// ─── Chart Drawings Persistence ───────────────────────────────────────────────
+// Uses localStorage as primary storage now. When backend adds a `drawings JSONB`
+// column to trading_signals, swap localStorage calls for httpPatch/httpGet.
+
+const DRAWINGS_KEY = (predictionId: string) => `chart_drawings_${predictionId}`;
+
+export function saveChartDrawings(predictionId: string, drawings: object[]): void {
+  try {
+    localStorage.setItem(DRAWINGS_KEY(predictionId), JSON.stringify(drawings));
+    // TODO: when backend supports it, also call:
+    // httpPatch(`/api/signals/${predictionId}/drawings`, { drawings })
+  } catch {
+    // Storage quota or serialization error — silently ignore
+  }
+}
+
+export function loadChartDrawings(predictionId: string): object[] {
+  try {
+    const raw = localStorage.getItem(DRAWINGS_KEY(predictionId));
+    if (!raw) return [];
+    return JSON.parse(raw) as object[];
+  } catch {
+    return [];
+  }
+}
+

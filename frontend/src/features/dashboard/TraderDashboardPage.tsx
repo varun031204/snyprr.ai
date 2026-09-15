@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   TrendingUp, TrendingDown, CheckCircle2, Clock,
-  BarChart2, Code2, Sparkles, Layers, ChevronDown,
+  BarChart2, Code2, Sparkles, ChevronDown,
   RotateCcw, X,
 } from 'lucide-react';
 import { StatCard } from '../../components/ui/StatCard';
@@ -14,9 +14,9 @@ import { usePredictions, useCreatePrediction } from '../../hooks/usePredictionsQ
 import { useAuthStore } from '../../state/useAuthStore';
 import { useMarketStore } from '../../state/useMarketStore';
 import { useUIStore } from '../../state/useUIStore';
-import { ZoneLinesChart } from '../../components/charts/ZoneLinesChart';
+import { TradingChartPro } from '../../components/charts/TradingChartPro';
 import { CHART_ITEMS } from '../../constants';
-import type { PredictionDirection } from '../../types';
+import type { Prediction, PredictionDirection } from '../../types';
 
 const TIMEFRAME_OPTIONS = [
   { value: '1m', label: '1m' },
@@ -34,62 +34,6 @@ const TIMEFRAME_OPTIONS = [
   { value: '1w', label: '1w' },
 ];
 
-// ── TradingView iframe chart (official embed, no third-party wrapper) ─────────
-const TV_INTERVAL_MAP: Record<string, string> = {
-  '1m': '1', '3m': '3', '5m': '5', '15m': '15', '30m': '30',
-  '1h': '60', '2h': '120', '4h': '240', '6h': '360', '12h': '720',
-  '1d': 'D', '3d': '3D', '1w': 'W',
-};
-
-const TradingViewChart: React.FC<{ symbol: string; interval: string; theme: string; height: number }> = ({
-  symbol, interval, theme, height,
-}) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const tvInterval = TV_INTERVAL_MAP[interval] ?? '60';
-  const tvTheme = theme === 'neo-light' ? 'light' : 'dark';
-
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-    container.innerHTML = '';
-
-    const script = document.createElement('script');
-    script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
-    script.type = 'text/javascript';
-    script.async = true;
-    script.innerHTML = JSON.stringify({
-      autosize: true,
-      symbol,
-      interval: tvInterval,
-      timezone: 'Etc/UTC',
-      theme: tvTheme,
-      style: '1',
-      locale: 'en',
-      allow_symbol_change: true,
-      calendar: false,
-      support_host: 'https://www.tradingview.com',
-    });
-
-    const wrapper = document.createElement('div');
-    wrapper.className = 'tradingview-widget-container__widget';
-    wrapper.style.height = '100%';
-    wrapper.style.width = '100%';
-    container.appendChild(wrapper);
-    container.appendChild(script);
-
-    return () => { container.innerHTML = ''; };
-  }, [symbol, tvInterval, tvTheme]);
-
-  return (
-    <div
-      className="w-full rounded-2xl overflow-hidden border border-[var(--border-subtle)] bg-[var(--bg-surface)]"
-      style={{ height }}
-    >
-      <div ref={containerRef} className="tradingview-widget-container" style={{ height: '100%', width: '100%' }} />
-    </div>
-  );
-};
-
 export default function TraderDashboardPage() {
   const { currentUser } = useAuthStore();
   const { tickers } = useMarketStore();
@@ -98,7 +42,6 @@ export default function TraderDashboardPage() {
   const createMutation = useCreatePrediction();
 
   const [chartSymbol, setChartSymbol] = useState('BINANCE:BTCUSDT');
-  const [chartMode, setChartMode] = useState<'zonelines' | 'tradingview'>('zonelines');
 
   const { data, isLoading } = usePredictions({ page: 1, pageSize: 50 });
   const predictions = data?.data || [];
@@ -250,6 +193,31 @@ export default function TraderDashboardPage() {
     }
   };
 
+  const activePredictionForChart = useMemo(() => {
+    if (panelInstrument.toLowerCase() === activeChartInstrument.toLowerCase() && buyNum > 0 && sellNum > 0) {
+      return {
+        id: chartPrediction?.id ?? `draft-${activeChartInstrument}`,
+        title: `${activeChartInstrument} Setup`,
+        instrument: activeChartInstrument,
+        category: activeChartInstrument === 'GOLD' || activeChartInstrument === 'SILVER' ? 'COMMODITIES' : 'CRYPTO',
+        direction,
+        entryPrice: parseFloat(entryPrice) || buyNum,
+        buyingZone: buyNum,
+        sellingZone: sellNum,
+        stopLoss: slNum || undefined,
+        takeProfit: tp1Num || undefined,
+        takeProfit2: tp2Num || undefined,
+        takeProfit3: tp3Num || undefined,
+        timeframe: effectiveTimeframe,
+        strategy: 'Key Price Zones',
+        analysis: '',
+        status: 'ACTIVE',
+        createdAt: new Date().toISOString(),
+      } as unknown as Prediction;
+    }
+    return chartPrediction;
+  }, [panelInstrument, activeChartInstrument, buyNum, sellNum, direction, entryPrice, slNum, tp1Num, tp2Num, tp3Num, effectiveTimeframe, chartPrediction]);
+
   return (
     <div className="max-w-7xl mx-auto space-y-8">
       {/* Header */}
@@ -258,7 +226,7 @@ export default function TraderDashboardPage() {
         <p className="text-sm text-[var(--text-muted)] mt-1">Manage, analyze, and publish your trade setups.</p>
       </div>
 
-      {/* Instrument + mode selector bar */}
+      {/* Instrument selector bar */}
       <div className="flex items-center justify-between gap-2 overflow-x-auto pb-1 scrollbar-thin">
         <div className="flex gap-2">
           {CHART_ITEMS.map((item) => {
@@ -284,23 +252,8 @@ export default function TraderDashboardPage() {
             );
           })}
         </div>
-        <div className="flex items-center gap-1 p-0.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] flex-shrink-0">
-          <button
-            onClick={() => setChartMode('zonelines')}
-            className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all cursor-pointer flex items-center gap-1 ${
-              chartMode === 'zonelines' ? 'bg-[var(--brand-primary)] text-white' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-            }`}
-          >
-            <Layers className="w-3 h-3" /> Zone Lines
-          </button>
-          <button
-            onClick={() => setChartMode('tradingview')}
-            className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all cursor-pointer ${
-              chartMode === 'tradingview' ? 'bg-[var(--brand-primary)] text-white' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-            }`}
-          >
-            TradingView
-          </button>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-[var(--text-muted)] font-medium">Unified Chart & Drawing Suite</span>
         </div>
       </div>
 
@@ -308,16 +261,14 @@ export default function TraderDashboardPage() {
       <div className="grid lg:grid-cols-[1fr_380px] gap-4 items-start">
         {/* Chart */}
         <div className="w-full">
-          {chartMode === 'zonelines' ? (
-            <ZoneLinesChart tvSymbol={chartSymbol} instrument={activeChartInstrument} prediction={chartPrediction} timeframe={effectiveTimeframe} height={620} />
-          ) : (
-            <TradingViewChart
-              symbol={chartSymbol}
-              interval={effectiveTimeframe}
-              theme={theme}
-              height={620}
-            />
-          )}
+          <TradingChartPro
+            tvSymbol={chartSymbol}
+            instrument={activeChartInstrument}
+            prediction={activePredictionForChart}
+            timeframe={effectiveTimeframe}
+            height={620}
+            predictionId={activePredictionForChart?.id ?? activeChartInstrument}
+          />
         </div>
 
         {/* Create Prediction Panel */}

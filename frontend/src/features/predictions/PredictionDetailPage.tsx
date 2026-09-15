@@ -10,7 +10,7 @@ import { usePredictionDetail, usePublishPrediction } from '../../hooks/usePredic
 import { useUserStore } from '../../state/useUserStore';
 import { useAuthStore } from '../../state/useAuthStore';
 import { useUIStore } from '../../state/useUIStore';
-import { ZoneLinesChart } from '../../components/charts/ZoneLinesChart';
+import { TradingChartPro } from '../../components/charts/TradingChartPro';
 import { ClosePredictionModal } from './components/ClosePredictionModal';
 
 export default function PredictionDetailPage() {
@@ -193,12 +193,12 @@ export default function PredictionDetailPage() {
           {/* Chart */}
           <GlassCard hoverEffect={false} className="p-0 overflow-hidden">
             <div className="px-5 pt-5 pb-3 border-b border-[var(--border-subtle)]">
-              <h2 className="text-sm font-semibold text-[var(--text-primary)]">{prediction.instrument} — Price Context</h2>
+              <h2 className="text-sm font-semibold text-[var(--text-primary)]">{prediction.instrument} — Chart Analysis</h2>
               <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                Buying Zone (Green) &amp; Selling Zone (Red) level overlay
+                Trader levels (read-only) + drawing tools: horizontal, trend line, long/short, rectangle, brush, text
               </p>
             </div>
-            <ZoneLinesChart
+            <TradingChartPro
               tvSymbol={
                 prediction.instrument === 'GOLD' ? 'OANDA:XAUUSD' :
                   prediction.instrument === 'SILVER' ? 'OANDA:XAGUSD' :
@@ -206,7 +206,8 @@ export default function PredictionDetailPage() {
               }
               instrument={prediction.instrument}
               prediction={prediction}
-              height={280}
+              predictionId={prediction.id}
+              height={460}
             />
           </GlassCard>
 

@@ -29,7 +29,6 @@ const userNav: NavItem[] = [
 const traderNav: NavItem[] = [
   { label: 'Dashboard', path: '/trader/dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
   { label: 'My Predictions', path: '/trader/predictions', icon: <TrendingUp className="w-5 h-5" /> },
-  { label: 'Paper Trading', path: '/paper-trading', icon: <FlaskConical className="w-5 h-5" /> },
   { label: 'News', path: '/news', icon: <Newspaper className="w-5 h-5" /> },
   { label: 'Contact Developer Team', path: '/contact?dept=dev', icon: <Code2 className="w-5 h-5" /> },
 ];

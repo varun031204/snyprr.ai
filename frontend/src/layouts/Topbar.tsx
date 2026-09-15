@@ -1,4 +1,4 @@
-import { Bell, Menu, Search, UserCircle, ChevronDown, Home, Mail } from 'lucide-react';
+import { Bell, Menu, Search, UserCircle, ChevronDown, Home, Mail, Coins } from 'lucide-react';
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ThemeToggle } from '../components/ui/ThemeToggle';
@@ -7,6 +7,7 @@ import { InlineSearch } from '../components/search/InlineSearch';
 import { useAuthStore } from '../state/useAuthStore';
 import { useUIStore } from '../state/useUIStore';
 import { useNotifications, useMarkAllNotificationsAsRead } from '../hooks/useNotificationsQuery';
+import { usePaperTradingStore } from '../state/usePaperTradingStore';
 import { UserRole } from '../types';
 
 const ROLE_LABELS: Record<UserRole, string> = {
@@ -27,6 +28,7 @@ export const Topbar: React.FC = () => {
   const { data: notificationsData } = useNotifications();
   const markAllAsRead = useMarkAllNotificationsAsRead();
   const unreadCount = notificationsData?.data?.filter((n) => !n.read).length || 0;
+  const { balance } = usePaperTradingStore();
   const navigate = useNavigate();
   const [profileOpen, setProfileOpen] = useState(false);
   const [roleMenuOpen, setRoleMenuOpen] = useState(false);
@@ -94,7 +96,12 @@ export const Topbar: React.FC = () => {
             {(['USER', 'TRADER', 'ADMIN'] as UserRole[]).map((r) => (
               <button
                 key={r}
-                onClick={() => switchRoleDemo(r)}
+                onClick={() => {
+                  switchRoleDemo(r);
+                  if (r === 'ADMIN') navigate('/admin');
+                  else if (r === 'TRADER') navigate('/trader/dashboard');
+                  else navigate('/dashboard');
+                }}
                 className={`text-[10px] font-semibold px-2 py-0.5 rounded-md transition-all ${activeRole === r
                   ? 'bg-[var(--brand-glow)] text-[var(--brand-primary)]'
                   : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
@@ -115,6 +122,18 @@ export const Topbar: React.FC = () => {
         >
           <Search className="w-4.5 h-4.5" />
         </button>
+
+        {/* Paper Trading Balance — USER only */}
+        {activeRole === 'USER' && (
+        <Link
+          to="/paper-trading"
+          className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--brand-primary)]/40 transition-all"
+          title="Paper Trading"
+        >
+          <Coins className="w-4 h-4 text-[var(--color-warning)] flex-shrink-0" />
+          <span className="text-xs font-bold font-mono-num text-[var(--color-warning)]">${balance.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+        </Link>
+        )}
 
         {/* Home */}
         <Link

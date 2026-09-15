@@ -192,3 +192,83 @@ export interface CandleData {
   close: number;
   volume: number;
 }
+
+// ─── Chart Drawing Types ───────────────────────────────────────────────────────
+
+export type DrawingTool =
+  | 'pointer'
+  | 'horizontal'
+  | 'trendline'
+  | 'long'
+  | 'short'
+  | 'rectangle'
+  | 'brush'
+  | 'text';
+
+interface BaseDrawing {
+  id: string;
+  color: string;
+  opacity: number;
+}
+
+export interface HorizontalLineDrawing extends BaseDrawing {
+  type: 'horizontal';
+  price: number; // price-space anchor
+}
+
+export interface TrendLineDrawing extends BaseDrawing {
+  type: 'trendline';
+  price1: number;
+  price2: number;
+  barIndex1: number; // lightweight-charts logical bar index
+  barIndex2: number;
+}
+
+export interface LongPositionDrawing extends BaseDrawing {
+  type: 'long';
+  entryPrice: number;
+  stopPrice: number;
+  targetPrice: number;
+  barIndex1: number;
+  barIndex2: number;
+}
+
+export interface ShortPositionDrawing extends BaseDrawing {
+  type: 'short';
+  entryPrice: number;
+  stopPrice: number;
+  targetPrice: number;
+  barIndex1: number;
+  barIndex2: number;
+}
+
+export interface RectangleDrawing extends BaseDrawing {
+  type: 'rectangle';
+  price1: number;
+  price2: number;
+  barIndex1: number;
+  barIndex2: number;
+}
+
+export interface BrushDrawing extends BaseDrawing {
+  type: 'brush';
+  /** Array of {price, barIndex} points */
+  points: Array<{ price: number; barIndex: number }>;
+}
+
+export interface TextDrawing extends BaseDrawing {
+  type: 'text';
+  price: number;
+  barIndex: number;
+  text: string;
+  fontSize: number;
+}
+
+export type ChartDrawing =
+  | HorizontalLineDrawing
+  | TrendLineDrawing
+  | LongPositionDrawing
+  | ShortPositionDrawing
+  | RectangleDrawing
+  | BrushDrawing
+  | TextDrawing;

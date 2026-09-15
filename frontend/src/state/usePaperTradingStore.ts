@@ -11,7 +11,13 @@ export interface PaperTrade {
   quantity: number;
   stopLoss: number;
   takeProfit: number;
+  takeProfit2?: number;
+  takeProfit3?: number;
+  buyingZone?: number;
+  sellingZone?: number;
   margin: number;
+  timeframe?: string;
+  notes?: string;
   status: 'OPEN' | 'CLOSED';
   openedAt: string;
   closedAt?: string;
