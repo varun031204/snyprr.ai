@@ -4,6 +4,7 @@ import { GlassCard } from '../../components/ui/GlassCard';
 import { usePredictions } from '../../hooks/usePredictionsQuery';
 import { useAuthStore } from '../../state/useAuthStore';
 import { useMarketStore } from '../../state/useMarketStore';
+import { useTrialStore } from '../../state/useTrialStore';
 import { ZoneLinesChart } from '../../components/charts/ZoneLinesChart';
 import { AIAnalysisPanel } from '../../components/ai/AIAnalysisPanel';
 import { CHART_ITEMS } from '../../constants';
@@ -22,7 +23,15 @@ export default function UserDashboardPage() {
   // Active asset drives both chart + AI panel
   const [activeAsset, setActiveAsset] = useState<(typeof ASSETS)[number]>(ASSETS[0]);
 
+  // Controls whether signal lines are shown on the chart.
+  // Only revealed after the user clicks "Run AI Analysis".
+  const [signalsRevealed, setSignalsRevealed] = useState(false);
+
+  const { isTrialActive } = useTrialStore();
+
+  // Subscribed = paid tier OR still within free trial window
   const isSubscribed =
+    isTrialActive ||
     currentUser?.subscriptionTier === 'PRO' ||
     currentUser?.subscriptionTier === 'VIP';
 
@@ -37,9 +46,10 @@ export default function UserDashboardPage() {
     [allPredictions, activeAsset],
   );
 
-  // Switch asset — resets AI panel inside AIAnalysisPanel via instrument prop change
+  // Switch asset — resets AI panel and hides signals until re-triggered
   const handleSelectAsset = (asset: typeof ASSETS[number]) => {
     setActiveAsset(asset);
+    setSignalsRevealed(false);
   };
 
   return (
@@ -58,18 +68,15 @@ export default function UserDashboardPage() {
 
       {/* ── Page Header ────────────────────────────────────────────────────── */}
       <div className="relative z-10">
-        <h1 className="text-2xl font-bold text-[var(--text-primary)]">Dashboard</h1>
-        <div className="mt-1 space-y-0.5">
-          <p className="text-sm text-[var(--text-secondary)]">
-            Welcome back, {currentUser?.name?.split(' ')[0] ?? 'User'}.
-          </p>
-          <p className="text-sm font-semibold text-[var(--brand-primary)]">
-            Came to earn some money?
-          </p>
-          <p className="text-xs text-[var(--text-muted)]">
-            Oops! Here's a lot.
-          </p>
-        </div>
+        <h1 className="text-3xl font-extrabold text-[var(--text-primary)]">
+          Welcome back, {currentUser?.name?.split(' ')[0] ?? 'User'}.
+        </h1>
+        <p className="text-sm font-semibold text-[var(--brand-primary)] mt-1">
+          Came to earn some money?
+        </p>
+        <p className="text-xs text-[var(--text-muted)]">
+          Oops! Here's a lot.
+        </p>
       </div>
 
       {/* ── Ticker Bar ─────────────────────────────────────────────────────── */}
@@ -85,8 +92,8 @@ export default function UserDashboardPage() {
               </span>
               <span
                 className={`text-xs font-medium font-mono-num ${t.change24h >= 0
-                    ? 'text-[var(--color-success)]'
-                    : 'text-[var(--color-danger)]'
+                  ? 'text-[var(--color-success)]'
+                  : 'text-[var(--color-danger)]'
                   }`}
               >
                 {t.change24h >= 0 ? '+' : ''}
@@ -109,16 +116,16 @@ export default function UserDashboardPage() {
               key={asset.symbol}
               onClick={() => handleSelectAsset(asset)}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border whitespace-nowrap transition-all ${isActive
-                  ? 'bg-[var(--brand-primary)] text-white border-[var(--brand-primary)] shadow-md'
-                  : 'bg-[var(--bg-surface)] text-[var(--text-muted)] border-[var(--border-subtle)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]'
+                ? 'bg-[var(--brand-primary)] text-white border-[var(--brand-primary)] shadow-md'
+                : 'bg-[var(--bg-surface)] text-[var(--text-muted)] border-[var(--border-subtle)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]'
                 }`}
             >
               {asset.label}
               {hasSetup && (
                 <span
                   className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isActive
-                      ? 'bg-white shadow-[0_0_5px_white]'
-                      : 'bg-[var(--color-success)] shadow-[0_0_5px_var(--color-success)]'
+                    ? 'bg-white shadow-[0_0_5px_white]'
+                    : 'bg-[var(--color-success)] shadow-[0_0_5px_var(--color-success)]'
                     }`}
                   title="Active trader setup"
                 />
@@ -136,68 +143,10 @@ export default function UserDashboardPage() {
           <ZoneLinesChart
             tvSymbol={activeAsset.symbol}
             instrument={activeAsset.instrument}
-            prediction={activePrediction}
+            prediction={signalsRevealed ? activePrediction : null}
             height={580}
+            allowDrawing={true}
           />
-
-          {/* Trade levels legend strip — sourced from trader upload */}
-          {activePrediction && (
-            <GlassCard
-              hoverEffect={false}
-              className="flex flex-wrap items-center gap-3 p-3.5 border border-[var(--border-subtle)]"
-            >
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] mr-1">
-                Trader Levels
-              </span>
-              {[
-                {
-                  label: 'Entry',
-                  value: activePrediction.entryPrice,
-                  color: 'text-[var(--brand-primary)]',
-                  dot: 'bg-[var(--brand-primary)]',
-                },
-                {
-                  label: 'Buy Zone',
-                  value:
-                    activePrediction.buyingZone ??
-                    activePrediction.entryPrice * 0.97,
-                  color: 'text-[var(--color-success)]',
-                  dot: 'bg-[var(--color-success)]',
-                },
-                {
-                  label: 'Sell Zone',
-                  value:
-                    activePrediction.sellingZone ??
-                    activePrediction.entryPrice * 1.06,
-                  color: 'text-[var(--color-danger)]',
-                  dot: 'bg-[var(--color-danger)]',
-                },
-                ...(activePrediction.stopLoss
-                  ? [{ label: 'SL', value: activePrediction.stopLoss, color: 'text-orange-400', dot: 'bg-orange-400' }]
-                  : []),
-                ...(activePrediction.takeProfit
-                  ? [{ label: 'TP1', value: activePrediction.takeProfit, color: 'text-emerald-400', dot: 'bg-emerald-400' }]
-                  : []),
-                ...(activePrediction.takeProfit2
-                  ? [{ label: 'TP2', value: activePrediction.takeProfit2, color: 'text-emerald-300', dot: 'bg-emerald-300' }]
-                  : []),
-                ...(activePrediction.takeProfit3
-                  ? [{ label: 'TP3', value: activePrediction.takeProfit3, color: 'text-emerald-200', dot: 'bg-emerald-200' }]
-                  : []),
-              ].map((lv) => (
-                <div key={lv.label} className="flex items-center gap-1.5">
-                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${lv.dot}`} />
-                  <span className="text-[10px] text-[var(--text-muted)]">{lv.label}</span>
-                  <span className={`text-[11px] font-bold font-mono-num ${lv.color}`}>
-                    ${lv.value.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                  </span>
-                </div>
-              ))}
-              <span className="ml-auto text-[9px] text-[var(--text-muted)] italic">
-                Levels from trader upload · not AI generated
-              </span>
-            </GlassCard>
-          )}
         </div>
 
         {/* AI Analysis Side Panel */}
@@ -212,8 +161,10 @@ export default function UserDashboardPage() {
               <AIAnalysisPanel
                 instrument={activeAsset.instrument}
                 prediction={activePrediction}
-                isSubscribed={true}
+                isSubscribed={isSubscribed}
                 onUnlock={() => navigate('/subscriptions')}
+                onAnalysisStart={() => setSignalsRevealed(true)}
+                onReset={() => setSignalsRevealed(false)}
               />
             </div>
           </GlassCard>

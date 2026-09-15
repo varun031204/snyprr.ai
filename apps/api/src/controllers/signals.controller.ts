@@ -7,7 +7,6 @@ import { parseUUIDParam } from '../utils/validation.js';
 const createSignalSchema = z.object({
   direction: z.enum(['LONG', 'SHORT']),
   instrument: z.string().min(1, 'Instrument is required'),
-  entry_price: z.number().positive('Entry price must be positive').optional().nullable(),
   stop_loss_price: z.number().positive('Stop loss price must be positive'),
   take_profit_1: z.number().positive('Take profit 1 must be positive'),
   take_profit_2: z.number().positive().optional().nullable(),
@@ -27,7 +26,6 @@ const createSignalSchema = z.object({
 // .strict() causes Zod to reject any unrecognised keys (including "status")
 // with a 422, making the prohibition explicit rather than silently stripping it.
 const updateSignalSchema = z.object({
-  entry_price: z.number().positive().optional().nullable(),
   stop_loss_price: z.number().positive().optional(),
   take_profit_1: z.number().positive().optional(),
   take_profit_2: z.number().positive().optional().nullable(),

@@ -118,20 +118,24 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       },
     });
     if (error) {
-      // Log the raw Supabase error in dev so you can diagnose SMTP issues
-      if (import.meta.env.DEV) {
-        console.error('[signUp] Supabase raw error:', error.status, error.message, error);
-      }
+      // Always log full raw error so it's visible in browser console
+      console.error('[signUp] Supabase raw error:', JSON.stringify({
+        status: error.status,
+        message: error.message,
+        name: error.name,
+      }, null, 2));
+
       // Map Supabase's technical errors to human-readable messages
-      let message = error.message;
+      let message = error.message; // default: show the raw message
       const lower = error.message.toLowerCase();
+
       if (lower.includes('rate limit') || lower.includes('email rate') || lower.includes('over_email_send_rate_limit')) {
         message = 'Too many signup attempts. Please wait a few minutes and try again.';
       } else if (lower.includes('already registered') || lower.includes('user already exists')) {
         message = 'An account with this email already exists. Please sign in instead.';
-      } else if (lower.includes('unable to validate') || lower.includes('email provider') || lower.includes('sending') || lower.includes('smtp') || lower.includes('email')) {
-        message = 'Unable to send confirmation email. Please check your email address or try again shortly.';
       }
+      // Removed the SMTP catch-all so the real Supabase error is shown directly
+
       set({ isLoading: false, authError: message });
       throw error;
     }
@@ -180,10 +184,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         activeRole: newRole,
         currentUser: state.currentUser
           ? {
-              ...state.currentUser,
-              role: newRole,
-              permissions: ROLE_PERMISSIONS[newRole],
-            }
+            ...state.currentUser,
+            role: newRole,
+            permissions: ROLE_PERMISSIONS[newRole],
+          }
           : null,
       }));
     }

@@ -22,7 +22,6 @@ export default function CreatePredictionPage() {
 
   const [instrument, setInstrument] = useState('BTC/USDT');
   const [direction, setDirection] = useState<PredictionDirection>('LONG');
-  const [entryPrice, setEntryPrice] = useState<string>('92500');
   const [buyingZone, setBuyingZone] = useState<string>('91200');
   const [sellingZone, setSellingZone] = useState<string>('98500');
   const [stopLoss, setStopLoss] = useState<string>('89000');
@@ -38,7 +37,6 @@ export default function CreatePredictionPage() {
     if (ticker) {
       const price = ticker.price;
       const decimals = ticker.category === 'FOREX' ? 4 : 2;
-      setEntryPrice(price.toString());
       if (direction === 'LONG') {
         setBuyingZone((price * 0.97).toFixed(decimals));
         setSellingZone((price * 1.06).toFixed(decimals));
@@ -52,7 +50,7 @@ export default function CreatePredictionPage() {
   // Switch direction and auto-adjust zones
   const handleDirectionChange = (newDir: PredictionDirection) => {
     setDirection(newDir);
-    const base = parseFloat(entryPrice) || 100;
+    const base = parseFloat(buyingZone) || 100;
     const ticker = tickers.find((t) => t.symbol === instrument);
     const decimals = ticker?.category === 'FOREX' ? 4 : 2;
 
@@ -66,7 +64,6 @@ export default function CreatePredictionPage() {
   };
 
   // Real-time calculation of Zone Spread & Validation
-  const parsedEntry = parseFloat(entryPrice) || 0;
   const parsedBuying = parseFloat(buyingZone) || 0;
   const parsedSelling = parseFloat(sellingZone) || 0;
 
@@ -93,7 +90,6 @@ export default function CreatePredictionPage() {
     setDirection('LONG');
     const ticker = tickers.find((t) => t.symbol === defaultSymbol);
     const price = ticker ? ticker.price : 92500;
-    setEntryPrice(price.toString());
     setBuyingZone((price * 0.97).toFixed(2));
     setSellingZone((price * 1.06).toFixed(2));
     setStopLoss((price * 0.94).toFixed(2));
@@ -122,7 +118,6 @@ export default function CreatePredictionPage() {
       instrument,
       category,
       direction,
-      entryPrice: parsedEntry > 0 ? parsedEntry : parsedBuying,
       buyingZone: parsedBuying,
       sellingZone: parsedSelling,
       stopLoss: parsedStopLoss,
@@ -163,9 +158,9 @@ export default function CreatePredictionPage() {
         traderId: currentUser.id,
         trader: {
           id: currentUser.id,
-          displayName: 'TradeBeast Desk',
-          handle: '@tradebeast',
-          avatar: '/tradebeast-logo.png',
+          displayName: 'Snyprr Desk',
+          handle: '@snyprr',
+          avatar: '/light-icon.jpg',
           verifiedBadge: true,
           winRate: 78.5,
         },
@@ -446,7 +441,7 @@ export default function CreatePredictionPage() {
             <div className="h-56">
               <SimpleChart
                 candles={currentCandles}
-                entryPrice={parsedEntry}
+                entryPrice={parsedBuying}
                 buyingZone={parsedBuying}
                 sellingZone={parsedSelling}
                 direction={direction}
@@ -488,7 +483,7 @@ export default function CreatePredictionPage() {
 
           {/* Guidelines info card */}
           <div className="p-4 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] text-xs text-[var(--text-muted)] space-y-2">
-            <p className="font-semibold text-[var(--text-primary)]">💡 Trade Beast Prediction Guidelines</p>
+            <p className="font-semibold text-[var(--text-primary)]">💡 Snyprr.ai Prediction Guidelines</p>
             <p>
               • Predictions declare buying zone and selling zone levels for technical analysis.
             </p>

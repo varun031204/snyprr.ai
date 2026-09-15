@@ -60,9 +60,9 @@ function toFrontendPrediction(s: BackendSignal): Prediction {
     traderId: s.trader_id,
     trader: {
       id: s.trader?.id ?? s.trader_id,
-      displayName: s.trader?.display_name ?? 'TradeBeast Desk',
-      handle: '@tradebeast',
-      avatar: '/tradebeast-logo.png',
+      displayName: s.trader?.display_name ?? 'Snyprr Desk',
+      handle: '@snyprr',
+      avatar: '/light-icon.jpg',
       verifiedBadge: true,
       winRate: 0,
     },
@@ -70,7 +70,6 @@ function toFrontendPrediction(s: BackendSignal): Prediction {
     instrument: s.instrument,
     category: inferCategory(s.instrument),
     direction: s.direction as PredictionDirection,
-    entryPrice: s.entry_price ?? s.buying_wall,
     buyingZone: s.buying_wall,
     sellingZone: s.selling_wall,
     stopLoss: s.stop_loss_price,
@@ -103,7 +102,7 @@ function inferCategory(instrument: string): Prediction['category'] {
 }
 
 function computeRRR(s: BackendSignal): number {
-  const entry = s.entry_price ?? s.buying_wall;
+  const entry = s.buying_wall;
   if (!entry || !s.stop_loss_price || !s.take_profit_1) return 0;
   const risk = Math.abs(entry - s.stop_loss_price);
   const reward = Math.abs(s.take_profit_1 - entry);
@@ -181,7 +180,6 @@ class SignalsService implements IPredictionApi {
     const body = {
       direction: data.direction,
       instrument: data.instrument,
-      entry_price: data.entryPrice ?? null,
       stop_loss_price: data.stopLoss,
       take_profit_1: data.takeProfit,
       take_profit_2: data.takeProfit2 ?? null,
@@ -202,7 +200,6 @@ class SignalsService implements IPredictionApi {
 
   async updatePrediction(id: string, data: Partial<Prediction>): Promise<ApiResponse<Prediction>> {
     const body: Record<string, unknown> = {};
-    if (data.entryPrice !== undefined) body.entry_price = data.entryPrice;
     if (data.stopLoss !== undefined) body.stop_loss_price = data.stopLoss;
     if (data.takeProfit !== undefined) body.take_profit_1 = data.takeProfit;
     if (data.takeProfit2 !== undefined) body.take_profit_2 = data.takeProfit2;

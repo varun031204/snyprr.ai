@@ -6,7 +6,6 @@ export const predictionFormSchema = z
     instrument: z.string().min(1, 'Please select an instrument'),
     category: z.enum(['CRYPTO', 'FOREX', 'STOCKS', 'INDICES', 'COMMODITIES']),
     direction: z.enum(['LONG', 'SHORT']),
-    entryPrice: z.number().positive('Entry price must be positive').optional(),
     buyingZone: z.number().positive('Buying wall must be a positive number'),
     sellingZone: z.number().positive('Selling wall must be a positive number'),
     stopLoss: z.number().positive('Stop loss price must be positive'),

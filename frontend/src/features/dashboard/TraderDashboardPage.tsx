@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   TrendingUp, TrendingDown, CheckCircle2, Clock,
-  BarChart2, Code2, Sparkles, Layers, ChevronDown,
+  BarChart2, Code2, Sparkles, ChevronDown,
   RotateCcw, X,
 } from 'lucide-react';
 import { StatCard } from '../../components/ui/StatCard';
@@ -14,9 +14,9 @@ import { usePredictions, useCreatePrediction } from '../../hooks/usePredictionsQ
 import { useAuthStore } from '../../state/useAuthStore';
 import { useMarketStore } from '../../state/useMarketStore';
 import { useUIStore } from '../../state/useUIStore';
-import { AdvancedRealTimeChart } from 'react-ts-tradingview-widgets';
 import { ZoneLinesChart } from '../../components/charts/ZoneLinesChart';
 import { CHART_ITEMS } from '../../constants';
+
 import type { PredictionDirection } from '../../types';
 
 const TIMEFRAME_OPTIONS = [
@@ -43,7 +43,6 @@ export default function TraderDashboardPage() {
   const createMutation = useCreatePrediction();
 
   const [chartSymbol, setChartSymbol] = useState('BINANCE:BTCUSDT');
-  const [chartMode, setChartMode] = useState<'zonelines' | 'tradingview'>('zonelines');
 
   const { data, isLoading } = usePredictions({ page: 1, pageSize: 50 });
   const predictions = data?.data || [];
@@ -60,7 +59,6 @@ export default function TraderDashboardPage() {
   const [isCustomTimeframe, setIsCustomTimeframe] = useState(false);
   const [customTimeValue, setCustomTimeValue] = useState('45');
   const [customTimeUnit, setCustomTimeUnit] = useState<'m' | 'h' | 'd'>('m');
-  const [entryPrice, setEntryPrice] = useState('92500');
   const [buyingZone, setBuyingZone] = useState('89725');
   const [sellingZone, setSellingZone] = useState('98050');
   const [stopLoss, setStopLoss] = useState('88000');
@@ -103,23 +101,18 @@ export default function TraderDashboardPage() {
       else price = 100;
     }
     const d = inst === 'XRP/USDT' ? 4 : inst === 'SILVER' ? 3 : 2;
-    setEntryPrice(price.toFixed(d));
     if (dir === 'LONG') {
-      const bz = (price * 0.97).toFixed(d);
-      const sz = (price * 1.06).toFixed(d);
-      setBuyingZone(bz);
-      setSellingZone(sz);
+      setBuyingZone((price * 0.97).toFixed(d));
+      setSellingZone((price * 1.06).toFixed(d));
       setStopLoss((price * 0.95).toFixed(d));
-      setTakeProfit1(sz);
+      setTakeProfit1((price * 1.06).toFixed(d));
       setTakeProfit2('');
       setTakeProfit3('');
     } else {
-      const bz = (price * 0.94).toFixed(d);
-      const sz = (price * 1.03).toFixed(d);
-      setBuyingZone(bz);
-      setSellingZone(sz);
+      setBuyingZone((price * 0.94).toFixed(d));
+      setSellingZone((price * 1.03).toFixed(d));
       setStopLoss((price * 1.05).toFixed(d));
-      setTakeProfit1(bz);
+      setTakeProfit1((price * 0.94).toFixed(d));
       setTakeProfit2('');
       setTakeProfit3('');
     }
@@ -151,7 +144,6 @@ export default function TraderDashboardPage() {
   const tp2Num = parseFloat(takeProfit2) || 0;
   const tp3Num = parseFloat(takeProfit3) || 0;
   const spreadPct = buyNum > 0 && sellNum > 0 ? ((sellNum - buyNum) / buyNum) * 100 : 0;
-
   const handlePublishPrediction = async () => {
     if (!buyNum || !sellNum || !slNum || !tp1Num) {
       addToast({ type: 'danger', title: 'Validation Error', message: 'Buying Zone, Selling Zone, Stop Loss and TP1 are required.' });
@@ -164,7 +156,6 @@ export default function TraderDashboardPage() {
         instrument: panelInstrument,
         category: panelInstrument === 'GOLD' || panelInstrument === 'SILVER' ? 'COMMODITIES' : 'CRYPTO',
         direction,
-        entryPrice: parseFloat(entryPrice) || buyNum,
         buyingZone: buyNum,
         sellingZone: sellNum,
         stopLoss: slNum,
@@ -180,9 +171,9 @@ export default function TraderDashboardPage() {
         traderId: currentUser?.id || '',
         trader: {
           id: currentUser?.id || '',
-          displayName: currentUser?.name || 'TradeBeast Desk',
-          handle: '@tradebeast',
-          avatar: currentUser?.avatar || '/tradebeast-logo.png',
+          displayName: currentUser?.name || 'Snyprr Desk',
+          handle: '@snyprr',
+          avatar: currentUser?.avatar || '/light-icon.jpg',
           verifiedBadge: true,
           winRate: 0,
         },
@@ -203,8 +194,8 @@ export default function TraderDashboardPage() {
         <p className="text-sm text-[var(--text-muted)] mt-1">Manage, analyze, and publish your trade setups.</p>
       </div>
 
-      {/* Instrument + mode selector bar */}
-      <div className="flex items-center justify-between gap-2 overflow-x-auto pb-1 scrollbar-thin">
+      {/* Instrument selector bar */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
         <div className="flex gap-2">
           {CHART_ITEMS.map((item) => {
             const hasActiveSetup = predictions.some(
@@ -215,11 +206,10 @@ export default function TraderDashboardPage() {
               <button
                 key={item.symbol}
                 onClick={() => setChartSymbol(item.symbol)}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-lg border whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer flex-shrink-0 ${
-                  chartSymbol === item.symbol
-                    ? 'bg-[var(--brand-glow)] text-[var(--brand-primary)] border-[var(--brand-primary)] shadow-sm'
-                    : 'bg-[var(--bg-surface)] text-[var(--text-muted)] border-[var(--border-subtle)] hover:text-[var(--text-primary)]'
-                }`}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg border whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer flex-shrink-0 ${chartSymbol === item.symbol
+                  ? 'bg-[var(--brand-glow)] text-[var(--brand-primary)] border-[var(--brand-primary)] shadow-sm'
+                  : 'bg-[var(--bg-surface)] text-[var(--text-muted)] border-[var(--border-subtle)] hover:text-[var(--text-primary)]'
+                  }`}
               >
                 {item.label}
                 {hasActiveSetup && (
@@ -229,50 +219,21 @@ export default function TraderDashboardPage() {
             );
           })}
         </div>
-        <div className="flex items-center gap-1 p-0.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] flex-shrink-0">
-          <button
-            onClick={() => setChartMode('zonelines')}
-            className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all cursor-pointer flex items-center gap-1 ${
-              chartMode === 'zonelines' ? 'bg-[var(--brand-primary)] text-white' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-            }`}
-          >
-            <Layers className="w-3 h-3" /> Zone Lines
-          </button>
-          <button
-            onClick={() => setChartMode('tradingview')}
-            className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all cursor-pointer ${
-              chartMode === 'tradingview' ? 'bg-[var(--brand-primary)] text-white' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-            }`}
-          >
-            TradingView
-          </button>
-        </div>
       </div>
 
       {/* Chart + Create Panel — side by side */}
       <div className="grid lg:grid-cols-[1fr_380px] gap-4 items-start">
-        {/* Chart */}
+        {/* Chart — ZoneLinesChart with TradingView + signal levels overlay */}
         <div className="w-full">
-          {chartMode === 'zonelines' ? (
-            <ZoneLinesChart tvSymbol={chartSymbol} instrument={activeChartInstrument} prediction={chartPrediction} timeframe={effectiveTimeframe} height={620} />
-          ) : (
-            <div className="w-full h-[620px] rounded-2xl overflow-hidden border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
-              <AdvancedRealTimeChart
-                theme="dark"
-                symbol={chartSymbol}
-                width="100%"
-                height="100%"
-                allow_symbol_change={true}
-                interval={effectiveTimeframe as any}
-                save_image={false}
-                show_popup_button={false}
-                withdateranges={false}
-                details={false}
-                hotlist={false}
-                calendar={false}
-              />
-            </div>
-          )}
+          <ZoneLinesChart
+            tvSymbol={chartSymbol}
+            instrument={activeChartInstrument}
+            prediction={chartPrediction ?? null}
+            timeframe={effectiveTimeframe}
+            height={640}
+            showTimeframeBar={false}
+            allowDrawing={true}
+          />
         </div>
 
         {/* Create Prediction Panel */}
@@ -307,11 +268,10 @@ export default function TraderDashboardPage() {
                 <button
                   key={item.instrument}
                   onClick={() => handleSelectPanelInstrument(item.instrument)}
-                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all cursor-pointer ${
-                    panelInstrument === item.instrument
-                      ? 'bg-[var(--brand-primary)] text-white border-[var(--brand-primary)]'
-                      : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)] hover:text-[var(--text-primary)]'
-                  }`}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all cursor-pointer ${panelInstrument === item.instrument
+                    ? 'bg-[var(--brand-primary)] text-white border-[var(--brand-primary)]'
+                    : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)] hover:text-[var(--text-primary)]'
+                    }`}
                 >
                   {item.label}
                   {hasSetup && <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-success)]" />}
@@ -331,22 +291,20 @@ export default function TraderDashboardPage() {
                 <button
                   type="button"
                   onClick={() => handleDirectionChange('LONG')}
-                  className={`flex-1 flex items-center justify-center gap-1 py-1 px-2 rounded-md text-xs font-bold transition-all cursor-pointer ${
-                    direction === 'LONG'
-                      ? 'bg-[var(--color-success-bg)] text-[var(--color-success)] border border-[var(--color-success)]/40'
-                      : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                  }`}
+                  className={`flex-1 flex items-center justify-center gap-1 py-1 px-2 rounded-md text-xs font-bold transition-all cursor-pointer ${direction === 'LONG'
+                    ? 'bg-[var(--color-success-bg)] text-[var(--color-success)] border border-[var(--color-success)]/40'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                    }`}
                 >
                   <TrendingUp className="w-3.5 h-3.5" /> LONG
                 </button>
                 <button
                   type="button"
                   onClick={() => handleDirectionChange('SHORT')}
-                  className={`flex-1 flex items-center justify-center gap-1 py-1 px-2 rounded-md text-xs font-bold transition-all cursor-pointer ${
-                    direction === 'SHORT'
-                      ? 'bg-[var(--color-danger-bg)] text-[var(--color-danger)] border border-[var(--color-danger)]/40'
-                      : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                  }`}
+                  className={`flex-1 flex items-center justify-center gap-1 py-1 px-2 rounded-md text-xs font-bold transition-all cursor-pointer ${direction === 'SHORT'
+                    ? 'bg-[var(--color-danger-bg)] text-[var(--color-danger)] border border-[var(--color-danger)]/40'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                    }`}
                 >
                   <TrendingDown className="w-3.5 h-3.5" /> SHORT
                 </button>
@@ -402,18 +360,6 @@ export default function TraderDashboardPage() {
               <input type="number" step="any" value={sellingZone} onChange={(e) => setSellingZone(e.target.value)}
                 className="w-full bg-transparent font-mono text-xs font-bold text-[var(--color-danger)] focus:outline-none" />
             </div>
-          </div>
-
-          {/* Entry + Spread */}
-          <div className="p-2.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] flex items-center justify-between gap-2 relative z-10">
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px] font-semibold text-[var(--text-muted)]">Entry:</span>
-              <input type="number" step="any" value={entryPrice} onChange={(e) => setEntryPrice(e.target.value)}
-                className="w-24 bg-transparent font-mono text-xs font-bold text-[var(--text-primary)] focus:outline-none" />
-            </div>
-            <span className={`text-[11px] font-bold font-mono px-2 py-0.5 rounded ${spreadPct >= 0 ? 'text-[var(--color-success)] bg-[var(--color-success-bg)]' : 'text-[var(--color-danger)] bg-[var(--color-danger-bg)]'}`}>
-              {spreadPct >= 0 ? '+' : ''}{spreadPct.toFixed(2)}%
-            </span>
           </div>
 
           {/* SL + TP1 */}
@@ -509,27 +455,27 @@ export default function TraderDashboardPage() {
           {isLoading
             ? Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-20 rounded-2xl" />)
             : predictions.length === 0
-            ? <GlassCard hoverEffect={false}><p className="text-sm text-[var(--text-muted)] text-center py-2">No predictions yet.</p></GlassCard>
-            : predictions.slice(0, 5).map((p) => (
-              <GlassCard key={p.id} className="flex items-center gap-4 cursor-pointer" onClick={() => navigate(`/predictions/${p.id}`)}>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-[var(--text-muted)] mb-1">{p.instrument} · {p.timeframe}</p>
-                  <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{p.title}</p>
-                  {(p.stopLoss || p.takeProfit) && (
-                    <div className="flex items-center gap-3 mt-1">
-                      {p.stopLoss && <span className="text-[10px] font-mono text-orange-400">SL: {p.stopLoss.toLocaleString()}</span>}
-                      {p.takeProfit && <span className="text-[10px] font-mono text-emerald-400">TP1: {p.takeProfit.toLocaleString()}</span>}
-                      {p.takeProfit2 && <span className="text-[10px] font-mono text-emerald-300">TP2: {p.takeProfit2.toLocaleString()}</span>}
-                      {p.takeProfit3 && <span className="text-[10px] font-mono text-emerald-200">TP3: {p.takeProfit3.toLocaleString()}</span>}
-                    </div>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <DirectionBadge direction={p.direction} />
-                  <StatusBadge status={p.status} />
-                </div>
-              </GlassCard>
-            ))}
+              ? <GlassCard hoverEffect={false}><p className="text-sm text-[var(--text-muted)] text-center py-2">No predictions yet.</p></GlassCard>
+              : predictions.slice(0, 5).map((p) => (
+                <GlassCard key={p.id} className="flex items-center gap-4 cursor-pointer" onClick={() => navigate(`/predictions/${p.id}`)}>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-[var(--text-muted)] mb-1">{p.instrument} · {p.timeframe}</p>
+                    <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{p.title}</p>
+                    {(p.stopLoss || p.takeProfit) && (
+                      <div className="flex items-center gap-3 mt-1">
+                        {p.stopLoss && <span className="text-[10px] font-mono text-orange-400">SL: {p.stopLoss.toLocaleString()}</span>}
+                        {p.takeProfit && <span className="text-[10px] font-mono text-emerald-400">TP1: {p.takeProfit.toLocaleString()}</span>}
+                        {p.takeProfit2 && <span className="text-[10px] font-mono text-emerald-300">TP2: {p.takeProfit2.toLocaleString()}</span>}
+                        {p.takeProfit3 && <span className="text-[10px] font-mono text-emerald-200">TP3: {p.takeProfit3.toLocaleString()}</span>}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <DirectionBadge direction={p.direction} />
+                    <StatusBadge status={p.status} />
+                  </div>
+                </GlassCard>
+              ))}
         </div>
 
         <div className="space-y-4">

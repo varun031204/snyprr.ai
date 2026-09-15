@@ -87,7 +87,6 @@ class MockPredictionService implements IPredictionApi {
       instrument: data.instrument || 'BTC/USDT',
       category: data.category || 'CRYPTO',
       direction: data.direction || 'LONG',
-      entryPrice: data.entryPrice || 90000,
       stopLoss: data.stopLoss || 88000,
       takeProfit: data.takeProfit || 95000,
       riskRewardRatio: data.riskRewardRatio || 2.5,

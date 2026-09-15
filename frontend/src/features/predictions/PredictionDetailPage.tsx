@@ -169,19 +169,21 @@ export default function PredictionDetailPage() {
         <div className="bg-[var(--color-success-bg)] border border-[var(--color-success)]/30 rounded-2xl p-4 text-center">
           <p className="text-xs text-[var(--color-success)] mb-1.5 font-semibold">Buying Zone</p>
           <p className="text-xl font-extrabold font-mono-num text-[var(--color-success)]">
-            {(prediction.buyingZone ?? prediction.entryPrice * 0.97).toLocaleString(undefined, { maximumFractionDigits: 5 })}
+            {(prediction.buyingZone ?? 0).toLocaleString(undefined, { maximumFractionDigits: 5 })}
           </p>
         </div>
         <div className="bg-[var(--color-danger-bg)] border border-[var(--color-danger)]/30 rounded-2xl p-4 text-center">
           <p className="text-xs text-[var(--color-danger)] mb-1.5 font-semibold">Selling Zone</p>
           <p className="text-xl font-extrabold font-mono-num text-[var(--color-danger)]">
-            {(prediction.sellingZone ?? prediction.entryPrice * 1.06).toLocaleString(undefined, { maximumFractionDigits: 5 })}
+            {(prediction.sellingZone ?? 0).toLocaleString(undefined, { maximumFractionDigits: 5 })}
           </p>
         </div>
         <div className="col-span-2 sm:col-span-1 bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-2xl p-4 text-center">
           <p className="text-xs text-[var(--text-muted)] mb-1.5 font-medium">Zone Spread / Upside</p>
           <p className="text-xl font-extrabold font-mono-num text-[var(--brand-primary)]">
-            {((((prediction.sellingZone ?? prediction.entryPrice * 1.06) - (prediction.buyingZone ?? prediction.entryPrice * 0.97)) / (prediction.buyingZone ?? prediction.entryPrice * 0.97)) * 100).toFixed(2)}%
+            {prediction.buyingZone && prediction.sellingZone
+              ? (((prediction.sellingZone - prediction.buyingZone) / prediction.buyingZone) * 100).toFixed(2)
+              : '—'}%
           </p>
         </div>
       </div>
@@ -206,7 +208,8 @@ export default function PredictionDetailPage() {
               }
               instrument={prediction.instrument}
               prediction={prediction}
-              height={280}
+              height={340}
+              allowDrawing={true}
             />
           </GlassCard>
 
@@ -256,11 +259,11 @@ export default function PredictionDetailPage() {
             <div className="flex flex-col items-center text-center gap-3">
               <img
                 src="/tradebeast-logo.png"
-                alt="TradeBeast"
+                alt="Snyprr.ai"
                 className="w-16 h-16 rounded-2xl object-contain p-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)]"
               />
               <div>
-                <h3 className="text-base font-bold text-[var(--text-primary)]">TradeBeast Desk</h3>
+                <h3 className="text-base font-bold text-[var(--text-primary)]">Snyprr Desk</h3>
                 <p className="text-xs text-[var(--text-muted)] mt-0.5">Verified In-House Analyst</p>
               </div>
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[var(--color-success-bg)] text-[var(--color-success)] text-xs font-semibold border border-[var(--color-success)]/30">
