@@ -170,7 +170,7 @@ export function AIAnalysisPanel({ instrument, prediction, isSubscribed, onUnlock
                 <div className="grid grid-cols-2 gap-2">
                     {buyZone !== null && (
                         <div className="p-2.5 rounded-xl bg-[var(--color-success-bg)] border border-[var(--color-success)]/20 text-center">
-                            <p className="text-[10px] font-semibold text-[var(--color-success)] mb-0.5">Buy Wall</p>
+                            <p className="text-[10px] font-semibold text-[var(--color-success)] mb-0.5">Buying Zone</p>
                             <p className="text-xs font-bold font-mono-num text-[var(--color-success)]">
                                 ${fmt(buyZone, instrument)}
                             </p>
@@ -178,7 +178,7 @@ export function AIAnalysisPanel({ instrument, prediction, isSubscribed, onUnlock
                     )}
                     {sellZone !== null && (
                         <div className="p-2.5 rounded-xl bg-[var(--color-danger-bg)] border border-[var(--color-danger)]/20 text-center">
-                            <p className="text-[10px] font-semibold text-[var(--color-danger)] mb-0.5">Sell Wall</p>
+                            <p className="text-[10px] font-semibold text-[var(--color-danger)] mb-0.5">Selling Zone</p>
                             <p className="text-xs font-bold font-mono-num text-[var(--color-danger)]">
                                 ${fmt(sellZone, instrument)}
                             </p>
@@ -278,10 +278,22 @@ export function AIAnalysisPanel({ instrument, prediction, isSubscribed, onUnlock
             {/* ── Analysis Result ────────────────────────────────────────────────── */}
             {analysis && verdictCfg && (
                 <GlassCard hoverEffect={false} className="p-4 space-y-3 border border-[var(--border-subtle)]">
-                    {/* Verdict badge */}
-                    <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${verdictCfg.bg} ${verdictCfg.color} ${verdictCfg.border}`}>
-                        <verdictCfg.icon className="w-3.5 h-3.5" />
-                        {verdictCfg.label}
+                    {/* Verdict + Direction badges */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${verdictCfg.bg} ${verdictCfg.color} ${verdictCfg.border}`}>
+                            <verdictCfg.icon className="w-3.5 h-3.5" />
+                            {verdictCfg.label}
+                        </div>
+                        {prediction?.direction && (
+                            <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${
+                                prediction.direction === 'LONG'
+                                    ? 'bg-[var(--color-success-bg)] text-[var(--color-success)] border-[var(--color-success)]/30'
+                                    : 'bg-[var(--color-danger-bg)] text-[var(--color-danger)] border-[var(--color-danger)]/30'
+                            }`}>
+                                {prediction.direction === 'LONG' ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
+                                {prediction.direction}
+                            </div>
+                        )}
                     </div>
 
                     {/* Overview */}

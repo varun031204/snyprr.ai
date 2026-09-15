@@ -46,6 +46,8 @@ import {
   Ruler,
   ScanLine,
   Columns2,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react';
 import type {
   Prediction,
@@ -291,6 +293,7 @@ export const TradingChartPro: React.FC<TradingChartProProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef       = useRef<SVGSVGElement>(null);
+  const wrapperRef   = useRef<HTMLDivElement>(null);
   const chartRef     = useRef<IChartApi|null>(null);
   const seriesRef    = useRef<ISeriesApi<'Candlestick'>|null>(null);
   const priceLineRefs = useRef<any[]>([]);
@@ -310,8 +313,35 @@ export const TradingChartPro: React.FC<TradingChartProProps> = ({
   const [textValue,  setTextValue]    = useState('');
   const [overlayTick, setOverlayTick] = useState(0);
   const [savedAt,    setSavedAt]      = useState<string|null>(null);
-  // multi-click tools track how many points placed so far
   const [clickPhase, setClickPhase]   = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // ── Fullscreen toggle ─────────────────────────────────────────────────────
+  const toggleFullscreen = useCallback(() => {
+    const el = wrapperRef.current;
+    if (!el) return;
+    if (!document.fullscreenElement) {
+      el.requestFullscreen().catch(() => {});
+    } else {
+      document.exitFullscreen().catch(() => {});
+    }
+  }, []);
+
+  useEffect(() => {
+    const onFsChange = () => {
+      const fs = !!document.fullscreenElement;
+      setIsFullscreen(fs);
+      // Resize chart to fill new dimensions after fullscreen change
+      setTimeout(() => {
+        if (containerRef.current && chartRef.current) {
+          chartRef.current.applyOptions({ width: containerRef.current.clientWidth });
+          setOverlayTick(t => t + 1);
+        }
+      }, 100);
+    };
+    document.addEventListener('fullscreenchange', onFsChange);
+    return () => document.removeEventListener('fullscreenchange', onFsChange);
+  }, []);
 
   const interval = TIMEFRAME_TO_INTERVAL[timeframeProp ?? prediction?.timeframe ?? '1h'] ?? '1h';
   const binanceSymbol = INSTRUMENT_TO_BINANCE[instrument];
@@ -1231,8 +1261,9 @@ export const TradingChartPro: React.FC<TradingChartProProps> = ({
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div
+      ref={wrapperRef}
       className="w-full rounded-2xl overflow-hidden border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-sm relative select-none"
-      style={{ height }}
+      style={{ height: isFullscreen ? '100vh' : height }}
     >
       {/* lightweight-charts canvas */}
       <div ref={containerRef} style={{ width: '100%', height: '100%' }}/>
@@ -1348,6 +1379,19 @@ export const TradingChartPro: React.FC<TradingChartProProps> = ({
           </div>
         )}
       </div>
+
+      {/* ── Fullscreen toggle ──────────────────────────────────────────── */}
+      <button
+        type="button"
+        onClick={toggleFullscreen}
+        title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+        className="absolute bottom-3 right-3 z-20 p-1.5 rounded-lg backdrop-blur-md bg-[var(--bg-card)]/80 border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-all cursor-pointer shadow-sm"
+      >
+        {isFullscreen
+          ? <Minimize2 className="w-3.5 h-3.5" />
+          : <Maximize2 className="w-3.5 h-3.5" />
+        }
+      </button>
 
       {/* ── Active tool badge (top-right) ─────────────────────────────── */}
       {activeTool !== 'pointer' && (

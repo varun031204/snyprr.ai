@@ -121,7 +121,7 @@ export default function CreatePredictionPage() {
       takeProfit: parsedTakeProfit || undefined,
       timeframe,
       strategy: 'Key Price Zones',
-      analysis: `Forecast for ${instrument} (${timeframe}).\n- Buying Wall: ${parsedBuying.toLocaleString()}\n- Selling Wall: ${parsedSelling.toLocaleString()}${parsedStopLoss ? `\n- Stop Loss: ${parsedStopLoss.toLocaleString()}` : ''}${parsedTakeProfit ? `\n- Take Profit: ${parsedTakeProfit.toLocaleString()}` : ''}`,
+      analysis: `Forecast for ${instrument} (${timeframe}).\n- Buying Zone: ${parsedBuying.toLocaleString()}\n- Selling Zone: ${parsedSelling.toLocaleString()}${parsedStopLoss ? `\n- Stop Loss: ${parsedStopLoss.toLocaleString()}` : ''}${parsedTakeProfit ? `\n- Take Profit: ${parsedTakeProfit.toLocaleString()}` : ''}`,
       visibility,
       tags: [instrument.split('/')[0], direction, timeframe],
     };
@@ -286,7 +286,7 @@ export default function CreatePredictionPage() {
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-semibold text-[var(--color-success)] flex items-center gap-1.5">
                     <span className="w-2.5 h-2.5 rounded-full bg-[var(--color-success)] shadow-[0_0_8px_var(--color-success)]"></span>
-                    Buying Wall
+                    Buying Zone
                   </label>
                   <span className="text-[10px] text-[var(--text-muted)] font-mono">Demand / Entry Area</span>
                 </div>
@@ -305,7 +305,7 @@ export default function CreatePredictionPage() {
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-semibold text-[var(--color-danger)] flex items-center gap-1.5">
                     <span className="w-2.5 h-2.5 rounded-full bg-[var(--color-danger)] shadow-[0_0_8px_var(--color-danger)]"></span>
-                    Selling Wall
+                    Selling Zone
                   </label>
                   <span className="text-[10px] text-[var(--text-muted)] font-mono">Supply / Exit Target</span>
                 </div>

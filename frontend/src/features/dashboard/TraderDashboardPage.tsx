@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import {
   TrendingUp, TrendingDown, CheckCircle2, Clock,
   BarChart2, Code2, Sparkles, ChevronDown,
-  RotateCcw, X,
+  RotateCcw, X, Maximize2, Minimize2,
 } from 'lucide-react';
 import { StatCard } from '../../components/ui/StatCard';
 import { GlassCard } from '../../components/ui/GlassCard';
@@ -54,8 +54,26 @@ const TradingViewChart: React.FC<{ symbol: string; interval: string; theme: stri
   symbol, interval, theme, height,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const wrapperRef   = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = React.useState(false);
   const tvInterval = TV_INTERVAL_MAP[interval] ?? '60';
   const tvTheme = theme === 'neo-light' ? 'light' : 'dark';
+
+  const toggleFullscreen = () => {
+    const el = wrapperRef.current;
+    if (!el) return;
+    if (!document.fullscreenElement) {
+      el.requestFullscreen().catch(() => {});
+    } else {
+      document.exitFullscreen().catch(() => {});
+    }
+  };
+
+  React.useEffect(() => {
+    const onFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', onFsChange);
+    return () => document.removeEventListener('fullscreenchange', onFsChange);
+  }, []);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -93,10 +111,23 @@ const TradingViewChart: React.FC<{ symbol: string; interval: string; theme: stri
 
   return (
     <div
-      className="w-full rounded-2xl overflow-hidden border border-[var(--border-subtle)] bg-[var(--bg-surface)]"
-      style={{ height }}
+      ref={wrapperRef}
+      className="w-full rounded-2xl overflow-hidden border border-[var(--border-subtle)] bg-[var(--bg-surface)] relative"
+      style={{ height: isFullscreen ? '100vh' : height }}
     >
       <div ref={containerRef} className="tradingview-widget-container" style={{ height: '100%', width: '100%' }} />
+      {/* Fullscreen toggle */}
+      <button
+        type="button"
+        onClick={toggleFullscreen}
+        title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+        className="absolute bottom-3 right-3 z-20 p-1.5 rounded-lg backdrop-blur-md bg-black/40 border border-white/15 text-white/70 hover:text-white hover:bg-black/60 transition-all cursor-pointer shadow-sm"
+      >
+        {isFullscreen
+          ? <Minimize2 className="w-3.5 h-3.5" />
+          : <Maximize2 className="w-3.5 h-3.5" />
+        }
+      </button>
     </div>
   );
 };
@@ -235,7 +266,7 @@ export default function TraderDashboardPage() {
 
   const handlePublishPrediction = async () => {
     if (!buyNum || !sellNum || !slNum || !tp1Num) {
-      addToast({ type: 'danger', title: 'Validation Error', message: 'Buying Wall, Selling Wall, Stop Loss and TP1 are required.' });
+      addToast({ type: 'danger', title: 'Validation Error', message: 'Buying Zone, Selling Zone, Stop Loss and TP1 are required.' });
       return;
     }
     setIsPublishing(true);
@@ -254,7 +285,7 @@ export default function TraderDashboardPage() {
         takeProfit3: tp3Num || undefined,
         timeframe: effectiveTimeframe,
         strategy: 'Key Price Zones',
-        analysis: analysis.trim() || `Trade setup for ${panelInstrument} (${effectiveTimeframe}).\n- Buying Wall: ${buyNum.toLocaleString()}\n- Selling Wall: ${sellNum.toLocaleString()}\n- SL: ${slNum.toLocaleString()} | TP1: ${tp1Num.toLocaleString()}`,
+        analysis: analysis.trim() || `Trade setup for ${panelInstrument} (${effectiveTimeframe}).\n- Buying Zone: ${buyNum.toLocaleString()}\n- Selling Zone: ${sellNum.toLocaleString()}\n- SL: ${slNum.toLocaleString()} | TP1: ${tp1Num.toLocaleString()}`,
         status: 'PUBLISHED',
         visibility: 'PUBLIC',
         tags: [panelInstrument.split('/')[0], direction, effectiveTimeframe],
@@ -495,12 +526,12 @@ export default function TraderDashboardPage() {
           {/* Buy / Sell zones */}
           <div className="grid grid-cols-2 gap-2 relative z-10">
             <div className="p-2 rounded-xl bg-[var(--color-success-bg)] border border-[var(--color-success)]/20 space-y-1 min-w-0">
-              <label className="text-[10px] font-bold text-[var(--color-success)] block uppercase truncate">Buying Wall ($)</label>
+              <label className="text-[10px] font-bold text-[var(--color-success)] block uppercase truncate">Buying Zone ($)</label>
               <input type="number" step="any" value={buyingZone} onChange={(e) => setBuyingZone(e.target.value)}
                 className="w-full min-w-0 bg-[var(--color-success-bg)] border border-[var(--color-success)]/30 rounded-lg px-2 py-1 font-mono text-xs font-bold text-[var(--color-success)] focus:outline-none focus:border-[var(--color-success)]/60" />
             </div>
             <div className="p-2 rounded-xl bg-[var(--color-danger-bg)] border border-[var(--color-danger)]/20 space-y-1 min-w-0">
-              <label className="text-[10px] font-bold text-[var(--color-danger)] block uppercase truncate">Selling Wall ($)</label>
+              <label className="text-[10px] font-bold text-[var(--color-danger)] block uppercase truncate">Selling Zone ($)</label>
               <input type="number" step="any" value={sellingZone} onChange={(e) => setSellingZone(e.target.value)}
                 className="w-full min-w-0 bg-[var(--color-danger-bg)] border border-[var(--color-danger)]/30 rounded-lg px-2 py-1 font-mono text-xs font-bold text-[var(--color-danger)] focus:outline-none focus:border-[var(--color-danger)]/60" />
             </div>
