@@ -5,8 +5,6 @@ import { Button } from '../../components/ui/Button';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { ThemeToggle } from '../../components/ui/ThemeToggle';
 import { useSubscriptionPlans } from '../../hooks/useSubscriptionsQuery';
-
-import { LandingChatbot } from '../../components/chatbot/LandingChatbot';
 import heroVideo from '../../assets/hero.mp4';
 import { useAuthStore } from '../../state/useAuthStore';
 import { useUIStore } from '../../state/useUIStore';
@@ -570,7 +568,6 @@ export default function LandingPage() {
         </p>
       </footer>
 
-      <LandingChatbot />
     </div>
   );
 }

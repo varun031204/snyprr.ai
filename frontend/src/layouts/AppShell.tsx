@@ -4,8 +4,6 @@ import { Topbar } from './Topbar';
 import { useUIStore } from '../state/useUIStore';
 import { ToastContainer } from '../components/feedback/Toast';
 import { GlobalSearchModal } from '../components/search/GlobalSearchModal';
-import { AIAssistantDrawer } from '../components/ai/AIAssistantDrawer';
-import { AIFloatingButton } from '../components/ai/AIFloatingButton';
 
 export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { sidebarOpen } = useUIStore();
@@ -27,8 +25,6 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       </div>
 
       <GlobalSearchModal />
-      <AIAssistantDrawer />
-      <AIFloatingButton />
       <ToastContainer />
     </div>
   );

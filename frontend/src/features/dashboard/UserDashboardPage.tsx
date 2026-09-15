@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { FlaskConical, ArrowRight, Bot, ArrowLeft } from 'lucide-react';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { usePredictions } from '../../hooks/usePredictionsQuery';
@@ -15,24 +15,33 @@ import premDashboard from '../../assets/prem-dashboard.png';
 
 const ASSETS = CHART_ITEMS;
 
-const STATS = [
-  { label: 'Win Rate', value: '78.5%', sub: 'last 90 days', color: 'var(--color-success)' },
-  { label: 'Risk / Reward', value: '1 : 3.1', sub: 'avg per setup', color: 'var(--brand-primary)' },
-  { label: 'Total Setups', value: '148+', sub: 'published', color: 'var(--text-primary)' },
-  { label: 'Subscribers', value: '2.5k+', sub: 'active members', color: 'var(--color-info)' },
-];
-
 export default function UserDashboardPage() {
   const { currentUser } = useAuthStore();
   const { data: predsData } = usePredictions({ pageSize: 50 });
   const { tickers } = useMarketStore();
   const { theme } = useUIStore();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [activeAsset, setActiveAsset] = useState<(typeof ASSETS)[number]>(ASSETS[0]);
   const [timeframe, setTimeframe] = useState('1h');
   const [showPaperTrade, setShowPaperTrade] = useState(false);
   const [paperDraft, setPaperDraft] = useState<PaperTradeDraftLevels | null>(null);
+
+  const paperTradeRef = useRef<HTMLDivElement>(null);
+
+  // Auto-open paper trade panel when ?paper=1 is in the URL.
+  // Runs on every location.search change so it fires even when already on /dashboard.
+  useEffect(() => {
+    if (new URLSearchParams(location.search).get('paper') === '1') {
+      setShowPaperTrade(true);
+      navigate('/dashboard', { replace: true });
+      setTimeout(() => {
+        paperTradeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 200);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search]);
 
   const isSubscribed =
     currentUser?.subscriptionTier === 'PRO' ||
@@ -72,7 +81,6 @@ export default function UserDashboardPage() {
     return activePrediction;
   }, [showPaperTrade, paperDraft, activeAsset.instrument, activePrediction]);
 
-  const activeTicker = tickers.find((t) => t.symbol === activeAsset.instrument);
 
   return (
     <div className="max-w-7xl mx-auto space-y-5 relative">
@@ -95,24 +103,11 @@ export default function UserDashboardPage() {
           </h1>
           <p className="text-sm text-[var(--text-muted)] mt-0.5">Here's what the market looks like today.</p>
         </div>
-        {activeTicker && (
-          <div className="hidden sm:flex flex-col items-end flex-shrink-0">
-            <span className="text-xs text-[var(--text-muted)] font-medium">{activeAsset.instrument}</span>
-            <span className="text-xl font-bold font-mono-num text-[var(--text-primary)]">
-              {activeTicker.price.toLocaleString()}
-            </span>
-            <span className={`text-xs font-semibold font-mono-num ${activeTicker.change24h >= 0 ? 'text-[var(--color-success)]' : 'text-[var(--color-danger)]'}`}>
-              {activeTicker.change24h >= 0 ? '▲' : '▼'} {Math.abs(activeTicker.change24h).toFixed(2)}%
-            </span>
-          </div>
-        )}
       </div>
 
-      {/* ── Ticker Bar ── */}
       <div className="relative z-10 overflow-x-auto scrollbar-thin">
         <div className="flex items-stretch gap-2 min-w-max">
           {tickers.slice(0, 6).map((t) => {
-            const isUp = t.change24h >= 0;
             return (
               <button
                 key={t.symbol}
@@ -120,19 +115,13 @@ export default function UserDashboardPage() {
                   const asset = ASSETS.find((a) => a.instrument === t.symbol);
                   if (asset) setActiveAsset(asset);
                 }}
-                className={`flex flex-col gap-0.5 px-3 py-2 rounded-xl border transition-all text-left cursor-pointer ${
+                className={`flex items-center px-3 py-2 rounded-xl border transition-all text-left cursor-pointer ${
                   activeAsset.instrument === t.symbol
                     ? 'bg-[var(--brand-glow)] border-[var(--brand-primary)]/40'
                     : 'bg-[var(--bg-surface)] border-[var(--border-subtle)] hover:border-[var(--border-strong)]'
                 }`}
               >
-                <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wide">{t.symbol}</span>
-                <span className="text-sm font-bold font-mono-num text-[var(--text-primary)]">
-                  {t.price >= 1000 ? t.price.toLocaleString() : t.price.toFixed(t.price < 10 ? 4 : 2)}
-                </span>
-                <span className={`text-[10px] font-semibold font-mono-num ${isUp ? 'text-[var(--color-success)]' : 'text-[var(--color-danger)]'}`}>
-                  {isUp ? '+' : ''}{t.change24h.toFixed(2)}%
-                </span>
+                <span className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">{t.symbol}</span>
               </button>
             );
           })}
@@ -197,6 +186,7 @@ export default function UserDashboardPage() {
           </GlassCard>
 
           {/* Paper Trade Option below AI Analysis Box */}
+          <div ref={paperTradeRef}>
           {!showPaperTrade ? (
             <button
               type="button"
@@ -235,18 +225,8 @@ export default function UserDashboardPage() {
               />
             </div>
           )}
-        </div>
-      </div>
-
-      {/* ── Stats Strip ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 relative z-10">
-        {STATS.map((s) => (
-          <div key={s.label} className="px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] flex flex-col gap-0.5">
-            <span className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wide">{s.label}</span>
-            <span className="text-xl font-extrabold font-mono-num" style={{ color: s.color }}>{s.value}</span>
-            <span className="text-[10px] text-[var(--text-muted)]">{s.sub}</span>
           </div>
-        ))}
+        </div>
       </div>
 
     </div>

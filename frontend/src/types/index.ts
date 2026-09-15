@@ -197,11 +197,33 @@ export interface CandleData {
 
 export type DrawingTool =
   | 'pointer'
+  // ── Lines ───────────────────────────────────────────────────────────────────
   | 'horizontal'
+  | 'vertical'
   | 'trendline'
+  | 'ray'
+  | 'extended'
+  // ── Channels ────────────────────────────────────────────────────────────────
+  | 'channel'
+  | 'pitchfork'
+  // ── Fibonacci ───────────────────────────────────────────────────────────────
+  | 'fibretracement'
+  | 'fibextension'
+  | 'fibchannel'
+  // ── Shapes ──────────────────────────────────────────────────────────────────
+  | 'rectangle'
+  | 'circle'
+  | 'triangle'
+  // ── Arrows ──────────────────────────────────────────────────────────────────
+  | 'arrow_up'
+  | 'arrow_down'
+  // ── Measure ─────────────────────────────────────────────────────────────────
+  | 'price_range'
+  | 'date_price_range'
+  // ── Positions ───────────────────────────────────────────────────────────────
   | 'long'
   | 'short'
-  | 'rectangle'
+  // ── Freehand / Text ─────────────────────────────────────────────────────────
   | 'brush'
   | 'text';
 
@@ -211,16 +233,18 @@ interface BaseDrawing {
   opacity: number;
 }
 
+// ── Existing ─────────────────────────────────────────────────────────────────
+
 export interface HorizontalLineDrawing extends BaseDrawing {
   type: 'horizontal';
-  price: number; // price-space anchor
+  price: number;
 }
 
 export interface TrendLineDrawing extends BaseDrawing {
   type: 'trendline';
   price1: number;
   price2: number;
-  barIndex1: number; // lightweight-charts logical bar index
+  barIndex1: number;
   barIndex2: number;
 }
 
@@ -252,7 +276,6 @@ export interface RectangleDrawing extends BaseDrawing {
 
 export interface BrushDrawing extends BaseDrawing {
   type: 'brush';
-  /** Array of {price, barIndex} points */
   points: Array<{ price: number; barIndex: number }>;
 }
 
@@ -264,11 +287,173 @@ export interface TextDrawing extends BaseDrawing {
   fontSize: number;
 }
 
+// ── New Line Types ────────────────────────────────────────────────────────────
+
+/** Vertical line anchored to a bar index */
+export interface VerticalLineDrawing extends BaseDrawing {
+  type: 'vertical';
+  barIndex: number;
+}
+
+/** Ray: starts at point, extends infinitely to the right */
+export interface RayDrawing extends BaseDrawing {
+  type: 'ray';
+  price1: number;
+  price2: number;
+  barIndex1: number;
+  barIndex2: number;
+}
+
+/** Extended line: extends infinitely in both directions */
+export interface ExtendedLineDrawing extends BaseDrawing {
+  type: 'extended';
+  price1: number;
+  price2: number;
+  barIndex1: number;
+  barIndex2: number;
+}
+
+// ── Channel ───────────────────────────────────────────────────────────────────
+
+/**
+ * Parallel Channel: defined by two baseline points (bar1→bar2) plus a
+ * channel width offset in price space.
+ */
+export interface ChannelDrawing extends BaseDrawing {
+  type: 'channel';
+  price1: number;
+  price2: number;
+  barIndex1: number;
+  barIndex2: number;
+  /** Price offset for the parallel second line */
+  offsetPrice: number;
+  /** true while the user is still dragging the baseline (phase=1),
+   *  false once they click the offset point (phase=2, committed) */
+  phase: 1 | 2;
+}
+
+// ── Pitchfork (Andrews) ───────────────────────────────────────────────────────
+
+/**
+ * Andrews Pitchfork: 3 anchor points.
+ * handle (p1) → left tine tip (p2) → right tine tip (p3).
+ * Median line runs from p1 through midpoint of p2-p3.
+ */
+export interface PitchforkDrawing extends BaseDrawing {
+  type: 'pitchfork';
+  price1: number; barIndex1: number; // pivot / handle
+  price2: number; barIndex2: number; // upper tine
+  price3: number; barIndex3: number; // lower tine
+  /** 1 = setting p1, 2 = setting p2, 3 = setting p3 (committed) */
+  phase: 1 | 2 | 3;
+}
+
+// ── Fibonacci ─────────────────────────────────────────────────────────────────
+
+export interface FibRetracementDrawing extends BaseDrawing {
+  type: 'fibretracement';
+  price1: number; barIndex1: number;
+  price2: number; barIndex2: number;
+  /** Levels to draw, e.g. [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1] */
+  levels: number[];
+}
+
+export interface FibExtensionDrawing extends BaseDrawing {
+  type: 'fibextension';
+  price1: number; barIndex1: number;
+  price2: number; barIndex2: number;
+  price3: number; barIndex3: number;
+  /** Extension levels e.g. [0, 0.618, 1, 1.272, 1.618, 2, 2.618] */
+  levels: number[];
+  /** 1 = setting p1→p2, 2 = setting p3 (committed) */
+  phase: 1 | 2 | 3;
+}
+
+export interface FibChannelDrawing extends BaseDrawing {
+  type: 'fibchannel';
+  price1: number; barIndex1: number;
+  price2: number; barIndex2: number;
+  price3: number; barIndex3: number;
+  levels: number[];
+  phase: 1 | 2 | 3;
+}
+
+// ── Shapes ────────────────────────────────────────────────────────────────────
+
+export interface CircleDrawing extends BaseDrawing {
+  type: 'circle';
+  /** Center anchor */
+  centerPrice: number;
+  centerBarIndex: number;
+  /** Radius anchor point (price at edge) */
+  edgePrice: number;
+  edgeBarIndex: number;
+}
+
+export interface TriangleDrawing extends BaseDrawing {
+  type: 'triangle';
+  price1: number; barIndex1: number;
+  price2: number; barIndex2: number;
+  price3: number; barIndex3: number;
+  phase: 1 | 2 | 3;
+}
+
+// ── Arrows ────────────────────────────────────────────────────────────────────
+
+export interface ArrowUpDrawing extends BaseDrawing {
+  type: 'arrow_up';
+  price: number;
+  barIndex: number;
+}
+
+export interface ArrowDownDrawing extends BaseDrawing {
+  type: 'arrow_down';
+  price: number;
+  barIndex: number;
+}
+
+// ── Measure ───────────────────────────────────────────────────────────────────
+
+export interface PriceRangeDrawing extends BaseDrawing {
+  type: 'price_range';
+  price1: number; barIndex1: number;
+  price2: number; barIndex2: number;
+}
+
+export interface DatePriceRangeDrawing extends BaseDrawing {
+  type: 'date_price_range';
+  price1: number; barIndex1: number;
+  price2: number; barIndex2: number;
+}
+
+// ── Union ─────────────────────────────────────────────────────────────────────
+
 export type ChartDrawing =
+  // original
   | HorizontalLineDrawing
   | TrendLineDrawing
   | LongPositionDrawing
   | ShortPositionDrawing
   | RectangleDrawing
   | BrushDrawing
-  | TextDrawing;
+  | TextDrawing
+  // new lines
+  | VerticalLineDrawing
+  | RayDrawing
+  | ExtendedLineDrawing
+  // channels
+  | ChannelDrawing
+  | PitchforkDrawing
+  // fib
+  | FibRetracementDrawing
+  | FibExtensionDrawing
+  | FibChannelDrawing
+  // shapes
+  | CircleDrawing
+  | TriangleDrawing
+  // arrows
+  | ArrowUpDrawing
+  | ArrowDownDrawing
+  // measure
+  | PriceRangeDrawing
+  | DatePriceRangeDrawing;

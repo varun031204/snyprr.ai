@@ -125,14 +125,15 @@ export const Topbar: React.FC = () => {
 
         {/* Paper Trading Balance — USER only */}
         {activeRole === 'USER' && (
-        <Link
-          to="/paper-trading"
-          className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--brand-primary)]/40 transition-all"
+        <button
+          type="button"
+          onClick={() => navigate('/dashboard?paper=1')}
+          className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--brand-primary)]/40 transition-all cursor-pointer"
           title="Paper Trading"
         >
           <Coins className="w-4 h-4 text-[var(--color-warning)] flex-shrink-0" />
           <span className="text-xs font-bold font-mono-num text-[var(--color-warning)]">${balance.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
-        </Link>
+        </button>
         )}
 
         {/* Home */}

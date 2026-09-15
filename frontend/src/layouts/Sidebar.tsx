@@ -15,6 +15,7 @@ interface NavItem {
   label: string;
   path: string;
   icon: React.ReactNode;
+  paperTrade?: boolean;
 }
 
 const userNav: NavItem[] = [
@@ -22,7 +23,7 @@ const userNav: NavItem[] = [
   { label: 'Predictions', path: '/predictions', icon: <TrendingUp className="w-5 h-5" /> },
   { label: 'News', path: '/news', icon: <Newspaper className="w-5 h-5" /> },
   { label: 'My Trades', path: '/my-trades', icon: <Briefcase className="w-5 h-5" /> },
-  { label: 'Paper Trading', path: '/paper-trading', icon: <FlaskConical className="w-5 h-5" /> },
+  { label: 'Paper Trading', path: '/dashboard', icon: <FlaskConical className="w-5 h-5" />, paperTrade: true },
   { label: 'Subscriptions', path: '/subscriptions', icon: <CreditCard className="w-5 h-5" /> },
 ];
 
@@ -54,9 +55,10 @@ export const Sidebar: React.FC = () => {
 
   const navItems = activeRole === 'ADMIN' ? adminNav : activeRole === 'TRADER' ? traderNav : userNav;
 
-  const isActive = (path: string) =>
-    location.pathname === path || (path !== '/dashboard' && path !== '/admin' && location.pathname.startsWith(path));
-
+  const isActive = (path: string) => {
+    const basePath = path.split('?')[0];
+    return location.pathname === basePath || (basePath !== '/dashboard' && basePath !== '/admin' && location.pathname.startsWith(basePath));
+  };
   // Auto-close sidebar on small screens when route changes
   useEffect(() => {
     if (window.innerWidth < 1024) {
@@ -155,6 +157,33 @@ export const Sidebar: React.FC = () => {
 
           {navItems.map((item) => {
             const active = isActive(item.path);
+            // Paper Trade item: navigate programmatically so ?paper=1 always fires
+            // even when already on /dashboard
+            if (item.paperTrade) {
+              return (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={() => {
+                    navigate('/dashboard?paper=1');
+                    if (window.innerWidth < 768) setSidebarOpen(false);
+                  }}
+                  title={!sidebarOpen ? item.label : undefined}
+                  className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all duration-150 relative w-full ${!sidebarOpen ? 'md:justify-center md:px-0' : ''
+                    } text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)]`}
+                >
+                  <span className="flex-shrink-0 transition-transform group-hover:scale-110">
+                    {item.icon}
+                  </span>
+                  {sidebarOpen && <span className="truncate whitespace-nowrap flex-1">{item.label}</span>}
+                  {!sidebarOpen && (
+                    <div className="hidden md:group-hover:flex absolute left-full ml-3 px-2.5 py-1 rounded-lg bg-[var(--bg-surface-glass)] backdrop-blur-xl border border-[var(--border-glass)] text-xs font-semibold text-[var(--text-primary)] shadow-xl whitespace-nowrap z-50 pointer-events-none animate-fade-in">
+                      {item.label}
+                    </div>
+                  )}
+                </button>
+              );
+            }
             return (
               <Link
                 key={item.path}

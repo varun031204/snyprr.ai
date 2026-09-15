@@ -62,7 +62,7 @@ export const PaperTradeOrderPanel: React.FC<PaperTradeOrderPanelProps> = ({
   className = '',
 }) => {
   const { tickers } = useMarketStore();
-  const { balance, openTrade } = usePaperTradingStore();
+  const { openTrade } = usePaperTradingStore();
   const { addToast } = useUIStore();
 
   const [panelInstrument, setPanelInstrument] = useState(currentInstrument);
@@ -79,7 +79,6 @@ export const PaperTradeOrderPanel: React.FC<PaperTradeOrderPanelProps> = ({
   const [takeProfit1, setTakeProfit1] = useState('98050');
   const [takeProfit2, setTakeProfit2] = useState('');
   const [takeProfit3, setTakeProfit3] = useState('');
-  const [margin, setMargin] = useState('500');
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -164,7 +163,6 @@ export const PaperTradeOrderPanel: React.FC<PaperTradeOrderPanelProps> = ({
     setDirection('LONG');
     setTimeframe('1h');
     setIsCustomTimeframe(false);
-    setMargin('500');
     setNotes('');
     addToast({ type: 'info', title: 'Form Reset', message: `Reset paper trade parameters for ${panelInstrument}.` });
   };
@@ -176,20 +174,8 @@ export const PaperTradeOrderPanel: React.FC<PaperTradeOrderPanelProps> = ({
   const tp2Num = parseFloat(takeProfit2) || 0;
   const tp3Num = parseFloat(takeProfit3) || 0;
   const entryNum = parseFloat(entryPrice) || buyNum;
-  const marginNum = parseFloat(margin) || 0;
 
   const spreadPct = buyNum > 0 && sellNum > 0 ? ((sellNum - buyNum) / buyNum) * 100 : 0;
-
-  // Potential profit / loss calculation
-  const potentialLoss = entryNum > 0 && slNum > 0 && marginNum > 0
-    ? (Math.abs(entryNum - slNum) / entryNum) * marginNum
-    : 0;
-
-  const potentialProfit = entryNum > 0 && tp1Num > 0 && marginNum > 0
-    ? (Math.abs(tp1Num - entryNum) / entryNum) * marginNum
-    : 0;
-
-  const riskReward = potentialLoss > 0 ? (potentialProfit / potentialLoss).toFixed(1) : '—';
 
   // Notify parent of draft levels for live chart overlay
   useEffect(() => {
@@ -214,30 +200,21 @@ export const PaperTradeOrderPanel: React.FC<PaperTradeOrderPanelProps> = ({
       addToast({ type: 'danger', title: 'Validation Error', message: 'Entry Price, Stop Loss, and TP1 are required.' });
       return;
     }
-    if (marginNum <= 0) {
-      addToast({ type: 'danger', title: 'Invalid Margin', message: 'Please enter a valid margin to risk.' });
-      return;
-    }
-    if (marginNum > balance) {
-      addToast({ type: 'danger', title: 'Insufficient Balance', message: `Available virtual balance is $${balance.toLocaleString()}.` });
-      return;
-    }
 
     setIsSubmitting(true);
     try {
-      const quantity = marginNum / entryNum;
       const tradeId = openTrade({
         instrument: panelInstrument,
         direction,
         entryPrice: entryNum,
-        quantity,
+        quantity: 1,
         stopLoss: slNum,
         takeProfit: tp1Num,
         takeProfit2: tp2Num || undefined,
         takeProfit3: tp3Num || undefined,
         buyingZone: buyNum || undefined,
         sellingZone: sellNum || undefined,
-        margin: marginNum,
+        margin: 0,
         timeframe: effectiveTimeframe,
         notes: notes.trim() || undefined,
       });
@@ -245,12 +222,12 @@ export const PaperTradeOrderPanel: React.FC<PaperTradeOrderPanelProps> = ({
       if (tradeId) {
         addToast({
           type: 'success',
-          title: 'Paper Trade Executed! 🎉',
-          message: `Opened ${direction} position on ${panelInstrument} ($${marginNum.toLocaleString()} margin).`,
+          title: 'Trade Published! 🎉',
+          message: `${direction} position on ${panelInstrument} has been published.`,
         });
         onTradeExecuted?.(tradeId);
       } else {
-        addToast({ type: 'danger', title: 'Execution Failed', message: 'Could not open paper position. Check virtual balance.' });
+        addToast({ type: 'danger', title: 'Publish Failed', message: 'Could not publish trade. Please try again.' });
       }
     } finally {
       setIsSubmitting(false);
@@ -283,10 +260,7 @@ export const PaperTradeOrderPanel: React.FC<PaperTradeOrderPanelProps> = ({
             </h3>
           </div>
           <div className="flex items-center gap-2 mt-0.5 text-[11px] text-[var(--text-muted)]">
-            <span className="flex items-center gap-1 font-mono text-[10px] font-semibold text-[var(--text-secondary)]">
-              <Wallet className="w-3 h-3 text-[var(--brand-primary)]" />
-              Bal: <strong className="text-[var(--color-success)] font-mono-num">${balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
-            </span>
+            <span className="text-[10px] font-semibold text-[var(--text-muted)]">Simulated trading</span>
           </div>
         </div>
         <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
@@ -497,53 +471,6 @@ export const PaperTradeOrderPanel: React.FC<PaperTradeOrderPanelProps> = ({
             className="w-full min-w-0 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg px-2 py-1 font-mono text-xs font-bold text-[var(--text-secondary)] focus:outline-none focus:border-[var(--border-strong)] placeholder:text-[var(--text-muted)]"
           />
         </div>
-      </div>
-
-      {/* Margin / Position Size */}
-      <div className="p-2.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] space-y-2 relative z-10">
-        <div className="flex items-center justify-between text-[11px] font-semibold text-[var(--text-secondary)]">
-          <span>Margin to Risk ($)</span>
-          <span className="text-[10px] text-[var(--brand-primary)] font-mono">Max: ${balance.toLocaleString()}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <input
-            type="number"
-            step="any"
-            value={margin}
-            onChange={(e) => setMargin(e.target.value)}
-            className="flex-1 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg px-2.5 py-1.5 font-mono text-xs font-bold text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-primary)]"
-          />
-          <div className="flex gap-1">
-            {[10, 25, 50, 100].map((pct) => (
-              <button
-                key={pct}
-                type="button"
-                onClick={() => setMargin(((balance * pct) / 100).toFixed(0))}
-                className="px-2 py-1 rounded-md text-[10px] font-bold bg-[var(--bg-surface)] hover:bg-[var(--brand-glow)] border border-[var(--border-subtle)] hover:border-[var(--brand-primary)]/40 text-[var(--text-secondary)] hover:text-[var(--brand-primary)] transition-all cursor-pointer"
-              >
-                {pct}%
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Risk : Reward preview strip */}
-        {potentialLoss > 0 && potentialProfit > 0 && (
-          <div className="grid grid-cols-3 gap-1.5 pt-1 text-center font-mono">
-            <div className="p-1 rounded bg-[var(--color-danger-bg)] border border-[var(--color-danger)]/20">
-              <span className="block text-[9px] text-[var(--text-muted)]">Max Loss</span>
-              <span className="text-[11px] font-bold text-[var(--color-danger)]">-${potentialLoss.toFixed(2)}</span>
-            </div>
-            <div className="p-1 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
-              <span className="block text-[9px] text-[var(--text-muted)]">Risk : Reward</span>
-              <span className="text-[11px] font-bold text-[var(--text-primary)]">1 : {riskReward}</span>
-            </div>
-            <div className="p-1 rounded bg-[var(--color-success-bg)] border border-[var(--color-success)]/20">
-              <span className="block text-[9px] text-[var(--text-muted)]">Max Profit</span>
-              <span className="text-[11px] font-bold text-[var(--color-success)]">+${potentialProfit.toFixed(2)}</span>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Notes */}

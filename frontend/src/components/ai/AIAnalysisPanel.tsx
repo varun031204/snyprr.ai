@@ -80,7 +80,10 @@ export function AIAnalysisPanel({ instrument, prediction, isSubscribed, onUnlock
 
     // ── Trigger analysis ───────────────────────────────────────────────────────
     const handleAnalyze = async () => {
-        if (!prediction) return;
+        if (!prediction) {
+            setAnalysisError('no_active_trades');
+            return;
+        }
         setIsAnalyzing(true);
         setAnalysisError(null);
         setAnalysis(null);
@@ -148,7 +151,7 @@ export function AIAnalysisPanel({ instrument, prediction, isSubscribed, onUnlock
                         AI Analysis
                     </h3>
                     <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
-                        Powered by Gemini · based on trader setup
+                        Multi-model AI · real-time market insight
                     </p>
                 </div>
                 {analysis && (
@@ -162,8 +165,8 @@ export function AIAnalysisPanel({ instrument, prediction, isSubscribed, onUnlock
                 )}
             </div>
 
-            {/* ── Trader Levels ──────────────────────────────────────────────────── */}
-            {prediction ? (
+            {/* ── Trader Levels — only shown when a prediction exists ────────── */}
+            {prediction && (
                 <div className="grid grid-cols-2 gap-2">
                     {buyZone !== null && (
                         <div className="p-2.5 rounded-xl bg-[var(--color-success-bg)] border border-[var(--color-success)]/20 text-center">
@@ -206,12 +209,6 @@ export function AIAnalysisPanel({ instrument, prediction, isSubscribed, onUnlock
                         </div>
                     )}
                 </div>
-            ) : (
-                <div className="p-4 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] text-center">
-                    <p className="text-xs text-[var(--text-muted)]">
-                        No active trader setup for <span className="font-semibold text-[var(--text-primary)]">{instrument}</span>.
-                    </p>
-                </div>
             )}
 
             {/* ── CTA Button ─────────────────────────────────────────────────────── */}
@@ -222,7 +219,7 @@ export function AIAnalysisPanel({ instrument, prediction, isSubscribed, onUnlock
                     className="w-full justify-center"
                     leftIcon={<Sparkles className={`w-3.5 h-3.5 ${isAnalyzing ? 'animate-spin' : ''}`} />}
                     onClick={handleAnalyze}
-                    disabled={isAnalyzing || !prediction}
+                    disabled={isAnalyzing}
                 >
                     {isAnalyzing ? 'Analyzing...' : 'AI Analysis'}
                 </Button>
@@ -240,7 +237,17 @@ export function AIAnalysisPanel({ instrument, prediction, isSubscribed, onUnlock
 
             {/* ── Error ──────────────────────────────────────────────────────────── */}
             {analysisError && (
-                analysisError.includes('VITE_GEMINI_API_KEY') ? (
+                analysisError === 'no_active_trades' ? (
+                    <div className="p-4 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] flex flex-col items-center gap-2 text-center">
+                        <div className="w-9 h-9 rounded-full bg-[var(--bg-surface)] border border-[var(--border-subtle)] flex items-center justify-center">
+                            <Bot className="w-4 h-4 text-[var(--text-muted)]" />
+                        </div>
+                        <p className="text-xs font-semibold text-[var(--text-primary)]">No Active Trades</p>
+                        <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
+                            There are no published setups for <span className="font-semibold text-[var(--text-primary)]">{instrument}</span> right now. Switch to another asset or check back later.
+                        </p>
+                    </div>
+                ) : analysisError.includes('VITE_GEMINI_API_KEY') ? (
                     <div className="p-3.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] space-y-2">
                         <p className="text-xs font-semibold text-[var(--text-primary)] flex items-center gap-1.5">
                             <span>⚙️</span> API Key Not Configured
