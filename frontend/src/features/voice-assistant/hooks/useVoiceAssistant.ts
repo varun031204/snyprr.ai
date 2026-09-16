@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { VoiceSettings, VoiceState, VoiceTurn } from '../types/voice';
 import { DEFAULT_LANGUAGE } from '../config/languages';
-import { buildKnowledgeContext } from '../../../components/chat/chatKnowledge';
 import { cleanTextForSpeech } from '../services/voiceService';
 import { useSpeechRecognition } from './useSpeechRecognition';
 import { useTextToSpeech } from './useTextToSpeech';
@@ -14,6 +13,29 @@ const MAX_TURNS_UI = 50;
 // Streaming endpoint — starts speaking the first sentence before full response is ready
 const GEMINI_STREAM_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:streamGenerateContent?alt=sse';
 const GEMINI_KEY        = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
+
+// ─── Full platform knowledge (always injected — not keyword-filtered) ─────────
+// This is embedded once in the system prompt so Gemini always knows the platform.
+// General trading questions use Gemini's own training knowledge, not this section.
+const PLATFORM_KNOWLEDGE = `
+Snyprr.ai is a trading intelligence and signal platform. Verified analysts publish predictions with Buying Zones and Selling Zones. Users track predictions, follow traders, manage a watchlist, and review performance. Snyprr.ai does NOT execute real trades or hold user funds.
+
+SUPPORTED MARKETS: BTC/USDT, ETH/USDT, SOL/USDT, XRP/USDT (Crypto). GOLD, SILVER (Commodities).
+
+PREDICTIONS include: Instrument, Direction (LONG/SHORT), Buying Zone, Selling Zone, Stop Loss, Take Profit, Risk/Reward, Timeframe, Strategy, Analysis notes. Statuses: DRAFT, PUBLISHED, ACTIVE, TARGET_HIT, STOP_HIT, CLOSED, CANCELLED, EXPIRED.
+
+PAPER TRADING: Simulated $10,000 virtual balance. Market orders execute at current price. Limit orders trigger at Buying Zone. Fully risk-free — no real money involved.
+
+AI ANALYSIS: Evaluates trader setups and provides overview, risk/reward, market sentiment, and verdict (BULLISH/BEARISH/NEUTRAL/CAUTION). Has an embedded follow-up chat.
+
+SUBSCRIPTIONS — PRO: $29/month or $290/year. Subscriber-only predictions, realtime alerts, email/web alerts, prediction overlays, follow up to 15 traders, historical analytics. VIP: $79/month or $790/year. Exclusive predictions, unlimited trader follows, instant WebSocket alerts, Trader Journal, priority AI search, VIP Discord. Free 30-day trial available.
+
+STRATEGIES available: Breakout and Retest, Smart Money Concepts (SMC), Supply and Demand Zones, Trendline Breakout, Fibonacci Retracement, RSI/MACD Divergence, Liquidity Sweep, Harmonic Pattern.
+
+CHARTS: TradingView charts with drawing tools including trend lines, Fibonacci, channels, pitchfork and more. Green overlay = Buying Zone, Red overlay = Selling Zone.
+
+SUPPORT: support@snyprr.ai. Developer: dev@snyprr.ai.
+`.trim();
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -49,7 +71,7 @@ function saveSettings(s: VoiceSettings): void {
 
 // ─── System prompt ────────────────────────────────────────────────────────────
 
-function buildSystemPrompt(knowledge: string, lang: string): string {
+function buildSystemPrompt(lang: string): string {
   return `You are Snyprr Voice — a sharp, friendly trading companion inside the Snyprr.ai platform. Think of yourself as that knowledgeable trader friend who picks up the phone and actually talks to you, not reads you a manual.
 
 YOUR PERSONALITY:
@@ -60,23 +82,23 @@ YOUR PERSONALITY:
 - If you genuinely don't know something, say "Honestly, I'm not sure about that one" — never give a legal disclaimer.
 
 WHAT YOU KNOW AND WILL ANSWER FREELY:
-- Crypto markets, Bitcoin, Ethereum, altcoins, DeFi, macro trends — discuss all of it confidently.
+- Crypto markets, Bitcoin, Ethereum, altcoins, DeFi, macro trends — discuss all of it confidently using your training knowledge.
 - Technical analysis: candlesticks, support/resistance, RSI, MACD, moving averages, Fibonacci, order blocks, FVGs, liquidity sweeps, BOS — explain clearly.
-- Trading strategies: SMC, breakout/retest, supply and demand, trend following, scalping, swing trading.
+- Trading strategies: SMC, breakout/retest, supply and demand, trend following, scalping, swing trading — answer all of them.
 - Risk management: stop loss, position sizing, risk/reward — give real practical takes.
-- Snyprr.ai platform features — use the knowledge section below.
+- Snyprr.ai platform features — covered in the PLATFORM section below.
 
 ONE HONEST LIMITATION:
-- You don't have a live price feed. If asked for an exact price right now, say something like "I don't have live prices — check the chart — but last I knew Bitcoin was in the X range." Give context and move on naturally.
+- You don't have a live price feed. If asked for an exact current price, say something like "I don't have live prices right now — check the chart — but here's what I know about it." Then give useful context and move on.
 
-RESPONSE FORMAT — this is VOICE, critical:
-- 2 to 3 sentences MAX for simple questions. 4 to 5 only if genuinely needed.
-- Absolutely NO markdown. No asterisks, no bullet symbols, no hashes, no numbered lists. Pure spoken sentences.
-- Respond in the same language the user spoke. Language hint: ${lang}. Mix Hindi and English naturally if the user does (Hinglish is great).
-- Lead with the answer — get to the point in your very first sentence, then add colour.
+RESPONSE FORMAT — this is VOICE, absolutely critical:
+- 2 to 3 sentences MAX for simple questions. 4 to 5 only for complex topics.
+- NO markdown whatsoever. No asterisks, no dashes as bullets, no hashes, no numbered lists. Pure natural spoken sentences only.
+- Respond in the exact language the user spoke. Language hint: ${lang}. Mix Hindi and English naturally if the user does (Hinglish is perfect).
+- Lead with the answer immediately — do not start with "Great question!" or preamble. Get to the point in sentence one.
 
-SNYPRR PLATFORM KNOWLEDGE:
-${knowledge}`;
+SNYPRR.AI PLATFORM:
+${PLATFORM_KNOWLEDGE}`;
 }
 
 // ─── Sentence splitter for streaming TTS ─────────────────────────────────────
@@ -188,8 +210,7 @@ export function useVoiceAssistant() {
     const userMsg: GMsg = { role: 'user', parts: [{ text: userText }] };
     geminiHistory.current = [...geminiHistory.current, userMsg].slice(-MAX_HISTORY);
 
-    const knowledge    = buildKnowledgeContext(userText);
-    const systemPrompt = buildSystemPrompt(knowledge, currentLang);
+    const systemPrompt = buildSystemPrompt(currentLang);
 
     // Placeholder turn — updated live as text streams in
     const turnId = `turn-${Date.now()}-assistant`;
