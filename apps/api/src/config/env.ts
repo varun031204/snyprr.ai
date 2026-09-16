@@ -19,7 +19,7 @@ const envSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, 'SUPABASE_SERVICE_ROLE_KEY is required'),
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
   DIRECT_URL: z.string().optional(),
-  GEMINI_API_KEY: z.string().optional(),
+  GEMINI_API_KEY: z.string().min(1, 'GEMINI_API_KEY is required for AI features'),
 });
 
 export const env = envSchema.parse(process.env);

@@ -1,6 +1,7 @@
 import { app } from './app.js';
 import { env } from './config/env.js';
 import { db } from './db/pool.js';
+import { createVoiceWss } from './routes/voice.routes.js';
 
 const PORT = env.PORT || 4000;
 
@@ -10,8 +11,25 @@ const server = app.listen(PORT, () => {
   console.log(`🌐 Base URL: http://localhost:${PORT}`);
   console.log(`📊 Health Check: http://localhost:${PORT}/health`);
   console.log(`🔌 Database Status: http://localhost:${PORT}/health/db`);
+  console.log(`🎙️  Voice WS: ws://localhost:${PORT}/ws/voice`);
   console.log(`📡 Supabase Endpoint: ${env.SUPABASE_URL}`);
   console.log('====================================================');
+});
+
+// ── Gemini Live voice WebSocket proxy ──────────────────────────────────────
+const voiceWss = createVoiceWss();
+
+server.on('upgrade', (request, socket, head) => {
+  const { pathname } = new URL(request.url ?? '/', `http://localhost:${PORT}`);
+
+  if (pathname === '/ws/voice') {
+    voiceWss.handleUpgrade(request, socket, head, (ws) => {
+      voiceWss.emit('connection', ws, request);
+    });
+  } else {
+    // Reject any other WebSocket upgrade attempts
+    socket.destroy();
+  }
 });
 
 // ── Graceful shutdown ──────────────────────────────────────────────────────
