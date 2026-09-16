@@ -1,17 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { VoiceGender, VoiceSettings, VoiceState, VoiceTurn } from '../types/voice';
+import type { VoiceSettings, VoiceState, VoiceTurn } from '../types/voice';
 import { DEFAULT_LANGUAGE } from '../config/languages';
 import { buildKnowledgeContext } from '../../../components/chat/chatKnowledge';
+import { cleanTextForSpeech } from '../services/voiceService';
 import { useSpeechRecognition } from './useSpeechRecognition';
 import { useTextToSpeech } from './useTextToSpeech';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const STORAGE_KEY   = 'snyprr_voice_settings';
-const MAX_HISTORY   = 20; // max Gemini turns kept
-const MAX_TURNS_UI  = 50; // max turns shown in UI
-const GEMINI_URL    = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent';
-const GEMINI_KEY    = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
+const STORAGE_KEY  = 'snyprr_voice_settings';
+const MAX_HISTORY  = 16;
+const MAX_TURNS_UI = 50;
+// Streaming endpoint — starts speaking the first sentence before full response is ready
+const GEMINI_STREAM_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:streamGenerateContent?alt=sse';
+const GEMINI_KEY        = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -42,41 +44,55 @@ function loadSettings(): VoiceSettings {
 }
 
 function saveSettings(s: VoiceSettings): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
-  } catch {
-    // ignore storage errors
-  }
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch { /* ignore */ }
 }
 
 // ─── System prompt ────────────────────────────────────────────────────────────
 
 function buildSystemPrompt(knowledge: string, lang: string): string {
-  return `You are Snyprr Voice, the AI trading assistant for Snyprr.ai — a trading intelligence and signal platform. You are knowledgeable, conversational, and genuinely helpful.
+  return `You are Snyprr Voice — a sharp, friendly trading companion inside the Snyprr.ai platform. Think of yourself as that knowledgeable trader friend who picks up the phone and actually talks to you, not reads you a manual.
 
-WHAT YOU CAN AND SHOULD DO:
-- Answer questions about crypto markets, forex, commodities, stocks, and trading in general — confidently and in detail.
-- Explain technical analysis: candlestick patterns, support/resistance, moving averages, RSI, MACD, Fibonacci, order blocks, fair value gaps, liquidity zones, etc.
-- Discuss market sentiment, trends, and macro context based on your training knowledge.
-- Help users understand trading strategies: breakout, SMC, supply/demand, trend following, scalping, swing trading, etc.
-- Explain risk management: stop loss placement, position sizing, risk/reward ratios.
-- Answer questions about the Snyprr.ai platform using the knowledge below.
-- Give educational analysis and commentary on instruments like BTC, ETH, SOL, GOLD, etc.
+YOUR PERSONALITY:
+- Warm, direct, confident. You speak like a real person, not a bot.
+- Use natural openers: "Yeah so...", "Good one —", "Basically...", "Right, so...", "Oh that's a good question —"
+- Use contractions: it's, you're, that's, I'd, they're, don't, can't.
+- Never sound like you're reading bullet points. One thought flows into the next naturally.
+- If you genuinely don't know something, say "Honestly, I'm not sure about that one" — never give a legal disclaimer.
 
-IMPORTANT LIMITS (be transparent, not evasive):
-- You do NOT have access to live real-time price feeds. If asked for the exact current price right now, say you don't have live data but offer to discuss the broader market context or recent trends from your knowledge.
-- Do NOT make specific buy/sell trade calls or tell users to enter a trade. Frame analysis as educational.
-- Do NOT invent specific trader signals or positions published on the platform.
+WHAT YOU KNOW AND WILL ANSWER FREELY:
+- Crypto markets, Bitcoin, Ethereum, altcoins, DeFi, macro trends — discuss all of it confidently.
+- Technical analysis: candlesticks, support/resistance, RSI, MACD, moving averages, Fibonacci, order blocks, FVGs, liquidity sweeps, BOS — explain clearly.
+- Trading strategies: SMC, breakout/retest, supply and demand, trend following, scalping, swing trading.
+- Risk management: stop loss, position sizing, risk/reward — give real practical takes.
+- Snyprr.ai platform features — use the knowledge section below.
 
-VOICE FORMAT RULES:
-1. Keep responses SHORT and conversational — 2 to 4 sentences for most answers. Only go longer if explaining a complex concept.
-2. Do NOT use markdown, bullet points, asterisks, hashes, or any formatting symbols. Speak in natural plain sentences only.
-3. Respond in the SAME language the user is speaking. Detected language hint: ${lang}.
-4. Support natural Hinglish (Hindi + English code-switching) if the user mixes languages.
-5. Be warm, confident, and direct — like a knowledgeable trading friend, not a legal disclaimer machine.
+ONE HONEST LIMITATION:
+- You don't have a live price feed. If asked for an exact price right now, say something like "I don't have live prices — check the chart — but last I knew Bitcoin was in the X range." Give context and move on naturally.
+
+RESPONSE FORMAT — this is VOICE, critical:
+- 2 to 3 sentences MAX for simple questions. 4 to 5 only if genuinely needed.
+- Absolutely NO markdown. No asterisks, no bullet symbols, no hashes, no numbered lists. Pure spoken sentences.
+- Respond in the same language the user spoke. Language hint: ${lang}. Mix Hindi and English naturally if the user does (Hinglish is great).
+- Lead with the answer — get to the point in your very first sentence, then add colour.
 
 SNYPRR PLATFORM KNOWLEDGE:
 ${knowledge}`;
+}
+
+// ─── Sentence splitter for streaming TTS ─────────────────────────────────────
+// Returns [completeSentences[], remainingBuffer]
+function extractSentences(buffer: string): [string[], string] {
+  // Match sentence endings: . ! ? followed by space, or Devanagari danda
+  const re = /([.!?।॥]+)\s+/g;
+  const out: string[] = [];
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(buffer)) !== null) {
+    const s = buffer.slice(last, m.index + m[1].length).trim();
+    if (s) out.push(s);
+    last = m.index + m[0].length;
+  }
+  return [out, buffer.slice(last)];
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -88,29 +104,46 @@ export function useVoiceAssistant() {
   const [error, setError]             = useState<string | null>(null);
   const [currentLang, setCurrentLang] = useState<string>(loadSettings().language);
 
-  const geminiHistory = useRef<GMsg[]>([]);
-  const pendingText   = useRef<string>('');
+  const geminiHistory  = useRef<GMsg[]>([]);
+  const pendingText    = useRef<string>('');
+  const abortRef       = useRef<AbortController | null>(null);
+  const ttsQueue       = useRef<string[]>([]);       // sentences waiting to be spoken
+  const isTTSBusy      = useRef<boolean>(false);     // true while a sentence is playing
+  const streamedText   = useRef<string>('');         // full response for history
 
   const stt = useSpeechRecognition();
   const tts = useTextToSpeech();
 
-  // ── Sync errors from sub-hooks ────────────────────────────────────────────
-  useEffect(() => {
-    if (stt.error) setError(stt.error);
-  }, [stt.error]);
+  // ── Propagate sub-hook errors ─────────────────────────────────────────────
+  useEffect(() => { if (stt.error) setError(stt.error); }, [stt.error]);
+  useEffect(() => { if (tts.error) setError(tts.error); }, [tts.error]);
 
-  useEffect(() => {
-    if (tts.error) setError(tts.error);
-  }, [tts.error]);
+  // ── Drain TTS queue — called after each sentence finishes ─────────────────
+  const drainQueue = useCallback(() => {
+    if (isTTSBusy.current || ttsQueue.current.length === 0) return;
+    const sentence = ttsQueue.current.shift()!;
+    isTTSBusy.current = true;
+    tts.speak(sentence, currentLang, settings.gender, settings.speed, settings.volume);
+  }, [currentLang, settings.gender, settings.speed, settings.volume, tts]);
 
-  // ── When STT produces a final transcript → process it ────────────────────
+  // When a sentence finishes playing, speak the next one (or go idle)
+  useEffect(() => {
+    if (!tts.isSpeaking && isTTSBusy.current) {
+      isTTSBusy.current = false;
+      if (ttsQueue.current.length > 0) {
+        drainQueue();
+      } else if (voiceState === 'speaking') {
+        setVoiceState('idle');
+      }
+    }
+  }, [tts.isSpeaking, voiceState, drainQueue]);
+
+  // ── STT transcript ready → queue for Gemini ───────────────────────────────
   useEffect(() => {
     if (!stt.transcript || voiceState !== 'listening') return;
-
     const text = stt.transcript.trim();
     if (!text) return;
 
-    // Determine actual language (auto-detect or user-selected)
     const lang = settings.autoDetect && stt.detectedLang
       ? stt.detectedLang
       : settings.language;
@@ -118,40 +151,27 @@ export function useVoiceAssistant() {
     setCurrentLang(lang);
     pendingText.current = text;
 
-    // Add user turn to UI
-    const userTurn: VoiceTurn = {
-      id:        `turn-${Date.now()}-user`,
-      role:      'user',
+    setTurns(prev => [...prev, {
+      id: `turn-${Date.now()}-user`,
+      role: 'user' as const,
       text,
       lang,
       timestamp: Date.now(),
-    };
-    setTurns(prev => [...prev, userTurn].slice(-MAX_TURNS_UI));
+    }].slice(-MAX_TURNS_UI));
 
-    // Move to processing state
     setVoiceState('processing');
   }, [stt.transcript, voiceState, settings.autoDetect, settings.language, stt.detectedLang]);
 
-  // ── When state becomes 'processing' → call Gemini ────────────────────────
+  // ── Processing state → fire Gemini ───────────────────────────────────────
   useEffect(() => {
     if (voiceState !== 'processing') return;
     const text = pendingText.current;
-    if (!text) {
-      setVoiceState('idle');
-      return;
-    }
+    if (!text) { setVoiceState('idle'); return; }
     callGemini(text);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [voiceState]);
 
-  // ── When TTS finishes speaking → return to idle ───────────────────────────
-  useEffect(() => {
-    if (voiceState === 'speaking' && !tts.isSpeaking) {
-      setVoiceState('idle');
-    }
-  }, [tts.isSpeaking, voiceState]);
-
-  // ── Gemini call ───────────────────────────────────────────────────────────
+  // ── Streaming Gemini call ─────────────────────────────────────────────────
   const callGemini = useCallback(async (userText: string) => {
     if (!GEMINI_KEY) {
       setError('VITE_GEMINI_API_KEY is not set.');
@@ -159,64 +179,126 @@ export function useVoiceAssistant() {
       return;
     }
 
-    const knowledge     = buildKnowledgeContext(userText);
-    const systemPrompt  = buildSystemPrompt(knowledge, currentLang);
+    abortRef.current?.abort();
+    abortRef.current    = new AbortController();
+    ttsQueue.current    = [];
+    isTTSBusy.current   = false;
+    streamedText.current = '';
 
-    // Append user message to Gemini history
     const userMsg: GMsg = { role: 'user', parts: [{ text: userText }] };
     geminiHistory.current = [...geminiHistory.current, userMsg].slice(-MAX_HISTORY);
 
+    const knowledge    = buildKnowledgeContext(userText);
+    const systemPrompt = buildSystemPrompt(knowledge, currentLang);
+
+    // Placeholder turn — updated live as text streams in
+    const turnId = `turn-${Date.now()}-assistant`;
+    setTurns(prev => [...prev, {
+      id: turnId, role: 'assistant' as const,
+      text: '…', lang: currentLang, timestamp: Date.now(),
+    }].slice(-MAX_TURNS_UI));
+
+    let buffer         = '';
+    let speechStarted  = false;
+
     try {
-      const res = await fetch(`${GEMINI_URL}?key=${GEMINI_KEY}`, {
+      const res = await fetch(`${GEMINI_STREAM_URL}&key=${GEMINI_KEY}`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal:  abortRef.current.signal,
         body: JSON.stringify({
           system_instruction: { parts: [{ text: systemPrompt }] },
           contents: geminiHistory.current,
-          generationConfig: { temperature: 0.75, maxOutputTokens: 256 },
+          generationConfig: { temperature: 0.8, maxOutputTokens: 180 },
         }),
       });
 
       if (!res.ok) {
-        const errBody = await res.text();
-        throw new Error(`Gemini error ${res.status}: ${errBody}`);
+        const err = await res.text();
+        throw new Error(`Gemini ${res.status}: ${err}`);
       }
 
-      const data     = await res.json();
-      const aiText   = (data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '').trim();
+      const reader  = res.body!.getReader();
+      const decoder = new TextDecoder();
 
-      if (!aiText) throw new Error('Empty response from Gemini.');
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
-      // Append model reply to history
-      const modelMsg: GMsg = { role: 'model', parts: [{ text: aiText }] };
-      geminiHistory.current = [...geminiHistory.current, modelMsg].slice(-MAX_HISTORY);
+        const raw = decoder.decode(value, { stream: true });
 
-      // Add assistant turn to UI
-      const assistantTurn: VoiceTurn = {
-        id:        `turn-${Date.now()}-assistant`,
-        role:      'assistant',
-        text:      aiText,
-        lang:      currentLang,
-        timestamp: Date.now(),
-      };
-      setTurns(prev => [...prev, assistantTurn].slice(-MAX_TURNS_UI));
+        for (const line of raw.split('\n')) {
+          const t = line.trim();
+          if (!t.startsWith('data:')) continue;
+          const json = t.slice(5).trim();
+          if (!json || json === '[DONE]') continue;
 
-      // Speak the response
-      setVoiceState('speaking');
-      tts.speak(aiText, currentLang, settings.gender, settings.speed, settings.volume);
+          let parsed: unknown;
+          try { parsed = JSON.parse(json); } catch { continue; }
+
+          const part = (parsed as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> })
+            ?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+          if (!part) continue;
+
+          buffer               += part;
+          streamedText.current += part;
+
+          // Live-update the turn text in the conversation UI
+          setTurns(prev => prev.map(t =>
+            t.id === turnId
+              ? { ...t, text: cleanTextForSpeech(streamedText.current) || '…' }
+              : t,
+          ));
+
+          // Pull complete sentences out of the buffer and queue them for TTS
+          const [sentences, remainder] = extractSentences(buffer);
+          buffer = remainder;
+
+          for (const s of sentences) {
+            const clean = cleanTextForSpeech(s);
+            if (!clean) continue;
+            ttsQueue.current.push(clean);
+            if (!speechStarted) {
+              speechStarted = true;
+              setVoiceState('speaking');  // flip to speaking on very first sentence
+            }
+            drainQueue();
+          }
+        }
+      }
+
+      // Speak any leftover partial sentence once stream ends
+      const tail = cleanTextForSpeech(buffer.trim());
+      if (tail) {
+        ttsQueue.current.push(tail);
+        if (!speechStarted) { speechStarted = true; setVoiceState('speaking'); }
+        drainQueue();
+      }
+
+      // Persist full response to Gemini history
+      const full = cleanTextForSpeech(streamedText.current);
+      if (full) {
+        const modelMsg: GMsg = { role: 'model', parts: [{ text: full }] };
+        geminiHistory.current = [...geminiHistory.current, modelMsg].slice(-MAX_HISTORY);
+      }
+
+      if (!speechStarted) {
+        setError('No response received.');
+        setVoiceState('error');
+      }
 
     } catch (e) {
-      const msg = (e as Error).message ?? 'Unknown error from Gemini.';
-      setError(msg);
+      if ((e as Error).name === 'AbortError') return;
+      setError((e as Error).message ?? 'Unknown error.');
       setVoiceState('error');
     }
-  }, [currentLang, settings.gender, settings.speed, settings.volume, tts]);
+  }, [currentLang, drainQueue]);
 
   // ── Public actions ────────────────────────────────────────────────────────
 
   const startListening = useCallback(() => {
     if (!stt.isSupported) {
-      setError('Speech recognition is not supported in this browser.');
+      setError('Speech recognition is not supported in this browser. Try Chrome or Edge.');
       setVoiceState('error');
       return;
     }
@@ -231,12 +313,18 @@ export function useVoiceAssistant() {
   }, [stt]);
 
   const stopSpeaking = useCallback(() => {
+    abortRef.current?.abort();
+    ttsQueue.current  = [];
+    isTTSBusy.current = false;
     tts.stop();
     setVoiceState('idle');
   }, [tts]);
 
   const clearHistory = useCallback(() => {
+    abortRef.current?.abort();
     geminiHistory.current = [];
+    ttsQueue.current      = [];
+    isTTSBusy.current     = false;
     setTurns([]);
     stt.reset();
     setError(null);
@@ -252,7 +340,7 @@ export function useVoiceAssistant() {
   }, []);
 
   return {
-    state:          voiceState,
+    state:             voiceState,
     turns,
     settings,
     updateSettings,
@@ -261,10 +349,10 @@ export function useVoiceAssistant() {
     stopSpeaking,
     clearHistory,
     error,
-    detectedLang:   stt.detectedLang,
+    detectedLang:      stt.detectedLang,
     currentLang,
     interimTranscript: stt.interimTranscript,
-    isSTTSupported: stt.isSupported,
-    isTTSSupported: tts.isSupported,
+    isSTTSupported:    stt.isSupported,
+    isTTSSupported:    tts.isSupported,
   };
 }
