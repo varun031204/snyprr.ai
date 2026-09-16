@@ -18,7 +18,7 @@ import { buildKnowledgeContext } from './chatKnowledge';
 // ── Gemini config ─────────────────────────────────────────────────────────────
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
-const GEMINI_URL     = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent`;
+const GEMINI_URL     = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent`;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
