@@ -4,6 +4,7 @@ import { Topbar } from './Topbar';
 import { useUIStore } from '../state/useUIStore';
 import { ToastContainer } from '../components/feedback/Toast';
 import { GlobalSearchModal } from '../components/search/GlobalSearchModal';
+import { SnyprAIChat } from '../components/chat/SnyprAIChat';
 
 export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { sidebarOpen } = useUIStore();
@@ -25,6 +26,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       </div>
 
       <GlobalSearchModal />
+      <SnyprAIChat />
       <ToastContainer />
     </div>
   );

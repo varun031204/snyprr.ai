@@ -12,6 +12,7 @@ import signalsRouter from './routes/signals.routes.js';
 import profilesRouter from './routes/profiles.routes.js';
 import subscriptionsRouter from './routes/subscriptions.routes.js';
 import adminRouter from './routes/admin.routes.js';
+import chatRouter from './routes/chat.routes.js';
 
 export const app = express();
 
@@ -120,6 +121,7 @@ app.use('/api/signals', signalsRouter);
 app.use('/api/profiles', profilesRouter);
 app.use('/api/subscriptions', subscriptionsRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api/chat', chatRouter);
 
 // 404 handler
 app.use((_req, res) => {
