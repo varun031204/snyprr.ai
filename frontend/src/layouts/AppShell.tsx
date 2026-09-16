@@ -5,6 +5,7 @@ import { useUIStore } from '../state/useUIStore';
 import { ToastContainer } from '../components/feedback/Toast';
 import { GlobalSearchModal } from '../components/search/GlobalSearchModal';
 import { SnyprAIChat } from '../components/chat/SnyprAIChat';
+import { VoiceAssistant } from '../features/voice-assistant/components/VoiceAssistant';
 
 export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { sidebarOpen } = useUIStore();
@@ -26,6 +27,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       </div>
 
       <GlobalSearchModal />
+      <VoiceAssistant />
       <SnyprAIChat />
       <ToastContainer />
     </div>
