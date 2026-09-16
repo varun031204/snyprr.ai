@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Mail, MessageSquare, Headphones, Send, Clock, ShieldCheck, CheckCircle2, HelpCircle, Code2, Terminal } from 'lucide-react';
 import { GlassCard } from '../../components/ui/GlassCard';
@@ -53,7 +53,7 @@ export default function ContactPage() {
           {isDevDept ? 'ENGINEERING & DEVELOPER DESK' : '24/7 SUPPORT DESK'}
         </span>
         <h1 className="text-3xl font-extrabold text-[var(--text-primary)]">
-          {isDevDept ? 'Contact the Developer Team' : 'Contact Trade Beast Support'}
+          {isDevDept ? 'Contact the Developer Team' : 'Contact snyprr.ai Support'}
         </h1>
         <p className="text-sm text-[var(--text-muted)]">
           {isDevDept
@@ -70,7 +70,7 @@ export default function ContactPage() {
           </div>
           <div>
             <h2 className="text-sm font-bold text-[var(--text-primary)]">{isDevDept ? 'Developer Team Direct' : 'Email Support'}</h2>
-            <p className="text-xs text-[var(--text-muted)] mt-0.5">{isDevDept ? 'dev@tradebeast.io' : 'support@tradebeast.io'}</p>
+            <p className="text-xs text-[var(--text-muted)] mt-0.5">{isDevDept ? 'dev@snyprr.ai' : 'support@snyprr.ai'}</p>
           </div>
           <span className="text-[11px] text-[var(--color-success)] font-medium flex items-center gap-1 mt-auto">
             <Clock className="w-3.5 h-3.5" /> {isDevDept ? 'Direct Engineering SLA < 1 hr' : 'Average response < 2 hrs'}
@@ -83,7 +83,7 @@ export default function ContactPage() {
           </div>
           <div>
             <h2 className="text-sm font-bold text-[var(--text-primary)]">Community Discord</h2>
-            <p className="text-xs text-[var(--text-muted)] mt-0.5">discord.gg/tradebeast</p>
+            <p className="text-xs text-[var(--text-muted)] mt-0.5">discord.gg/snyprr</p>
           </div>
           <span className="text-[11px] text-[var(--text-muted)] font-medium flex items-center gap-1 mt-auto">
             <CheckCircle2 className="w-3.5 h-3.5 text-purple-400" /> 14,000+ Active Traders
@@ -166,7 +166,7 @@ export default function ContactPage() {
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-[var(--border-subtle)]">
             <p className="text-xs text-[var(--text-muted)]">
               <HelpCircle className="w-4 h-4 text-[var(--brand-primary)] inline-block align-middle mr-1.5" />
-              <span>Need instant answers? You can also ask our floating <strong>Beast AI Chatbot</strong> in the bottom right corner.</span>
+              <span>Need instant answers? You can also ask our floating <strong>snyprr AI Chatbot</strong> in the bottom right corner.</span>
             </p>
 
             <Button

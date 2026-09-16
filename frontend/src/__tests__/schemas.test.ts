@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+﻿import { describe, it, expect } from 'vitest';
 import { predictionFormSchema, loginSchema } from '../schemas';
 
 describe('Prediction Form Zod Schema Validation', () => {
@@ -90,7 +90,7 @@ describe('Prediction Form Zod Schema Validation', () => {
 
 describe('Login Schema Validation', () => {
   it('should validate valid email and password', () => {
-    const valid = { email: 'user@tradebeast.io', password: 'password123' };
+    const valid = { email: 'user@snyprr.ai', password: 'password123' };
     expect(loginSchema.safeParse(valid).success).toBe(true);
   });
 

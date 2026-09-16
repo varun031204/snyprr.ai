@@ -1,14 +1,14 @@
-import { AuditLogEntry, MarketTicker, NotificationItem, Prediction, SubscriptionPlan, TraderJournalEntry, TraderProfile, User } from '../../types';
+﻿import { AuditLogEntry, MarketTicker, NotificationItem, Prediction, SubscriptionPlan, TraderJournalEntry, TraderProfile, User } from '../../types';
 
 export const MOCK_USERS: User[] = [
   {
     id: 'usr_admin',
-    email: 'admin@tradebeast.io',
+    email: 'admin@snyprr.ai',
     name: 'Alexandra Vance',
     avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
     role: 'ADMIN',
     subscriptionTier: 'VIP',
-    bio: 'Platform Lead & Risk Oversight Officer at Trade Beast.',
+    bio: 'Platform Lead & Risk Oversight Officer at snyprr.ai.',
     isVerified: true,
     twoFactorEnabled: true,
     createdAt: '2025-01-10T08:00:00Z',
@@ -33,7 +33,7 @@ export const MOCK_USERS: User[] = [
   },
   {
     id: 'usr_trader_1',
-    email: 'satoshix@tradebeast.io',
+    email: 'satoshix@snyprr.ai',
     name: 'Satoshi Wave',
     avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80',
     role: 'TRADER',
@@ -57,7 +57,7 @@ export const MOCK_USERS: User[] = [
   },
   {
     id: 'usr_trader_2',
-    email: 'elena.fx@tradebeast.io',
+    email: 'elena.fx@snyprr.ai',
     name: 'Elena Rostova',
     avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=200&q=80',
     role: 'TRADER',
@@ -81,7 +81,7 @@ export const MOCK_USERS: User[] = [
   },
   {
     id: 'usr_regular',
-    email: 'user@tradebeast.io',
+    email: 'user@snyprr.ai',
     name: 'Marcus Chen',
     avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80',
     role: 'USER',
@@ -104,10 +104,10 @@ export const MOCK_TRADERS: TraderProfile[] = [
   {
     id: 'trader_1',
     userId: 'usr_trader_1',
-    displayName: 'TradeBeast Desk',
-    handle: '@tradebeast',
-    avatar: '/tradebeast-logo.png',
-    bio: 'Official TradeBeast proprietary trading desk. Macro crypto, forex liquidity sweeps, and equity breakout analysis.',
+    displayName: 'snyprr.ai Desk',
+    handle: '@snyprr',
+    avatar: '/snyprr-logo.png',
+    bio: 'Official snyprr.ai proprietary trading desk. Macro crypto, forex liquidity sweeps, and equity breakout analysis.',
     verifiedBadge: true,
     joinedDate: 'Jan 2025',
     followersCount: 28500,
@@ -116,7 +116,7 @@ export const MOCK_TRADERS: TraderProfile[] = [
     winRate: 78.5,
     avgRiskReward: 3.12,
     featuredMarkets: ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'GOLD', 'SILVER'],
-    socialLinks: { twitter: 'tradebeast', telegram: 'tradebeast' },
+    socialLinks: { twitter: 'snyprr', telegram: 'snyprr' },
   },
 ];
 
@@ -126,9 +126,9 @@ export const MOCK_PREDICTIONS: Prediction[] = [
     traderId: 'trader_1',
     trader: {
       id: 'trader_1',
-      displayName: 'TradeBeast Desk',
-      handle: '@tradebeast',
-      avatar: '/tradebeast-logo.png',
+      displayName: 'snyprr.ai Desk',
+      handle: '@snyprr',
+      avatar: '/snyprr-logo.png',
       verifiedBadge: true,
       winRate: 78.5,
     },
@@ -170,9 +170,9 @@ Bitcoin has completed a bullish liquidity sweep of the previous weekly swing low
     traderId: 'trader_1',
     trader: {
       id: 'trader_1',
-      displayName: 'TradeBeast Desk',
-      handle: '@tradebeast',
-      avatar: '/tradebeast-logo.png',
+      displayName: 'snyprr.ai Desk',
+      handle: '@snyprr',
+      avatar: '/snyprr-logo.png',
       verifiedBadge: true,
       winRate: 78.5,
     },
@@ -208,9 +208,9 @@ Ethereum is holding firm above the $3,350 institutional accumulation shelf follo
     traderId: 'trader_1',
     trader: {
       id: 'trader_1',
-      displayName: 'TradeBeast Desk',
-      handle: '@tradebeast',
-      avatar: '/tradebeast-logo.png',
+      displayName: 'snyprr.ai Desk',
+      handle: '@snyprr',
+      avatar: '/snyprr-logo.png',
       verifiedBadge: true,
       winRate: 78.5,
     },
@@ -249,9 +249,9 @@ Ethereum is holding firm above the $3,350 institutional accumulation shelf follo
     traderId: 'trader_1',
     trader: {
       id: 'trader_1',
-      displayName: 'TradeBeast Desk',
-      handle: '@tradebeast',
-      avatar: '/tradebeast-logo.png',
+      displayName: 'snyprr.ai Desk',
+      handle: '@snyprr',
+      avatar: '/snyprr-logo.png',
       verifiedBadge: true,
       winRate: 78.5,
     },
@@ -282,9 +282,9 @@ Ethereum is holding firm above the $3,350 institutional accumulation shelf follo
     traderId: 'trader_1',
     trader: {
       id: 'trader_1',
-      displayName: 'TradeBeast Desk',
-      handle: '@tradebeast',
-      avatar: '/tradebeast-logo.png',
+      displayName: 'snyprr.ai Desk',
+      handle: '@snyprr',
+      avatar: '/snyprr-logo.png',
       verifiedBadge: true,
       winRate: 78.5,
     },
@@ -315,9 +315,9 @@ Ethereum is holding firm above the $3,350 institutional accumulation shelf follo
     traderId: 'trader_1',
     trader: {
       id: 'trader_1',
-      displayName: 'TradeBeast Desk',
-      handle: '@tradebeast',
-      avatar: '/tradebeast-logo.png',
+      displayName: 'snyprr.ai Desk',
+      handle: '@snyprr',
+      avatar: '/snyprr-logo.png',
       verifiedBadge: true,
       winRate: 78.5,
     },

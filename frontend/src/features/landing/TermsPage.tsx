@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+﻿import { Link } from 'react-router-dom';
 import { ArrowLeft, ShieldCheck } from 'lucide-react';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { Button } from '../../components/ui/Button';
@@ -53,19 +53,19 @@ export default function TermsPage() {
                 {/* Sections */}
                 <Section title="1. Nature of the Service">
                     <p>
-                        TradeBeast is a <strong className="text-[var(--text-primary)]">prediction and market analysis platform only</strong>.
+                        snyprr.ai is a <strong className="text-[var(--text-primary)]">prediction and market analysis platform only</strong>.
                         We do not execute trades, manage funds, provide brokerage services, or act as a financial adviser.
                     </p>
                     <p>
                         All signals, forecasts, buying zones, selling zones, and analysis published on the platform are for
                         <strong className="text-[var(--text-primary)]"> informational and educational purposes only</strong>.
-                        Nothing on TradeBeast constitutes financial advice, investment advice, or a solicitation to buy or sell any financial instrument.
+                        Nothing on snyprr.ai constitutes financial advice, investment advice, or a solicitation to buy or sell any financial instrument.
                     </p>
                 </Section>
 
                 <Section title="2. AI-Powered Analysis & Human Oversight">
                     <p>
-                        TradeBeast uses <strong className="text-[var(--text-primary)]">AI-assisted analysis</strong> to generate market signals, price zone calculations, and risk/reward assessments.
+                        snyprr.ai uses <strong className="text-[var(--text-primary)]">AI-assisted analysis</strong> to generate market signals, price zone calculations, and risk/reward assessments.
                         Our proprietary models analyse real-time market data, technical indicators, and historical patterns to produce the signals you see on the platform.
                     </p>
                     <p>
@@ -77,7 +77,7 @@ export default function TermsPage() {
                         Past performance is not indicative of future results.
                     </p>
                     <p>
-                        By using TradeBeast, you acknowledge that:
+                        By using snyprr.ai, you acknowledge that:
                     </p>
                     <ul className="list-disc list-inside space-y-1 pl-2">
                         <li>AI models can produce incorrect, biased, or incomplete outputs.</li>
@@ -88,7 +88,7 @@ export default function TermsPage() {
 
                 <Section title="3. No Financial Advice">
                     <p>
-                        TradeBeast is not a registered investment adviser, broker-dealer, or financial institution in any jurisdiction.
+                        snyprr.ai is not a registered investment adviser, broker-dealer, or financial institution in any jurisdiction.
                         The content on this platform does not constitute personalised financial advice.
                     </p>
                     <p>
@@ -99,7 +99,7 @@ export default function TermsPage() {
 
                 <Section title="4. Subscription Tiers & Access">
                     <p>
-                        TradeBeast offers multiple subscription tiers (FREE, PRO, VIP). Access to AI Analysis signals, detailed breakdowns,
+                        snyprr.ai offers multiple subscription tiers (FREE, PRO, VIP). Access to AI Analysis signals, detailed breakdowns,
                         and premium features is gated by subscription tier. Tier differences are clearly indicated within the platform.
                     </p>
                     <p>
@@ -110,12 +110,12 @@ export default function TermsPage() {
 
                 <Section title="5. Accuracy Disclaimer">
                     <p>
-                        While we strive for accuracy, TradeBeast does not warrant that any signal, forecast, price zone, or analysis
+                        While we strive for accuracy, snyprr.ai does not warrant that any signal, forecast, price zone, or analysis
                         is accurate, complete, or fit for any particular purpose. Markets are inherently unpredictable and no analytical
                         system can guarantee profitable outcomes.
                     </p>
                     <p>
-                        TradeBeast and its AI systems, analysts, and affiliates are not liable for any losses, damages, or costs
+                        snyprr.ai and its AI systems, analysts, and affiliates are not liable for any losses, damages, or costs
                         arising from your reliance on any information provided on the platform.
                     </p>
                 </Section>
@@ -139,14 +139,14 @@ export default function TermsPage() {
 
                 <Section title="8. Privacy & Data">
                     <p>
-                        TradeBeast collects user data (email, usage patterns, subscription information) to provide and improve the service.
+                        snyprr.ai collects user data (email, usage patterns, subscription information) to provide and improve the service.
                         We do not sell personal data to third parties. Full details are available in our Privacy Policy.
                     </p>
                 </Section>
 
                 <Section title="9. Changes to These Terms">
                     <p>
-                        TradeBeast reserves the right to update these terms at any time. Continued use of the platform after changes
+                        snyprr.ai reserves the right to update these terms at any time. Continued use of the platform after changes
                         constitutes acceptance of the updated terms. Material changes will be communicated via email or in-platform notification.
                     </p>
                 </Section>

@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+﻿import { create } from 'zustand';
 
 export type ThemeMode = 'neo-dark' | 'neo-light';
 
@@ -33,7 +33,7 @@ interface UIState {
 const getInitialTheme = (): ThemeMode => {
   if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined') {
     try {
-      const stored = window.localStorage.getItem('tradebeast_theme');
+      const stored = window.localStorage.getItem('snyprr_theme');
       if (stored === 'neo-dark' || stored === 'neo-light') return stored;
     } catch {
       // Ignore
@@ -53,7 +53,7 @@ export const useUIStore = create<UIState>((set, get) => ({
   setTheme: (theme: ThemeMode) => {
     if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined') {
       try {
-        window.localStorage.setItem('tradebeast_theme', theme);
+        window.localStorage.setItem('snyprr_theme', theme);
         document.documentElement?.setAttribute('data-theme', theme);
       } catch {
         // Ignore

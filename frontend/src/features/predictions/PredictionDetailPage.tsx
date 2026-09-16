@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Bookmark, BookmarkCheck, Share2, ArrowLeft, PenSquare, CheckCircle, Sparkles } from 'lucide-react';
 import { DirectionBadge, StatusBadge, RiskRewardBadge } from '../../components/ui/Badge';
@@ -256,12 +256,12 @@ export default function PredictionDetailPage() {
           <GlassCard hoverEffect={false}>
             <div className="flex flex-col items-center text-center gap-3">
               <img
-                src="/tradebeast-logo.png"
-                alt="TradeBeast"
+                src="/snyprr-logo.png"
+                alt="snyprr.ai"
                 className="w-16 h-16 rounded-2xl object-contain p-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)]"
               />
               <div>
-                <h3 className="text-base font-bold text-[var(--text-primary)]">TradeBeast Desk</h3>
+                <h3 className="text-base font-bold text-[var(--text-primary)]">snyprr.ai Desk</h3>
                 <p className="text-xs text-[var(--text-muted)] mt-0.5">Verified In-House Analyst</p>
               </div>
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[var(--color-success-bg)] text-[var(--color-success)] text-xs font-semibold border border-[var(--color-success)]/30">

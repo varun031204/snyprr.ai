@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { ShieldCheck } from 'lucide-react';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { Button } from '../../components/ui/Button';
@@ -51,7 +51,7 @@ export default function AdminTradersPage() {
                   <tr key={t.id} className="hover:bg-[var(--bg-secondary)]/40 transition-colors align-middle">
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-3">
-                        <img src={t.avatar || '/tradebeast-logo.png'} alt={t.displayName} className="w-9 h-9 rounded-xl object-cover flex-shrink-0" />
+                        <img src={t.avatar || '/snyprr-logo.png'} alt={t.displayName} className="w-9 h-9 rounded-xl object-cover flex-shrink-0" />
                         <div className="min-w-0">
                           <p className="font-semibold text-[var(--text-primary)] truncate">{t.displayName}</p>
                           <p className="text-[10px] text-[var(--text-muted)]">{t.handle}</p>

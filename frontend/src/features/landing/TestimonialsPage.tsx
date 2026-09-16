@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+﻿import { Link } from 'react-router-dom';
 import { ArrowLeft, Star, Quote } from 'lucide-react';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { Button } from '../../components/ui/Button';
@@ -13,11 +13,11 @@ const ALL_TESTIMONIALS = [
     { name: 'Karan Singh', role: 'Day Trader', initials: 'KS', color: 'from-orange-500 to-amber-500', rating: 5, text: "The real-time predictions and clean UI make Snyprr.ai stand out. I've been trading for 5 years and this is the most organised signal service I've come across." },
     { name: 'Ananya Verma', role: 'Options Trader', initials: 'AV', color: 'from-indigo-500 to-blue-500', rating: 5, text: 'Finally a platform that treats users as smart investors. The data quality and analyst verification process is top-notch. Pricing is fair and value delivered far exceeds expectations.' },
     { name: 'Ravi Nair', role: 'Swing Trader', initials: 'RN', color: 'from-teal-500 to-green-500', rating: 5, text: "I use Snyprr.ai's gold and silver predictions for my commodity portfolio. The accuracy on commodities is remarkable and the zone-based approach removes all ambiguity from entries." },
-    { name: 'Deepika Rao', role: 'Portfolio Manager', initials: 'DR', color: 'from-pink-500 to-rose-600', rating: 5, text: 'As someone who manages client money, having a verified prediction platform with a real public track record is invaluable. TradeBeast is now part of my daily research workflow.' },
+    { name: 'Deepika Rao', role: 'Portfolio Manager', initials: 'DR', color: 'from-pink-500 to-rose-600', rating: 5, text: 'As someone who manages client money, having a verified prediction platform with a real public track record is invaluable. snyprr.ai is now part of my daily research workflow.' },
     { name: 'Manish Kumar', role: 'Crypto Investor', initials: 'MK', color: 'from-yellow-500 to-orange-500', rating: 4, text: "The BTC and ETH setups are consistently well-timed. I appreciate that the platform doesn't overpromise — it simply shows data. The 78%+ win rate is backed by real published trades." },
     { name: 'Sonia Agarwal', role: 'Technical Analyst', initials: 'SA', color: 'from-cyan-500 to-blue-400', rating: 5, text: "I was skeptical at first but the consistency over 3 months has been impressive. Clear risk/reward ratios, transparent outcomes, and a team that communicates well with the community." },
-    { name: 'Tejas Mehrotra', role: 'Scalp Trader', initials: 'TM', color: 'from-purple-500 to-violet-600', rating: 5, text: 'The short-timeframe setups on TradeBeast are incredibly detailed. Entry zones, invalidation levels, and targets are all published in advance — exactly what a scalper needs.' },
-    { name: 'Nisha Patel', role: 'Long-term Investor', initials: 'NP', color: 'from-green-500 to-emerald-600', rating: 5, text: "Even as someone who holds for weeks or months, TradeBeast's daily and weekly setups have helped me time my entries much more precisely. The platform UI is beautiful and extremely responsive." },
+    { name: 'Tejas Mehrotra', role: 'Scalp Trader', initials: 'TM', color: 'from-purple-500 to-violet-600', rating: 5, text: 'The short-timeframe setups on snyprr.ai are incredibly detailed. Entry zones, invalidation levels, and targets are all published in advance — exactly what a scalper needs.' },
+    { name: 'Nisha Patel', role: 'Long-term Investor', initials: 'NP', color: 'from-green-500 to-emerald-600', rating: 5, text: "Even as someone who holds for weeks or months, snyprr.ai's daily and weekly setups have helped me time my entries much more precisely. The platform UI is beautiful and extremely responsive." },
 ];
 
 export default function TestimonialsPage() {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Check, Sparkles, ShieldCheck, Gift, ArrowRight, Menu, X } from 'lucide-react';
 import { GlassCard } from '../../components/ui/GlassCard';
@@ -26,7 +26,7 @@ export default function PricingPage() {
       <nav className="sticky top-0 z-50 w-full border-b border-[var(--border-subtle)] bg-[var(--bg-base)]/90 backdrop-blur-xl">
         <div className="relative flex items-center justify-between px-4 sm:px-6 md:px-10 py-3.5">
           <Link to="/" className="flex items-center gap-2 z-10">
-            <img src="/tradebeast-logo.png" alt="Trade Beast" className="h-9 sm:h-10 w-auto object-contain" />
+            <img src="/snyprr-logo.png" alt="snyprr.ai" className="h-9 sm:h-10 w-auto object-contain" />
           </Link>
 
           {/* Desktop links - exactly centered */}

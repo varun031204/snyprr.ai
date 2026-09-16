@@ -31,3 +31,7 @@ pnpm-debug.log*
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Local scripts
+create-notifications-table.mjs
+*.local.mjs

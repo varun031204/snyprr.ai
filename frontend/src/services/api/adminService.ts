@@ -1,4 +1,4 @@
-/**
+﻿/**
  * adminService.ts
  * Real HTTP implementation of IAdminApi — backed by /api/admin
  */
@@ -55,7 +55,7 @@ function toFrontendTrader(t: BackendTraderProfile): TraderProfile {
     userId: t.user_id,
     displayName: t.display_name,
     handle: `@${t.display_name.toLowerCase().replace(/\s+/g, '')}`,
-    avatar: '/tradebeast-logo.png',
+    avatar: '/snyprr-logo.png',
     bio: t.bio ?? '',
     verifiedBadge: true,
     joinedDate: t.created_at,

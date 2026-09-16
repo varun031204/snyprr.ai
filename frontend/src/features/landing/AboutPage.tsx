@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+﻿import { Link } from 'react-router-dom';
 import { ArrowLeft, TrendingUp, ShieldCheck, Users, BarChart2, Target, Zap, Globe } from 'lucide-react';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { Button } from '../../components/ui/Button';
@@ -10,7 +10,7 @@ const team = [
     { name: 'Prince', role: 'CTO', color: 'from-blue-500 to-cyan-500', initials: 'P', bio: 'Full-stack architect with deep expertise in real-time data systems and trading infrastructure.' },
     { name: 'Gaurav', role: 'Head of Product', color: 'from-emerald-500 to-teal-500', initials: 'G', bio: 'Product thinker who bridges trader needs with intuitive platform experiences.' },
     { name: 'Sahil', role: 'Lead Engineer', color: 'from-orange-500 to-amber-500', initials: 'S', bio: "Frontend and systems engineer, leading the platform's performance and reliability." },
-    { name: 'Vikrant', role: 'Co-Founder', color: 'from-rose-500 to-pink-500', initials: 'Vk', bio: 'Operations and strategy lead, ensuring TradeBeast scales across global markets.' },
+    { name: 'Vikrant', role: 'Co-Founder', color: 'from-rose-500 to-pink-500', initials: 'Vk', bio: 'Operations and strategy lead, ensuring snyprr.ai scales across global markets.' },
     { name: 'Priyansu', role: 'Growth & Marketing', color: 'from-indigo-500 to-blue-500', initials: 'PR', bio: 'Growth strategist driving community building, partnerships, and brand presence.' },
 ];
 
@@ -18,7 +18,7 @@ const values = [
     { icon: <ShieldCheck className="w-6 h-6" />, title: 'Verified Transparency', desc: 'Every prediction is published with full entry, exit, and zone levels. No hidden signals, no vanishing calls.' },
     { icon: <TrendingUp className="w-6 h-6" />, title: 'Track Record First', desc: 'We hold our analysts accountable with live win-rate tracking. Performance is public and immutable.' },
     { icon: <Users className="w-6 h-6" />, title: 'Community Driven', desc: 'Thousands of traders rely on our desk. We build for them — constantly iterating based on feedback.' },
-    { icon: <Zap className="w-6 h-6" />, title: 'Execution-Free', desc: 'TradeBeast is purely predictions and intelligence. No brokerage, no execution noise — just pure signal.' },
+    { icon: <Zap className="w-6 h-6" />, title: 'Execution-Free', desc: 'snyprr.ai is purely predictions and intelligence. No brokerage, no execution noise — just pure signal.' },
     { icon: <BarChart2 className="w-6 h-6" />, title: 'Data Integrity', desc: 'Market data, candle feeds, and analytics are sourced from verified providers with zero manipulation.' },
     { icon: <Globe className="w-6 h-6" />, title: 'Global Access', desc: 'Crypto, forex, and commodities — all time zones, all markets. Built for the global retail trader.' },
 ];

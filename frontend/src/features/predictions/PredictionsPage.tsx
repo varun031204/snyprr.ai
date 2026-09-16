@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { DirectionBadge, StatusBadge, RiskRewardBadge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -13,6 +13,17 @@ import { usePredictionFilterStore } from '../../state/usePredictionFilterStore';
 import { INSTRUMENTS, TIMEFRAMES } from '../../constants';
 import { useDebounce } from '../../hooks/useDebounce';
 import { Select } from '../../components/ui/Select';
+
+function relativeTime(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
 
 export default function PredictionsPage() {
   const navigate = useNavigate();
@@ -178,6 +189,17 @@ export default function PredictionsPage() {
                       {(p.sellingZone ?? p.takeProfit ?? p.entryPrice).toLocaleString()}
                     </p>
                   </div>
+                </div>
+
+                {/* Footer: timeframe pill + publish date */}
+                <div className="flex items-center justify-between pt-1 border-t border-[var(--border-subtle)]">
+                  <span className="px-2 py-0.5 rounded-md bg-[var(--bg-secondary)] border border-[var(--border-subtle)] text-[10px] font-bold text-[var(--text-secondary)] tracking-wide">
+                    {p.timeframe}
+                  </span>
+                  <span className="flex items-center gap-1 text-[10px] text-[var(--text-muted)]">
+                    <Clock className="w-3 h-3" />
+                    {relativeTime(p.publishedAt ?? p.createdAt)}
+                  </span>
                 </div>
               </GlassCard>
             ))}

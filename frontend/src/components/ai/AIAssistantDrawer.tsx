@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+﻿import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Sparkles, X, Send, Bot, User, Plus, RotateCcw,
@@ -32,7 +32,7 @@ const KB: { keywords: string[]; response: BotResponse }[] = [
   {
     keywords: ['hi', 'hello', 'hey', 'start', 'help'],
     response: {
-      text: "👋 Welcome back, Trader!\n\nI'm **Beast AI**, your real-time trade intelligence agent. I can help you:\n• Analyze trade setups & risk/reward\n• Explain market structure (SMC, FVG, OB)\n• Review active predictions\n• Guide you through the platform",
+      text: "👋 Welcome back, Trader!\n\nI'm **snyprr AI**, your real-time trade intelligence agent. I can help you:\n• Analyze trade setups & risk/reward\n• Explain market structure (SMC, FVG, OB)\n• Review active predictions\n• Guide you through the platform",
       chips: ['Analyze BTC setup', 'Explain SMC strategy', 'View active predictions', 'What is an FVG?'],
     },
   },
@@ -63,21 +63,21 @@ const KB: { keywords: string[]; response: BotResponse }[] = [
   {
     keywords: ['smc', 'smart money', 'order block', 'institutional'],
     response: {
-      text: "📚 **Smart Money Concepts (SMC)**\n\nSMC is a methodology that tracks **institutional footprints** in the market:\n\n• **Order Block (OB)**: Last opposing candle before a strong move — where institutions entered.\n• **Fair Value Gap (FVG)**: Imbalance left by rapid institutional moves, often revisited.\n• **Liquidity**: Areas where retail stop-losses cluster — institutional targets.\n• **Break of Structure (BOS)**: Signals trend continuation.\n\nAll TradeBeast predictions are built on SMC + volume confluence.",
+      text: "📚 **Smart Money Concepts (SMC)**\n\nSMC is a methodology that tracks **institutional footprints** in the market:\n\n• **Order Block (OB)**: Last opposing candle before a strong move — where institutions entered.\n• **Fair Value Gap (FVG)**: Imbalance left by rapid institutional moves, often revisited.\n• **Liquidity**: Areas where retail stop-losses cluster — institutional targets.\n• **Break of Structure (BOS)**: Signals trend continuation.\n\nAll snyprr.ai predictions are built on SMC + volume confluence.",
       chips: ['What is an FVG?', 'What is a liquidity sweep?', 'Show BTC SMC setup'],
     },
   },
   {
     keywords: ['fvg', 'fair value gap', 'imbalance'],
     response: {
-      text: "📐 **Fair Value Gap (FVG)**\n\nAn FVG is a **3-candle imbalance** where price moves so fast that a gap exists between candle 1's high and candle 3's low (bullish) or candle 1's low and candle 3's high (bearish).\n\n**Why it matters**: Price tends to revisit (\"fill\") FVGs before continuing the trend. This is one of the highest-probability entry zones on TradeBeast.\n\n✅ All our active predictions highlight FVG levels on the Zone Lines chart.",
+      text: "📐 **Fair Value Gap (FVG)**\n\nAn FVG is a **3-candle imbalance** where price moves so fast that a gap exists between candle 1's high and candle 3's low (bullish) or candle 1's low and candle 3's high (bearish).\n\n**Why it matters**: Price tends to revisit (\"fill\") FVGs before continuing the trend. This is one of the highest-probability entry zones on snyprr.ai.\n\n✅ All our active predictions highlight FVG levels on the Zone Lines chart.",
       chips: ['What is an Order Block?', 'Analyze BTC setup', 'How to read zone lines?'],
     },
   },
   {
     keywords: ['risk', 'r:r', 'risk reward', 'stop loss', 'target'],
     response: {
-      text: "🎯 **Risk Management on TradeBeast**\n\nEvery prediction includes:\n• **Buying Zone** (entry range)\n• **Selling Zone** (profit target)\n• **Declared R:R** (risk-to-reward ratio)\n\n📊 Platform average R:R: **1 : 2.8**\n📈 Platform win rate: **76.4%** (verified, auditable)\n\n💡 **Pro Tip**: Never risk more than 1–2% of your account per idea regardless of conviction level.",
+      text: "🎯 **Risk Management on snyprr.ai**\n\nEvery prediction includes:\n• **Buying Zone** (entry range)\n• **Selling Zone** (profit target)\n• **Declared R:R** (risk-to-reward ratio)\n\n📊 Platform average R:R: **1 : 2.8**\n📈 Platform win rate: **76.4%** (verified, auditable)\n\n💡 **Pro Tip**: Never risk more than 1–2% of your account per idea regardless of conviction level.",
       chips: ['How is win rate calculated?', 'Analyze BTC setup', 'View all predictions'],
       action: { label: 'View Predictions', path: '/predictions' },
     },
@@ -133,7 +133,7 @@ function matchQuery(input: string): BotResponse {
   if (best && topScore > 0) return best;
 
   return {
-    text: "🤔 Great question! I'm still learning about that specific topic. Try asking me about:\n• **BTC, ETH or GOLD** setups\n• **SMC strategy** and confluences\n• **Risk management** principles\n• **How predictions work** on TradeBeast",
+    text: "🤔 Great question! I'm still learning about that specific topic. Try asking me about:\n• **BTC, ETH or GOLD** setups\n• **SMC strategy** and confluences\n• **Risk management** principles\n• **How predictions work** on snyprr.ai",
     chips: ['Analyze BTC setup', 'Explain SMC strategy', 'How does risk management work?'],
   };
 }
@@ -186,7 +186,7 @@ export const AIAssistantDrawer: React.FC = () => {
     {
       id: 'init',
       sender: 'ai',
-      text: "👋 Hey! I'm **Beast AI**, your trade intelligence agent.\n\nAsk me about any setup, strategy, or instrument — or explore the **Market Pulse** and **Tools** tabs!",
+      text: "👋 Hey! I'm **snyprr AI**, your trade intelligence agent.\n\nAsk me about any setup, strategy, or instrument — or explore the **Market Pulse** and **Tools** tabs!",
       timestamp: 'Just now',
       chips: ['Analyze BTC setup', 'Explain SMC strategy', 'How do predictions work?', 'View active signals'],
     },
@@ -301,7 +301,7 @@ export const AIAssistantDrawer: React.FC = () => {
     <aside
       className="fixed bottom-5 right-5 sm:bottom-6 sm:right-6 z-50 w-[calc(100vw-2.5rem)] sm:w-[400px] flex flex-col bg-[var(--bg-surface-glass)] backdrop-blur-2xl border border-[var(--border-glass)] rounded-3xl shadow-2xl overflow-hidden animate-fade-in"
       style={{ height: '580px', maxHeight: 'calc(100vh - 100px)' }}
-      aria-label="Beast AI Assistant"
+      aria-label="snyprr AI Assistant"
     >
       {/* ── Header ── */}
       <div className="px-4 pt-3.5 pb-2 border-b border-[var(--border-subtle)] bg-gradient-to-r from-[var(--bg-surface)] to-[var(--bg-secondary)] flex-shrink-0 space-y-3">
@@ -313,7 +313,7 @@ export const AIAssistantDrawer: React.FC = () => {
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <h3 className="text-xs font-extrabold text-[var(--text-primary)]">Beast AI</h3>
+                <h3 className="text-xs font-extrabold text-[var(--text-primary)]">snyprr AI</h3>
                 <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-[var(--brand-primary)]/15 text-[var(--brand-primary)] border border-[var(--brand-primary)]/20">
                   Platform Agent
                 </span>

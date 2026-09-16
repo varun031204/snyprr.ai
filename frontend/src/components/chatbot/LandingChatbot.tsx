@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+﻿import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   MessageCircle, X, Send, Bot, ChevronDown, RotateCcw,
@@ -37,7 +37,7 @@ const LIVE_SIGNALS = [
     direction: 'LONG',
     buyingZone: '$91,800 - $92,500',
     targetZone: '$101,000',
-    analyst: 'TradeBeast Desk',
+    analyst: 'snyprr.ai Desk',
     winRate: '78.5%',
     timeframe: '4h',
     confluence: 'SMC Order Block & Bullish FVG',
@@ -47,7 +47,7 @@ const LIVE_SIGNALS = [
     direction: 'LONG',
     buyingZone: '$3,350 - $3,400',
     targetZone: '$3,850',
-    analyst: 'TradeBeast Desk',
+    analyst: 'snyprr.ai Desk',
     winRate: '78.5%',
     timeframe: '4h',
     confluence: 'Institutional Demand Shelf',
@@ -71,16 +71,16 @@ const KNOWLEDGE_BASE: {
   {
     keywords: ['hi', 'hello', 'hey', 'greetings', 'start', 'morning', 'afternoon', 'evening'],
     response: {
-      text: "👋 Hey there! Welcome to **Trade Beast**.\n\nI'm **Beast AI**, your 24/7 interactive assistant. Ask me anything, or explore our interactive tabs above for **Live Signals** and **Plan Comparison**!",
-      suggestions: ['Check live BTC signal', 'Compare pricing plans', 'How does TradeBeast work?'],
+      text: "👋 Hey there! Welcome to **snyprr.ai**.\n\nI'm **snyprr AI**, your 24/7 interactive assistant. Ask me anything, or explore our interactive tabs above for **Live Signals** and **Plan Comparison**!",
+      suggestions: ['Check live BTC signal', 'Compare pricing plans', 'How does snyprr.ai work?'],
     },
   },
   {
-    keywords: ['what is', 'how does it work', 'explain', 'about tradebeast', 'overview', 'concept'],
+    keywords: ['what is', 'how does it work', 'explain', 'about snyprr', 'overview', 'concept'],
     response: {
-      text: "🔮 **Trade Beast** is a verified prediction & trade-idea tracking platform.\n\n• Verified analysts publish high-conviction ideas with precise **Buying & Selling Zones**.\n• You track ideas in real time without broker integration or custody risk.\n• Public, auditable win-rate scorecards for every trader.",
+      text: "🔮 **snyprr.ai** is a verified prediction & trade-idea tracking platform.\n\n• Verified analysts publish high-conviction ideas with precise **Buying & Selling Zones**.\n• You track ideas in real time without broker integration or custody risk.\n• Public, auditable win-rate scorecards for every trader.",
       action: { label: 'Explore Active Predictions', path: '/predictions' },
-      suggestions: ['Does TradeBeast execute trades?', 'Are traders verified?', 'View Pricing'],
+      suggestions: ['Does snyprr.ai execute trades?', 'Are traders verified?', 'View Pricing'],
     },
   },
   {
@@ -94,7 +94,7 @@ const KNOWLEDGE_BASE: {
   {
     keywords: ['execute', 'auto trade', 'broker', 'custody', 'exchange', 'connect wallet', 'place orders'],
     response: {
-      text: "🛡️ **Trade Beast NEVER executes trades on your behalf.**\n\nWe provide verified intelligence and technical confluences. You retain 100% control of your funds on your preferred broker or exchange.",
+      text: "🛡️ **snyprr.ai NEVER executes trades on your behalf.**\n\nWe provide verified intelligence and technical confluences. You retain 100% control of your funds on your preferred broker or exchange.",
       suggestions: ['How are win rates calculated?', 'What is a prediction?', 'View pricing'],
     },
   },
@@ -109,7 +109,7 @@ const KNOWLEDGE_BASE: {
   {
     keywords: ['free', 'trial', 'free tier', 'zero cost'],
     response: {
-      text: "🎁 **Yes!** Trade Beast has a generous **Free Tier** to start tracking verified ideas right now. Premium plans also come with a risk-free **30-Day Trial**.",
+      text: "🎁 **Yes!** snyprr.ai has a generous **Free Tier** to start tracking verified ideas right now. Premium plans also come with a risk-free **30-Day Trial**.",
       action: { label: 'Create Free Account', path: '/signup' },
       suggestions: ['Explore Pricing Section', 'Who are the traders?'],
     },
@@ -117,7 +117,7 @@ const KNOWLEDGE_BASE: {
   {
     keywords: ['trader', 'analyst', 'verified', 'who', 'creator', 'reputation', 'accuracy'],
     response: {
-      text: "🏆 Every analyst on Trade Beast goes through a rigorous verification audit. Their historical win rates (**76.4% platform avg**), profit factors, and risk-to-reward ratios are publicly auditable.",
+      text: "🏆 Every analyst on snyprr.ai goes through a rigorous verification audit. Their historical win rates (**76.4% platform avg**), profit factors, and risk-to-reward ratios are publicly auditable.",
       action: { label: 'Browse Verified Traders', path: '/traders' },
       suggestions: ['How is win rate calculated?', 'Can I become a trader?'],
     },
@@ -148,7 +148,7 @@ const KNOWLEDGE_BASE: {
   {
     keywords: ['developer', 'dev team', 'engineering', 'bug', 'api', 'technical support'],
     response: {
-      text: "🛠️ **Developer & Engineering Desk**:\n• Email: **dev@tradebeast.io** (SLA < 1 hr)\n• Dedicated channel for verified traders, API integrations, and charting bugs.",
+      text: "🛠️ **Developer & Engineering Desk**:\n• Email: **dev@snyprr.ai** (SLA < 1 hr)\n• Dedicated channel for verified traders, API integrations, and charting bugs.",
       action: { label: 'Contact Developer Team', path: '/contact?dept=dev' },
       suggestions: ['Join Community Discord', 'Follow on Twitter'],
     },
@@ -156,16 +156,16 @@ const KNOWLEDGE_BASE: {
   {
     keywords: ['contact', 'support', 'email', 'help', 'question', 'ticket'],
     response: {
-      text: "📫 **24/7 Support Desk**:\n• Email: **support@tradebeast.io**\n• Average reply time < 2 hours.",
+      text: "📫 **24/7 Support Desk**:\n• Email: **support@snyprr.ai**\n• Average reply time < 2 hours.",
       action: { label: 'Open Support Desk', path: '/contact' },
-      suggestions: ['Join Community Discord', 'Is TradeBeast free?'],
+      suggestions: ['Join Community Discord', 'Is snyprr.ai free?'],
     },
   },
   {
     keywords: ['discord', 'twitter', 'social', 'community', 'instagram', 'facebook', 'follow'],
     response: {
-      text: "🌐 **Follow Us & Join 20K+ Traders**:\n• **Discord**: discord.gg/tradebeast (14K+ active)\n• **Twitter / X**: @TradeBeastHQ\n• **Instagram**: @tradebeast.official\n• **Facebook**: Trade Beast Global",
-      action: { label: 'Join Official Discord', href: 'https://discord.gg/tradebeast' },
+      text: "🌐 **Follow Us & Join 20K+ Traders**:\n• **Discord**: discord.gg/snyprr (14K+ active)\n• **Twitter / X**: @snyprr.aiHQ\n• **Instagram**: @snyprr.official\n• **Facebook**: snyprr.ai Global",
+      action: { label: 'Join Official Discord', href: 'https://discord.gg/snyprr' },
       suggestions: ['Check live BTC signal', 'How do I start?'],
     },
   },
@@ -205,7 +205,7 @@ function matchQuery(input: string): BotResponse {
   return {
     text: "I want to get you the exact information! Try asking about our **live signals**, **verified win rates**, **pricing plans**, or connecting directly with our **developer team**.",
     action: { label: 'Contact Support Desk', path: '/contact' },
-    suggestions: ['Check live BTC signal', 'View pricing plans', 'What is TradeBeast?'],
+    suggestions: ['Check live BTC signal', 'View pricing plans', 'What is snyprr.ai?'],
   };
 }
 
@@ -247,9 +247,9 @@ export const LandingChatbot: React.FC = () => {
     {
       id: 'init-0',
       role: 'bot',
-      text: "👋 Hi! I'm **Beast AI**, your real-time trading guide.\n\nAsk me anything below, or switch tabs above for **Live Signals** and **Interactive Plans**!",
+      text: "👋 Hi! I'm **snyprr AI**, your real-time trading guide.\n\nAsk me anything below, or switch tabs above for **Live Signals** and **Interactive Plans**!",
       time: 'Just now',
-      suggestions: ['Check live BTC signal', 'Compare pricing plans', 'How does TradeBeast work?'],
+      suggestions: ['Check live BTC signal', 'Compare pricing plans', 'How does snyprr.ai work?'],
     },
   ]);
   const [input, setInput] = useState('');
@@ -380,7 +380,7 @@ export const LandingChatbot: React.FC = () => {
         >
           <div className="w-2.5 h-2.5 rounded-full bg-[var(--color-success)] animate-pulse shadow-[0_0_8px_var(--color-success)]" />
           <p className="text-xs font-semibold text-[var(--text-primary)] flex items-center gap-1.5">
-            <span>Ask Beast AI</span>
+            <span>Ask snyprr AI</span>
             <span className="text-[10px] text-[var(--brand-primary)] font-bold uppercase tracking-wider">Online</span>
           </p>
           <button
@@ -396,7 +396,7 @@ export const LandingChatbot: React.FC = () => {
       {/* Floating Toggle Button */}
       <button
         onClick={() => { setOpen(!open); setShowTeaser(false); }}
-        aria-label="Open Beast AI Assistant"
+        aria-label="Open snyprr AI Assistant"
         className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-2xl bg-gradient-to-br from-[var(--brand-primary)] via-[var(--brand-vivid)] to-indigo-600 text-white shadow-2xl flex items-center justify-center hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer group"
         style={{ boxShadow: '0 0 35px var(--brand-glow)' }}
       >
@@ -427,7 +427,7 @@ export const LandingChatbot: React.FC = () => {
               </div>
               <div>
                 <div className="flex items-center gap-1.5">
-                  <h3 className="text-xs font-extrabold text-[var(--text-primary)]">Beast AI</h3>
+                  <h3 className="text-xs font-extrabold text-[var(--text-primary)]">snyprr AI</h3>
                   <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-[var(--brand-primary)]/15 text-[var(--brand-primary)] border border-[var(--brand-primary)]/20">
                     Active
                   </span>

@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { BotMessageSquare, X } from 'lucide-react';
 import { useUIStore } from '../../state/useUIStore';
 
@@ -8,8 +8,8 @@ export const AIFloatingButton: React.FC = () => {
   return (
     <button
       onClick={toggleAIDrawer}
-      aria-label={aiDrawerOpen ? 'Close Beast AI' : 'Open Beast AI Assistant'}
-      title={aiDrawerOpen ? 'Close Beast AI' : 'Open Beast AI Assistant'}
+      aria-label={aiDrawerOpen ? 'Close snyprr AI' : 'Open snyprr AI Assistant'}
+      title={aiDrawerOpen ? 'Close snyprr AI' : 'Open snyprr AI Assistant'}
       className={`fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 group cursor-pointer
         ${aiDrawerOpen
           ? 'bg-[var(--bg-secondary)] border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)] scale-95'
