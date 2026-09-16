@@ -243,16 +243,16 @@ export function useGeminiLive(): GeminiLiveHook {
     const serverContent = msg.serverContent as Record<string, unknown> | undefined;
     if (!serverContent) return;
 
-    // Audio output chunk
+    // ── Audio output chunks ─────────────────────────────────────────────────
     const modelTurn = serverContent.modelTurn as Record<string, unknown> | undefined;
     if (modelTurn) {
       const parts = modelTurn.parts as Array<Record<string, unknown>> | undefined;
       if (parts) {
         for (const part of parts) {
-          // Audio data
+          // Inline audio data (base64 PCM16)
           const inlineData = part.inlineData as Record<string, unknown> | undefined;
           if (inlineData?.data) {
-            const b64   = inlineData.data as string;
+            const b64    = inlineData.data as string;
             const binary = atob(b64);
             const buf    = new ArrayBuffer(binary.length);
             const view   = new Uint8Array(buf);
@@ -262,18 +262,16 @@ export function useGeminiLive(): GeminiLiveHook {
             playNextChunk();
           }
 
-          // Text transcript (Gemini may return text alongside audio)
+          // Text part — accumulate for the conversation UI
           if (part.text) {
             const text = part.text as string;
             currentTurnTextRef.current += text;
-
-            // Update or create the assistant turn in UI
             if (!currentTurnIdRef.current) {
               currentTurnIdRef.current = `turn-${Date.now()}-assistant`;
               setTurns(prev => [...prev, {
                 id:        currentTurnIdRef.current,
                 role:      'assistant' as const,
-                text,
+                text:      currentTurnTextRef.current,
                 timestamp: Date.now(),
               }].slice(-50));
             } else {
@@ -287,17 +285,35 @@ export function useGeminiLive(): GeminiLiveHook {
       }
     }
 
-    // Turn complete — reset accumulator
+    // ── Output audio transcription — full transcript of what Gemini said ────
+    // This is the reliable source; use it to replace any partial text accumulated above
+    const outputTranscription = serverContent.outputTranscription as
+      Record<string, unknown> | undefined;
+    if (outputTranscription?.text) {
+      const text = outputTranscription.text as string;
+      if (currentTurnIdRef.current) {
+        const id = currentTurnIdRef.current;
+        setTurns(prev => prev.map(t => t.id === id ? { ...t, text } : t));
+      } else {
+        // Transcription arrived without a prior text part — create the turn now
+        const id = `turn-${Date.now()}-assistant`;
+        currentTurnIdRef.current = id;
+        setTurns(prev => [...prev, {
+          id, role: 'assistant' as const, text, timestamp: Date.now(),
+        }].slice(-50));
+      }
+    }
+
+    // ── Turn complete ───────────────────────────────────────────────────────
     if (serverContent.turnComplete) {
       currentTurnTextRef.current = '';
       currentTurnIdRef.current   = '';
-      // If no audio queued, go back to listening
       if (audioQueueRef.current.length === 0 && !isPlayingRef.current) {
         setState('listening');
       }
     }
 
-    // Input transcription (what the user said, recognised by Gemini)
+    // ── Input transcription — what the user said ────────────────────────────
     const inputTranscription = serverContent.inputTranscription as
       Record<string, unknown> | undefined;
     if (inputTranscription?.text) {

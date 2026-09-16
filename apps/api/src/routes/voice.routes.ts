@@ -54,24 +54,28 @@ function buildSystemInstruction(language: string): string {
 
 YOUR PERSONALITY:
 - Warm, direct, confident. Speak like a real person, not a bot.
-- Use natural openers: "Yeah so...", "Good one —", "Basically...", "Right, so..."
+- Use natural openers: "Yeah so...", "Dekho yaar...", "Basically...", "Right, so..."
 - Use contractions: it's, you're, that's, I'd, they're, don't, can't.
 - One thought flows naturally into the next. Never robotic or list-like.
 - If you genuinely don't know something, say "Honestly, I'm not sure about that one."
 
-WHAT YOU ANSWER FREELY:
-- Crypto markets, Bitcoin, Ethereum, altcoins, DeFi, macro trends.
+WHAT YOU ANSWER FREELY AND IN DETAIL:
+- Crypto markets, Bitcoin, Ethereum, altcoins, DeFi, macro trends — give thorough, useful answers.
 - Technical analysis: candlesticks, support/resistance, RSI, MACD, Fibonacci, order blocks, FVGs, liquidity sweeps, BOS.
 - Trading strategies: SMC, breakout/retest, supply and demand, scalping, swing trading.
 - Risk management: stop loss, position sizing, risk/reward ratios.
 - Snyprr.ai platform features — covered below.
 
-HONEST LIMITATION: You don't have live price feeds. If asked for exact current prices, say you don't have live data, give your best context from training knowledge, and suggest checking the chart.
+HONEST LIMITATION: You don't have live real-time price feeds. If asked for exact current prices, acknowledge that briefly, then give your best knowledge-based context about the asset's recent behaviour, key levels, and what traders are watching. Never refuse to engage — always give useful context.
 
-VOICE FORMAT — critical:
-- 2 to 3 sentences for simple questions. Never more than 5 sentences.
-- No markdown, no asterisks, no bullet symbols, no hashes. Pure natural spoken sentences.
-- Respond in the user's language. Language hint: ${language}. Support Hinglish naturally.
+RESPONSE LENGTH:
+- Simple factual questions: 2-3 sentences.
+- Market analysis questions (like "Ethereum ka trend kaisa hai"): give a proper 4-6 sentence answer covering the current trend context, key levels, and what to watch. Be thorough enough to actually be useful.
+- Always complete your thought fully — never trail off mid-sentence.
+
+VOICE FORMAT:
+- No markdown, no asterisks, no bullet symbols, no hashes, no numbered lists. Pure natural spoken sentences only.
+- Respond in the same language the user spoke. Language hint: ${language}. Mix Hindi and English naturally if the user does (Hinglish is great — use it freely).
 - Get straight to the answer in your first sentence.
 
 SNYPRR.AI PLATFORM:
@@ -81,21 +85,46 @@ ${PLATFORM_KNOWLEDGE}`;
 // ─── Setup message sent to Gemini when the proxy connection opens ─────────────
 
 function buildSetupMessage(language: string): object {
+  // Map BCP-47 language codes to Gemini Live language codes
+  // Gemini Live uses language codes for better multilingual handling
+  const langMap: Record<string, string> = {
+    'hi-IN': 'hi-IN',
+    'en-IN': 'en-IN',
+    'en-US': 'en-US',
+    'en-GB': 'en-GB',
+    'te-IN': 'te-IN',
+    'ta-IN': 'ta-IN',
+    'mr-IN': 'mr-IN',
+    'bn-IN': 'bn-IN',
+    'gu-IN': 'gu-IN',
+    'kn-IN': 'kn-IN',
+    'ml-IN': 'ml-IN',
+    'pa-IN': 'pa-IN',
+  };
+  const geminiLang = langMap[language] ?? 'en-IN';
+
   return {
     setup: {
       model: GEMINI_MODEL,
       generation_config: {
-        response_modalities: ['AUDIO'],
+        // Return both audio (to speak) and text (for the conversation transcript UI)
+        response_modalities: ['AUDIO', 'TEXT'],
+        // Higher token limit so answers are never cut off mid-sentence
+        max_output_tokens: 1024,
+        temperature: 0.8,
         speech_config: {
           voice_config: {
             prebuilt_voice_config: {
-              // Kore = calm, clear female voice; Puck = friendly male
-              // Both handle multilingual well
+              // Kore = calm, clear voice that handles multilingual well
+              // Aoede is another good option for Indian languages
               voice_name: 'Kore',
             },
           },
         },
       },
+      // Tell Gemini what language to expect and respond in
+      input_audio_transcription: {},   // transcribe user speech → text
+      output_audio_transcription: {},  // transcribe model audio → text
       system_instruction: {
         parts: [{ text: buildSystemInstruction(language) }],
       },
@@ -193,10 +222,13 @@ export function createVoiceWss(): WebSocketServer {
         }
 
         if (msgType === 'end_of_speech') {
-          // Browser signals the user stopped speaking
+          // Signal to Gemini that the user's turn is complete
+          // The correct Live API message is client_content with turn_complete: true
           if (geminiWs?.readyState === WebSocket.OPEN && setupSent) {
             geminiWs.send(JSON.stringify({
-              realtime_input: { audio_stream_end: {} },
+              client_content: {
+                turn_complete: true,
+              },
             }));
           }
           return;
