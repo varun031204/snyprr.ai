@@ -15,12 +15,12 @@ const team = [
 ];
 
 const values = [
-    { icon: <ShieldCheck className="w-6 h-6" />, title: 'Verified Transparency', desc: 'Every prediction is published with full entry, exit, and zone levels. No hidden signals, no vanishing calls.' },
-    { icon: <TrendingUp className="w-6 h-6" />, title: 'Track Record First', desc: 'We hold our analysts accountable with live win-rate tracking. Performance is public and immutable.' },
-    { icon: <Users className="w-6 h-6" />, title: 'Community Driven', desc: 'Thousands of traders rely on our desk. We build for them — constantly iterating based on feedback.' },
-    { icon: <Zap className="w-6 h-6" />, title: 'Execution-Free', desc: 'Snyprr.ai is purely predictions and intelligence. No brokerage, no execution noise — just pure signal.' },
-    { icon: <BarChart2 className="w-6 h-6" />, title: 'Data Integrity', desc: 'Market data, candle feeds, and analytics are sourced from verified providers with zero manipulation.' },
-    { icon: <Globe className="w-6 h-6" />, title: 'Global Access', desc: 'Crypto, forex, and commodities — all time zones, all markets. Built for the global retail trader.' },
+    { icon: <ShieldCheck className="w-6 h-6" />, title: 'Transparent Publishing', desc: 'Every setup is published with full entry zone, exit zone, and rationale. Outcomes are declared publicly and tracked historically.' },
+    { icon: <TrendingUp className="w-6 h-6" />, title: 'Historical Track Record', desc: 'Published setup outcomes are logged publicly. Historical figures are available for review — not guarantees of future performance.' },
+    { icon: <Users className="w-6 h-6" />, title: 'Community Driven', desc: 'Thousands of members use our platform for market education. We build for them — constantly iterating based on user feedback.' },
+    { icon: <Zap className="w-6 h-6" />, title: 'Execution-Free', desc: 'Snyprr.ai is purely analysis and market education. No brokerage, no trade execution — structured setups for study only.' },
+    { icon: <BarChart2 className="w-6 h-6" />, title: 'Data Integrity', desc: 'Market data and chart feeds are sourced from recognised providers. We do not manipulate or selectively publish outcomes.' },
+    { icon: <Globe className="w-6 h-6" />, title: 'Global Access', desc: 'Crypto, forex, and commodities across time zones. Built for the global retail market-education community.' },
 ];
 
 export default function AboutPage() {
@@ -60,8 +60,8 @@ export default function AboutPage() {
                     </h1>
                     <p className="text-lg text-[var(--text-muted)] leading-relaxed">
                         Snyprr.ai was born out of frustration with noise — signals buried in Telegram groups, unverifiable calls,
-                        and influencers with no accountability. We built the platform we wished existed: verified predictions,
-                        transparent track records, and zero execution pressure.
+                        and unaccountable sources. We built the platform we wished existed: analyst desk setups published with
+                        defined zones, transparent historical outcomes, and no execution pressure.
                     </p>
                 </section>
 
@@ -70,12 +70,12 @@ export default function AboutPage() {
                     <div className="space-y-5">
                         <h2 className="text-2xl md:text-3xl font-bold text-[var(--text-primary)]">Our Mission</h2>
                         <p className="text-[var(--text-muted)] leading-relaxed">
-                            To make high-conviction, verified trading intelligence accessible to every retail trader on the planet —
-                            regardless of their experience level, capital size, or time zone.
+                            To make structured market analysis and chart education accessible to retail traders worldwide
+                            — regardless of experience level, capital size, or time zone.
                         </p>
                         <p className="text-[var(--text-muted)] leading-relaxed">
-                            We don't execute trades. We don't manage money. We publish predictions, track outcomes, and let the
-                            numbers speak for themselves.
+                            We don't execute trades. We don't manage money. We publish analyst desk setups, track outcomes
+                            transparently, and make that historical record available for study.
                         </p>
                         <div className="flex gap-3 pt-2">
                             <Link to="/signup"><Button variant="primary" size="md">Start Free Trial</Button></Link>
@@ -84,10 +84,10 @@ export default function AboutPage() {
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         {[
-                            { label: 'Published Predictions', value: '1,200+', color: 'text-[var(--brand-primary)]' },
-                            { label: 'Historical Win Rate', value: '76.4%', color: 'text-[var(--color-success)]' },
-                            { label: 'Active Subscribers', value: '2,500+', color: 'text-[var(--color-info)]' },
-                            { label: 'Avg Risk / Reward', value: '1 : 2.8', color: 'text-[var(--brand-primary)]' },
+                            { label: 'Published Setups', value: '1,200+', color: 'text-[var(--brand-primary)]' },
+                            { label: 'Historical Win Rate*', value: '76.4%', color: 'text-[var(--color-success)]' },
+                            { label: 'Active Members', value: '2,500+', color: 'text-[var(--color-info)]' },
+                            { label: 'Avg Desk R/R*', value: '1 : 2.8', color: 'text-[var(--brand-primary)]' },
                         ].map((s) => (
                             <GlassCard key={s.label} hoverEffect={false} className="p-5 text-center space-y-1">
                                 <p className={`text-2xl font-extrabold font-mono-num ${s.color}`}>{s.value}</p>
@@ -95,6 +95,9 @@ export default function AboutPage() {
                             </GlassCard>
                         ))}
                     </div>
+                    <p className="text-[9px] text-[var(--text-muted)] text-center col-span-2">
+                        *Historical figures based on published desk setups. Past performance is not indicative of future results.
+                    </p>
                 </section>
 
                 {/* Values */}
@@ -148,7 +151,7 @@ export default function AboutPage() {
                 <section className="text-center">
                     <GlassCard className="max-w-2xl mx-auto py-12 px-8">
                         <h2 className="text-2xl md:text-3xl font-extrabold mb-3">Ready to join us?</h2>
-                        <p className="text-[var(--text-muted)] mb-8 text-sm">Start your 30-day free trial. No credit card required.</p>
+                        <p className="text-[var(--text-muted)] mb-8 text-sm">Start your free trial. See the Subscriptions page for current trial terms. No credit card required.</p>
                         <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
                             <Link to="/signup"><Button variant="primary" size="lg">Start Free Trial</Button></Link>
                             <Link to="/contact-us"><Button variant="secondary" size="lg">Get in Touch</Button></Link>

@@ -226,21 +226,28 @@ export function AIAnalysisPanel({ instrument, prediction, isSubscribed, onUnlock
                         ))}
                     </div>
                     <p className="text-xs text-[var(--text-muted)]">Running analysis on {instrument}…</p>
+                </div>
+            )}
 
             {/* ── ERROR STATE ──────────────────────────────────────────────────── */}
             {analysisError && !isAnalyzing && (
                 <div className="space-y-3">
-                    {analysisError.includes('VITE_GEMINI_API_KEY') ? (
+                    {analysisError.includes('quota exceeded') ? (
                         <div className="p-4 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] space-y-2">
                             <p className="text-xs font-semibold text-[var(--text-primary)] flex items-center gap-1.5">
-                                <span>⚙️</span> API Key Not Configured
+                                <span>🚫</span> AI Quota Exceeded
                             </p>
                             <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
-                                Add <code className="px-1 py-0.5 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)] font-mono text-[10px]">VITE_GEMINI_API_KEY</code> to your <code className="px-1 py-0.5 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)] font-mono text-[10px]">.env</code> file.{' '}
-                                Get a free key at{' '}
-                                <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-[var(--brand-primary)] hover:underline">
-                                    aistudio.google.com
-                                </a>.
+                                You've reached your AI request limit for this hour. Upgrade your subscription for higher limits or wait for your quota to reset.
+                            </p>
+                        </div>
+                    ) : analysisError.includes('API key') || analysisError.includes('GEMINI') ? (
+                        <div className="p-4 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] space-y-2">
+                            <p className="text-xs font-semibold text-[var(--text-primary)] flex items-center gap-1.5">
+                                <span>⚙️</span> AI Service Configuration Error
+                            </p>
+                            <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
+                                The AI service is not configured properly. Please contact support if this persists.
                             </p>
                         </div>
                     ) : (
@@ -434,3 +441,4 @@ export function AIAnalysisPanel({ instrument, prediction, isSubscribed, onUnlock
         </div>
     );
 }
+

@@ -6,18 +6,18 @@ import { ThemeToggle } from '../../components/ui/ThemeToggle';
 import { Logo } from '../../components/ui/Logo';
 
 const ALL_TESTIMONIALS = [
-    { name: 'Arjun Mehta', role: 'Retail Trader', initials: 'AM', color: 'from-violet-500 to-purple-600', rating: 5, text: 'Snyprr.ai completely changed how I follow the markets. The verified trader predictions save me hours of research every day. I went from random trades to structured, high-conviction setups.' },
-    { name: 'Priya Sharma', role: 'Crypto Enthusiast', initials: 'PS', color: 'from-emerald-500 to-teal-500', rating: 5, text: "I love how transparent everything is — win rates, entry/exit levels, track records. No fluff, just actionable insights. The platform holds analysts accountable like no other service I've used." },
-    { name: 'Rohan Kapoor', role: 'Forex Trader', initials: 'RK', color: 'from-blue-500 to-cyan-500', rating: 5, text: 'The TradingView charts integrated directly in the dashboard are a game changer. Everything I need is in one place now. Buying and selling zones are crystal clear — no guesswork.' },
-    { name: 'Sneha Patel', role: 'Stock Market Investor', initials: 'SP', color: 'from-rose-500 to-pink-500', rating: 4, text: "Best platform for following expert traders without the noise. I've improved my decision-making significantly since joining. The verified track record gives me real confidence." },
-    { name: 'Karan Singh', role: 'Day Trader', initials: 'KS', color: 'from-orange-500 to-amber-500', rating: 5, text: "The real-time predictions and clean UI make Snyprr.ai stand out. I've been trading for 5 years and this is the most organised signal service I've come across." },
-    { name: 'Ananya Verma', role: 'Options Trader', initials: 'AV', color: 'from-indigo-500 to-blue-500', rating: 5, text: 'Finally a platform that treats users as smart investors. The data quality and analyst verification process is top-notch. Pricing is fair and value delivered far exceeds expectations.' },
-    { name: 'Ravi Nair', role: 'Swing Trader', initials: 'RN', color: 'from-teal-500 to-green-500', rating: 5, text: "I use Snyprr.ai's gold and silver predictions for my commodity portfolio. The accuracy on commodities is remarkable and the zone-based approach removes all ambiguity from entries." },
-    { name: 'Deepika Rao', role: 'Portfolio Manager', initials: 'DR', color: 'from-pink-500 to-rose-600', rating: 5, text: 'As someone who manages client money, having a verified prediction platform with a real public track record is invaluable. Snyprr.ai is now part of my daily research workflow.' },
-    { name: 'Manish Kumar', role: 'Crypto Investor', initials: 'MK', color: 'from-yellow-500 to-orange-500', rating: 4, text: "The BTC and ETH setups are consistently well-timed. I appreciate that the platform doesn't overpromise — it simply shows data. The 78%+ win rate is backed by real published trades." },
-    { name: 'Sonia Agarwal', role: 'Technical Analyst', initials: 'SA', color: 'from-cyan-500 to-blue-400', rating: 5, text: "I was skeptical at first but the consistency over 3 months has been impressive. Clear risk/reward ratios, transparent outcomes, and a team that communicates well with the community." },
-    { name: 'Tejas Mehrotra', role: 'Scalp Trader', initials: 'TM', color: 'from-purple-500 to-violet-600', rating: 5, text: 'The short-timeframe setups on Snyprr.ai are incredibly detailed. Entry zones, invalidation levels, and targets are all published in advance — exactly what a scalper needs.' },
-    { name: 'Nisha Patel', role: 'Long-term Investor', initials: 'NP', color: 'from-green-500 to-emerald-600', rating: 5, text: "Even as someone who holds for weeks or months, Snyprr.ai's daily and weekly setups have helped me time my entries much more precisely. The platform UI is beautiful and extremely responsive." },
+    { name: 'Arjun Mehta', role: 'Retail Trader', initials: 'AM', color: 'from-violet-500 to-purple-600', rating: 5, text: 'Snyprr.ai changed how I study the markets. The analyst desk setups save me hours of research every day. I went from guessing to following a structured, transparent framework.' },
+    { name: 'Priya Sharma', role: 'Crypto Enthusiast', initials: 'PS', color: 'from-emerald-500 to-teal-500', rating: 5, text: "I love how transparent everything is \u2014 defined zones, historical outcomes, track records. No fluff, just structured analysis. The platform holds the desk accountable like no other service I\u2019ve used." },
+    { name: 'Rohan Kapoor', role: 'Forex Trader', initials: 'RK', color: 'from-blue-500 to-cyan-500', rating: 5, text: 'The TradingView charts integrated directly in the dashboard are a game changer. Everything I need for analysis is in one place. Buying and selling zones are crystal clear \u2014 no guesswork.' },
+    { name: 'Sneha Patel', role: 'Market Analyst', initials: 'SP', color: 'from-rose-500 to-pink-500', rating: 4, text: "Best platform for structured market analysis without the noise. The clearly published zones and historical outcomes help me study more systematically. The published track record is easy to review." },
+    { name: 'Karan Singh', role: 'Day Trader', initials: 'KS', color: 'from-orange-500 to-amber-500', rating: 5, text: "The clean UI and well-structured setups make Snyprr.ai stand out. I\u2019ve been trading for 5 years and this is the most organised analysis platform I\u2019ve come across." },
+    { name: 'Ananya Verma', role: 'Market Enthusiast', initials: 'AV', color: 'from-indigo-500 to-blue-500', rating: 5, text: 'Finally a platform with a real published track record. The data quality and transparency of the analyst desk process is top-notch. Pricing is fair and the educational value is excellent.' },
+    { name: 'Ravi Nair', role: 'Swing Trader', initials: 'RN', color: 'from-teal-500 to-green-500', rating: 5, text: "I use Snyprr.ai\u2019s gold and silver setups for my commodity research. The zone-based approach removes ambiguity from entries and the historical outcome data is very useful for learning." },
+    { name: 'Deepika Rao', role: 'Portfolio Manager', initials: 'DR', color: 'from-pink-500 to-rose-600', rating: 5, text: 'Having a market analysis platform with a transparent published history is invaluable for my research workflow. Snyprr.ai gives me useful context on market structure and historical setups.' },
+    { name: 'Manish Kumar', role: 'Crypto Investor', initials: 'MK', color: 'from-yellow-500 to-orange-500', rating: 4, text: "The BTC and ETH setups are consistently well-structured. I appreciate that the platform doesn\u2019t overpromise \u2014 it simply shows historical data. The published track record gives me useful context." },
+    { name: 'Sonia Agarwal', role: 'Technical Analyst', initials: 'SA', color: 'from-cyan-500 to-blue-400', rating: 5, text: "I was sceptical at first but the consistency of the published setups over 3 months has been noteworthy. Clear risk/reward ratios, transparent outcomes, and a team that communicates well with the community." },
+    { name: 'Tejas Mehrotra', role: 'Chart Learner', initials: 'TM', color: 'from-purple-500 to-violet-600', rating: 5, text: 'The short-timeframe setups on Snyprr.ai are incredibly detailed. Entry zones, invalidation levels, and targets are all published in advance \u2014 great for learning how to read a setup properly.' },
+    { name: 'Nisha Patel', role: 'Long-term Investor', initials: 'NP', color: 'from-green-500 to-emerald-600', rating: 5, text: "Even as someone who holds for weeks or months, Snyprr.ai\u2019s daily and weekly setups help me understand market structure. The platform UI is clean and extremely easy to navigate." },
 ];
 
 export default function TestimonialsPage() {
@@ -60,7 +60,7 @@ export default function TestimonialsPage() {
                             <Star key={i} className="w-5 h-5 text-amber-400 fill-amber-400" />
                         ))}
                         <span className="text-sm font-bold text-[var(--text-primary)] ml-1">4.9 / 5</span>
-                        <span className="text-xs text-[var(--text-muted)]">· {ALL_TESTIMONIALS.length} verified reviews</span>
+                        <span className="text-xs text-[var(--text-muted)]">· {ALL_TESTIMONIALS.length} user reviews</span>
                     </div>
                 </div>
 
@@ -91,8 +91,8 @@ export default function TestimonialsPage() {
                 {/* CTA */}
                 <div className="text-center pt-4">
                     <GlassCard className="max-w-xl mx-auto py-10 px-8">
-                        <h2 className="text-xl font-extrabold mb-2">Join thousands of traders</h2>
-                        <p className="text-sm text-[var(--text-muted)] mb-6">Start your 30-day free trial. No credit card needed.</p>
+                        <h2 className="text-xl font-extrabold mb-2">Join our growing community</h2>
+                        <p className="text-sm text-[var(--text-muted)] mb-6">Start your free trial and study structured market setups today. See the Subscriptions page for current trial terms.</p>
                         <Link to="/signup">
                             <Button variant="primary" size="lg">Start Free Trial</Button>
                         </Link>

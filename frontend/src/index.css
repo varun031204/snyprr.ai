@@ -272,3 +272,55 @@ button:disabled,
 input:disabled {
   cursor: not-allowed !important;
 }
+
+/* ── AI Copilot / Voice Orb Animations ───────────────────────────────────── */
+@keyframes orb-idle-float {
+  0%, 100% { transform: translateY(0px) scale(1); }
+  50%       { transform: translateY(-6px) scale(1.012); }
+}
+
+@keyframes orb-idle-glow {
+  0%, 100% { opacity: 0.45; }
+  50%       { opacity: 0.65; }
+}
+
+@keyframes orb-thinking-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes orb-thinking-breathe {
+  0%, 100% { transform: scale(1); opacity: 0.5; }
+  50%       { transform: scale(1.04); opacity: 0.75; }
+}
+
+@keyframes orb-speaking-burst {
+  0%   { transform: scale(1);    opacity: 0.6; }
+  40%  { transform: scale(1.18); opacity: 0.9; }
+  70%  { transform: scale(1.1);  opacity: 0.75; }
+  100% { transform: scale(1);    opacity: 0.6; }
+}
+
+@keyframes subtitle-appear {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes voice-btn-glow-pulse {
+  0%, 100% { box-shadow: 0 0 20px 4px rgba(177, 124, 254, 0.35); }
+  50%       { box-shadow: 0 0 36px 10px rgba(177, 124, 254, 0.6); }
+}
+
+@keyframes voice-ring-expand {
+  0%   { transform: scale(1);   opacity: 0.6; }
+  100% { transform: scale(1.7); opacity: 0; }
+}
+
+.animate-orb-idle-float    { animation: orb-idle-float 4s ease-in-out infinite; }
+.animate-orb-idle-glow     { animation: orb-idle-glow 4s ease-in-out infinite; }
+.animate-orb-thinking      { animation: orb-thinking-breathe 2.4s ease-in-out infinite; }
+.animate-orb-thinking-spin { animation: orb-thinking-spin 8s linear infinite; }
+.animate-orb-speaking      { animation: orb-speaking-burst 0.9s ease-in-out infinite; }
+.animate-subtitle-appear   { animation: subtitle-appear 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-voice-btn-glow    { animation: voice-btn-glow-pulse 2s ease-in-out infinite; }
+.animate-voice-ring        { animation: voice-ring-expand 1.2s ease-out infinite; }

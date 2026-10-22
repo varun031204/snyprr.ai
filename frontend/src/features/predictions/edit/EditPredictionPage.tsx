@@ -41,9 +41,10 @@ export default function EditPredictionPage() {
       setTitle(prediction.title);
       setInstrument(prediction.instrument);
       setDirection(prediction.direction);
-      setEntryPrice(prediction.entryPrice.toString());
-      setBuyingZone(prediction.buyingZone ? prediction.buyingZone.toString() : (prediction.entryPrice * 0.97).toFixed(2));
-      setSellingZone(prediction.sellingZone ? prediction.sellingZone.toString() : (prediction.entryPrice * 1.05).toFixed(2));
+      const entry = prediction.entryPrice ?? prediction.buyingZone ?? prediction.sellingZone ?? 0;
+      setEntryPrice(entry.toString());
+      setBuyingZone(prediction.buyingZone ? prediction.buyingZone.toString() : (entry * 0.97).toFixed(2));
+      setSellingZone(prediction.sellingZone ? prediction.sellingZone.toString() : (entry * 1.05).toFixed(2));
       setTimeframe(prediction.timeframe);
       setStrategy(prediction.strategy);
       setVisibility(prediction.visibility);
@@ -176,22 +177,20 @@ export default function EditPredictionPage() {
                   <button
                     type="button"
                     onClick={() => setDirection('LONG')}
-                    className={`flex items-center justify-center gap-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                      direction === 'LONG'
+                    className={`flex items-center justify-center gap-1 py-1.5 text-xs font-bold rounded-lg transition-all ${direction === 'LONG'
                         ? 'bg-[var(--color-success)] text-white shadow-md'
                         : 'text-[var(--text-muted)]'
-                    }`}
+                      }`}
                   >
                     <TrendingUp className="w-3.5 h-3.5" /> LONG
                   </button>
                   <button
                     type="button"
                     onClick={() => setDirection('SHORT')}
-                    className={`flex items-center justify-center gap-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                      direction === 'SHORT'
+                    className={`flex items-center justify-center gap-1 py-1.5 text-xs font-bold rounded-lg transition-all ${direction === 'SHORT'
                         ? 'bg-[var(--color-danger)] text-white shadow-md'
                         : 'text-[var(--text-muted)]'
-                    }`}
+                      }`}
                   >
                     <TrendingDown className="w-3.5 h-3.5" /> SHORT
                   </button>

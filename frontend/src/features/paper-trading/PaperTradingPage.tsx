@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
-  TrendingUp, TrendingDown, DollarSign, RotateCcw,
+  TrendingUp, DollarSign, RotateCcw,
   CheckCircle2, Clock, BarChart2, ShieldCheck,
   Wallet, BookOpen, ArrowRight, X,
 } from 'lucide-react';
@@ -11,7 +11,7 @@ import { Button } from '../../components/ui/Button';
 import { DirectionBadge } from '../../components/ui/Badge';
 import { TradingChartPro } from '../../components/charts/TradingChartPro';
 import { PaperTradeOrderPanel, PaperTradeDraftLevels } from './PaperTradeOrderPanel';
-import { usePaperTradingStore, PaperTrade } from '../../state/usePaperTradingStore';
+import { usePaperTradingStore, type PaperPosition } from '../../state/usePaperTradingStore';
 import { useMarketStore } from '../../state/useMarketStore';
 import { CHART_ITEMS } from '../../constants';
 import type { Prediction } from '../../types';
@@ -20,16 +20,16 @@ const fmt = (n: number, p = 2) =>
   n.toLocaleString(undefined, { minimumFractionDigits: p, maximumFractionDigits: p });
 
 // ── Close Trade Modal ─────────────────────────────────────────────────────────
-const CloseTradeModal: React.FC<{ trade: PaperTrade; onClose: () => void }> = ({ trade, onClose }) => {
-  const { closeTrade } = usePaperTradingStore();
+const CloseTradeModal: React.FC<{ trade: PaperPosition; onClose: () => void }> = ({ trade, onClose }) => {
+  const { closePosition } = usePaperTradingStore();
   const { tickers } = useMarketStore();
   const ticker = tickers.find((t) => t.symbol === trade.instrument);
   const [price, setPrice] = useState(String(ticker?.price ?? trade.entryPrice));
 
   const closePrice = parseFloat(price) || trade.entryPrice;
   const priceDiff = trade.direction === 'LONG' ? closePrice - trade.entryPrice : trade.entryPrice - closePrice;
-  const pnl = (priceDiff / trade.entryPrice) * trade.margin;
-  const pnlPct = (priceDiff / trade.entryPrice) * 100;
+  const pnl = priceDiff * trade.size;
+  const pnlPct = trade.marginUsd > 0 ? (pnl / trade.marginUsd) * 100 : 0;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
@@ -58,7 +58,7 @@ const CloseTradeModal: React.FC<{ trade: PaperTrade; onClose: () => void }> = ({
           </div>
           <div className="px-3 py-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)]">
             <p className="text-[var(--text-muted)]">Margin Used</p>
-            <p className="font-bold font-mono-num text-[var(--text-primary)] mt-0.5">${fmt(trade.margin)}</p>
+            <p className="font-bold font-mono-num text-[var(--text-primary)] mt-0.5">${fmt(trade.marginUsd)}</p>
           </div>
         </div>
 
@@ -80,7 +80,7 @@ const CloseTradeModal: React.FC<{ trade: PaperTrade; onClose: () => void }> = ({
           variant="primary"
           className="w-full justify-center"
           onClick={() => {
-            closeTrade(trade.id, closePrice);
+            closePosition(trade.id, closePrice);
             onClose();
           }}
         >
@@ -93,24 +93,24 @@ const CloseTradeModal: React.FC<{ trade: PaperTrade; onClose: () => void }> = ({
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function PaperTradingPage() {
-  const { balance, initialBalance, trades, resetAccount } = usePaperTradingStore();
+  const { balance, startingBalance, positions, resetAccount } = usePaperTradingStore();
   const { tickers } = useMarketStore();
   const navigate = useNavigate();
 
   const [chartSymbol, setChartSymbol] = useState('BINANCE:BTCUSDT');
   const [draftLevels, setDraftLevels] = useState<PaperTradeDraftLevels | null>(null);
-  const [closingTrade, setClosingTrade] = useState<PaperTrade | null>(null);
+  const [closingTrade, setClosingTrade] = useState<PaperPosition | null>(null);
   const [tab, setTab] = useState<'open' | 'history'>('open');
 
   const currentChartItem = CHART_ITEMS.find((item) => item.symbol === chartSymbol);
   const activeChartInstrument = currentChartItem?.instrument || 'BTC/USDT';
 
-  const openTrades = trades.filter((t) => t.status === 'OPEN');
-  const closedTrades = trades.filter((t) => t.status === 'CLOSED');
-  const totalPnl = closedTrades.reduce((sum, t) => sum + (t.pnl ?? 0), 0);
-  const wins = closedTrades.filter((t) => (t.pnl ?? 0) > 0).length;
+  const openTrades = positions.filter((t) => t.status === 'OPEN');
+  const closedTrades = positions.filter((t) => t.status !== 'OPEN');
+  const totalPnl = closedTrades.reduce((sum, t) => sum + (t.realisedPnl ?? 0), 0);
+  const wins = closedTrades.filter((t) => (t.realisedPnl ?? 0) > 0).length;
   const winRate = closedTrades.length ? ((wins / closedTrades.length) * 100).toFixed(0) : null;
-  const equity = balance + openTrades.reduce((sum, t) => sum + t.margin, 0);
+  const equity = balance + openTrades.reduce((sum, t) => sum + t.marginUsd, 0);
 
   const handleSelectInstrument = (inst: string) => {
     const item = CHART_ITEMS.find((i) => i.instrument === inst);
@@ -171,7 +171,7 @@ export default function PaperTradingPage() {
           <button
             type="button"
             onClick={() => {
-              if (confirm('Reset paper trading balance and clear history back to $10,000?')) {
+              if (confirm(`Reset paper trading balance and clear history back to $${startingBalance.toLocaleString()}?`)) {
                 resetAccount();
               }
             }}
@@ -195,11 +195,10 @@ export default function PaperTradingPage() {
                 key={item.symbol}
                 type="button"
                 onClick={() => setChartSymbol(item.symbol)}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-lg border whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer flex-shrink-0 ${
-                  chartSymbol === item.symbol
-                    ? 'bg-[var(--brand-glow)] text-[var(--brand-primary)] border-[var(--brand-primary)] shadow-sm'
-                    : 'bg-[var(--bg-surface)] text-[var(--text-muted)] border-[var(--border-subtle)] hover:text-[var(--text-primary)]'
-                }`}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg border whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer flex-shrink-0 ${chartSymbol === item.symbol
+                  ? 'bg-[var(--brand-glow)] text-[var(--brand-primary)] border-[var(--brand-primary)] shadow-sm'
+                  : 'bg-[var(--bg-surface)] text-[var(--text-muted)] border-[var(--border-subtle)] hover:text-[var(--text-primary)]'
+                  }`}
               >
                 {item.label}
                 {hasOpenTrade && (
@@ -257,18 +256,16 @@ export default function PaperTradingPage() {
               <button
                 type="button"
                 onClick={() => setTab('open')}
-                className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                  tab === 'open' ? 'bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                }`}
+                className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${tab === 'open' ? 'bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                  }`}
               >
                 Open Positions ({openTrades.length})
               </button>
               <button
                 type="button"
                 onClick={() => setTab('history')}
-                className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                  tab === 'history' ? 'bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                }`}
+                className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${tab === 'history' ? 'bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                  }`}
               >
                 Trade History ({closedTrades.length})
               </button>
@@ -293,8 +290,8 @@ export default function PaperTradingPage() {
                   const ticker = tickers.find((t) => t.symbol === trade.instrument);
                   const currentPrice = ticker?.price ?? trade.entryPrice;
                   const priceDiff = trade.direction === 'LONG' ? currentPrice - trade.entryPrice : trade.entryPrice - currentPrice;
-                  const unrealisedPnl = (priceDiff / trade.entryPrice) * trade.margin;
-                  const unrealisedPct = (priceDiff / trade.entryPrice) * 100;
+                  const unrealisedPnl = priceDiff * trade.size;
+                  const unrealisedPct = trade.marginUsd > 0 ? (unrealisedPnl / trade.marginUsd) * 100 : 0;
                   const isProfit = unrealisedPnl >= 0;
 
                   return (
@@ -307,15 +304,15 @@ export default function PaperTradingPage() {
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-sm font-bold text-[var(--text-primary)]">{trade.instrument}</span>
                             <DirectionBadge direction={trade.direction} />
-                            {trade.timeframe && (
-                              <span className="text-[10px] text-[var(--text-muted)] font-mono">{trade.timeframe}</span>
+                            {trade.leverage > 1 && (
+                              <span className="text-[10px] text-amber-400 font-mono">{trade.leverage}×</span>
                             )}
                           </div>
                           <div className="flex items-center gap-3 text-[11px] text-[var(--text-muted)] mt-1 flex-wrap font-mono">
                             <span>Entry: <strong className="text-[var(--text-secondary)]">${fmt(trade.entryPrice)}</strong></span>
-                            <span>Margin: <strong className="text-[var(--text-secondary)]">${fmt(trade.margin)}</strong></span>
-                            {trade.stopLoss > 0 && <span className="text-orange-400">SL: ${fmt(trade.stopLoss)}</span>}
-                            {trade.takeProfit > 0 && <span className="text-emerald-400">TP: ${fmt(trade.takeProfit)}</span>}
+                            <span>Margin: <strong className="text-[var(--text-secondary)]">${fmt(trade.marginUsd)}</strong></span>
+                            {trade.stopLoss != null && <span className="text-orange-400">SL: ${fmt(trade.stopLoss)}</span>}
+                            {trade.takeProfit != null && <span className="text-emerald-400">TP: ${fmt(trade.takeProfit)}</span>}
                           </div>
                         </div>
                       </div>
@@ -354,7 +351,9 @@ export default function PaperTradingPage() {
                 </GlassCard>
               ) : (
                 closedTrades.map((trade) => {
-                  const isProfit = (trade.pnl ?? 0) >= 0;
+                  const realised = trade.realisedPnl ?? 0;
+                  const realisedPct = trade.marginUsd > 0 ? (realised / trade.marginUsd) * 100 : 0;
+                  const isProfit = realised >= 0;
                   return (
                     <GlassCard key={trade.id} className="p-4 flex items-center justify-between gap-4 flex-wrap">
                       <div className="flex items-center gap-3">
@@ -365,22 +364,22 @@ export default function PaperTradingPage() {
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-bold text-[var(--text-primary)]">{trade.instrument}</span>
                             <DirectionBadge direction={trade.direction} />
-                            <span className="text-[10px] text-[var(--text-muted)] font-mono">CLOSED</span>
+                            <span className="text-[10px] text-[var(--text-muted)] font-mono">{trade.status}</span>
                           </div>
                           <div className="flex items-center gap-3 text-[11px] text-[var(--text-muted)] mt-1 font-mono">
                             <span>Entry: ${fmt(trade.entryPrice)}</span>
                             <span>→ Exit: ${fmt(trade.closePrice ?? trade.entryPrice)}</span>
-                            <span>Margin: ${fmt(trade.margin)}</span>
+                            <span>Margin: ${fmt(trade.marginUsd)}</span>
                           </div>
                         </div>
                       </div>
 
                       <div className="text-right font-mono flex-shrink-0">
                         <p className={`text-sm font-bold ${isProfit ? 'text-[var(--color-success)]' : 'text-[var(--color-danger)]'}`}>
-                          {isProfit ? '+' : ''}${fmt(trade.pnl ?? 0)}
+                          {isProfit ? '+' : ''}${fmt(realised)}
                         </p>
                         <p className={`text-[10px] font-semibold ${isProfit ? 'text-[var(--color-success)]' : 'text-[var(--color-danger)]'}`}>
-                          {(trade.pnlPct ?? 0) >= 0 ? '+' : ''}{(trade.pnlPct ?? 0).toFixed(2)}%
+                          {realisedPct >= 0 ? '+' : ''}{realisedPct.toFixed(2)}%
                         </p>
                       </div>
                     </GlassCard>

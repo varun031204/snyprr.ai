@@ -62,7 +62,7 @@ export const PaperTradeOrderPanel: React.FC<PaperTradeOrderPanelProps> = ({
   className = '',
 }) => {
   const { tickers } = useMarketStore();
-  const { balance, openTrade } = usePaperTradingStore();
+  const { balance, openPosition } = usePaperTradingStore();
   const { addToast } = useUIStore();
 
   const [panelInstrument, setPanelInstrument] = useState(currentInstrument);
@@ -225,27 +225,24 @@ export const PaperTradeOrderPanel: React.FC<PaperTradeOrderPanelProps> = ({
 
     setIsSubmitting(true);
     try {
-      const quantity = marginNum / entryNum;
-      const tradeId = openTrade({
+      const notionalUsd = marginNum;
+      const size = parseFloat((notionalUsd / entryNum).toFixed(6));
+      const tradeId = openPosition({
         instrument: panelInstrument,
         direction,
+        size,
         entryPrice: entryNum,
-        quantity,
-        stopLoss: slNum,
-        takeProfit: tp1Num,
-        takeProfit2: tp2Num || undefined,
-        takeProfit3: tp3Num || undefined,
-        buyingZone: buyNum || undefined,
-        sellingZone: sellNum || undefined,
-        margin: marginNum,
-        timeframe: effectiveTimeframe,
-        notes: notes.trim() || undefined,
+        notionalUsd,
+        leverage: 1,
+        stopLoss: slNum || null,
+        takeProfit: tp1Num || null,
+        note: notes.trim(),
       });
 
       if (tradeId) {
         addToast({
           type: 'success',
-          title: 'Paper Trade Executed! 🎉',
+          title: 'Paper Trade Executed!',
           message: `Opened ${direction} position on ${panelInstrument} ($${marginNum.toLocaleString()} margin).`,
         });
         onTradeExecuted?.(tradeId);
@@ -314,11 +311,10 @@ export const PaperTradeOrderPanel: React.FC<PaperTradeOrderPanelProps> = ({
             key={item.instrument}
             type="button"
             onClick={() => handleSelectInstrument(item.instrument)}
-            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all cursor-pointer ${
-              panelInstrument === item.instrument
-                ? 'bg-[var(--brand-primary)] text-white border-[var(--brand-primary)]'
-                : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)] hover:text-[var(--text-primary)]'
-            }`}
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all cursor-pointer ${panelInstrument === item.instrument
+              ? 'bg-[var(--brand-primary)] text-white border-[var(--brand-primary)]'
+              : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)] hover:text-[var(--text-primary)]'
+              }`}
           >
             {item.label}
           </button>
@@ -336,22 +332,20 @@ export const PaperTradeOrderPanel: React.FC<PaperTradeOrderPanelProps> = ({
             <button
               type="button"
               onClick={() => handleDirectionChange('LONG')}
-              className={`flex-1 flex items-center justify-center gap-1 py-1 px-2 rounded-md text-xs font-bold transition-all cursor-pointer ${
-                direction === 'LONG'
-                  ? 'bg-[var(--color-success-bg)] text-[var(--color-success)] border border-[var(--color-success)]/40'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-              }`}
+              className={`flex-1 flex items-center justify-center gap-1 py-1 px-2 rounded-md text-xs font-bold transition-all cursor-pointer ${direction === 'LONG'
+                ? 'bg-[var(--color-success-bg)] text-[var(--color-success)] border border-[var(--color-success)]/40'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                }`}
             >
               <TrendingUp className="w-3.5 h-3.5" /> LONG
             </button>
             <button
               type="button"
               onClick={() => handleDirectionChange('SHORT')}
-              className={`flex-1 flex items-center justify-center gap-1 py-1 px-2 rounded-md text-xs font-bold transition-all cursor-pointer ${
-                direction === 'SHORT'
-                  ? 'bg-[var(--color-danger-bg)] text-[var(--color-danger)] border border-[var(--color-danger)]/40'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-              }`}
+              className={`flex-1 flex items-center justify-center gap-1 py-1 px-2 rounded-md text-xs font-bold transition-all cursor-pointer ${direction === 'SHORT'
+                ? 'bg-[var(--color-danger-bg)] text-[var(--color-danger)] border border-[var(--color-danger)]/40'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                }`}
             >
               <TrendingDown className="w-3.5 h-3.5" /> SHORT
             </button>
@@ -442,9 +436,8 @@ export const PaperTradeOrderPanel: React.FC<PaperTradeOrderPanelProps> = ({
             className="min-w-0 flex-1 bg-transparent font-mono text-xs font-bold text-[var(--text-primary)] focus:outline-none"
           />
         </div>
-        <span className={`text-[11px] font-bold font-mono px-2 py-0.5 rounded flex-shrink-0 ${
-          spreadPct >= 0 ? 'text-[var(--color-success)] bg-[var(--color-success-bg)]' : 'text-[var(--color-danger)] bg-[var(--color-danger-bg)]'
-        }`}>
+        <span className={`text-[11px] font-bold font-mono px-2 py-0.5 rounded flex-shrink-0 ${spreadPct >= 0 ? 'text-[var(--color-success)] bg-[var(--color-success-bg)]' : 'text-[var(--color-danger)] bg-[var(--color-danger-bg)]'
+          }`}>
           {spreadPct >= 0 ? '+' : ''}{spreadPct.toFixed(2)}%
         </span>
       </div>

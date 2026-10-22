@@ -169,13 +169,13 @@ export default function PredictionsPage() {
                   <div className="bg-[var(--color-success-bg)] border border-[var(--color-success)]/20 rounded-xl p-2 text-center">
                     <p className="text-[10px] text-[var(--color-success)] font-semibold mb-0.5">Buy Zone</p>
                     <p className="text-xs font-mono-num font-bold text-[var(--color-success)]">
-                      {(p.buyingZone ?? p.entryPrice).toLocaleString()}
+                      {(p.buyingZone ?? p.entryPrice ?? 0).toLocaleString()}
                     </p>
                   </div>
                   <div className="bg-[var(--color-danger-bg)] border border-[var(--color-danger)]/20 rounded-xl p-2 text-center">
                     <p className="text-[10px] text-[var(--color-danger)] font-semibold mb-0.5">Sell Zone</p>
                     <p className="text-xs font-mono-num font-bold text-[var(--color-danger)]">
-                      {(p.sellingZone ?? p.takeProfit ?? p.entryPrice).toLocaleString()}
+                      {(p.sellingZone ?? p.takeProfit ?? p.entryPrice ?? 0).toLocaleString()}
                     </p>
                   </div>
                 </div>

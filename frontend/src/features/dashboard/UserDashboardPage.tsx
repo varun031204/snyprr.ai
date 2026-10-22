@@ -63,11 +63,8 @@ export default function UserDashboardPage() {
         <h1 className="text-3xl font-extrabold text-[var(--text-primary)]">
           Welcome back, {currentUser?.name?.split(' ')[0] ?? 'User'}.
         </h1>
-        <p className="text-sm font-semibold text-[var(--brand-primary)] mt-1">
-          Came to earn some money?
-        </p>
-        <p className="text-xs text-[var(--text-muted)]">
-          Oops! Here's a lot.
+        <p className="text-xs text-[var(--text-muted)] mt-1">
+          Market analysis and chart education platform.
         </p>
       </div>
 
@@ -155,10 +152,10 @@ export default function UserDashboardPage() {
       {/* ── Desk Performance Strip ─────────────────────────────────────────── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 relative z-10">
         {[
-          { label: 'Overall Win Rate', value: '78.5%', color: 'text-[var(--color-success)]' },
-          { label: 'Avg Risk/Reward', value: '1 : 3.1', color: 'text-[var(--brand-primary)]' },
-          { label: 'Total Setups', value: '148+', color: 'text-[var(--text-primary)]' },
-          { label: 'Subscribers', value: '2.5k+', color: 'text-[var(--color-info)]' },
+          { label: 'Historical Win Rate*', value: '78.5%', color: 'text-[var(--color-success)]' },
+          { label: 'Avg Desk R/R*', value: '1 : 3.1', color: 'text-[var(--brand-primary)]' },
+          { label: 'Total Setups Published', value: '148+', color: 'text-[var(--text-primary)]' },
+          { label: 'Active Members', value: '2.5k+', color: 'text-[var(--color-info)]' },
         ].map((s) => (
           <GlassCard key={s.label} hoverEffect={false} className="p-4 text-center">
             <p className={`text-xl font-extrabold font-mono-num ${s.color}`}>{s.value}</p>
@@ -166,6 +163,9 @@ export default function UserDashboardPage() {
           </GlassCard>
         ))}
       </div>
+      <p className="text-[9px] text-[var(--text-muted)] text-center -mt-2 relative z-10">
+        *Historical figures based on published desk setups. Past performance does not guarantee future results.
+      </p>
     </div>
   );
 }

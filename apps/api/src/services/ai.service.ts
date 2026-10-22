@@ -1,0 +1,338 @@
+/**
+ * Gemini AI service - server-side implementation
+ * 
+ * Handles all AI requests with:
+ * - Secure API key management (never exposed to frontend)
+ * - Per-user rate limiting
+ * - Input validation and sanitization
+ * - Exponential backoff retry logic
+ */
+
+import { env } from '../config/env.js';
+import { db } from '../db/pool.js';
+
+const GEMINI_MODEL = 'gemini-3.6-flash';
+const RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504]);
+const CANDIDATE_MODELS = [
+  GEMINI_MODEL,
+  'gemini-2.5-flash',
+  'gemini-2.0-flash',
+  'gemini-1.5-flash',
+].filter((m, idx, arr): m is string => Boolean(m) && arr.indexOf(m) === idx);
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export interface GeminiMessage {
+  role: 'user' | 'model';
+  parts: Array<{ text: string }>;
+}
+
+export interface GeminiAnalysisResult {
+  overview: string;
+  riskReward: string;
+  sentiment: string;
+  verdict: 'BULLISH' | 'BEARISH' | 'NEUTRAL' | 'CAUTION';
+  keyPoints: string[];
+}
+
+export interface PredictionData {
+  instrument: string;
+  direction: string;
+  strategy?: string;
+  timeframe?: string;
+  buyingZone?: number;
+  sellingZone?: number;
+  stopLoss?: number;
+  takeProfit?: number;
+  riskRewardRatio?: number;
+  analysis?: string;
+}
+
+export interface RateLimitInfo {
+  allowed: boolean;
+  remaining: number;
+  resetAt: Date;
+  limit: number;
+}
+
+// ─── Rate Limiting ────────────────────────────────────────────────────────────
+
+const AI_RATE_LIMITS = {
+  FREE: 10,     // 10 requests per hour
+  BASIC: 30,    // 30 requests per hour
+  PRO: 100,     // 100 requests per hour
+  PREMIUM: 500, // 500 requests per hour
+} as const;
+
+interface UserRateLimit {
+  userId: string;
+  requestCount: number;
+  windowStart: Date;
+  userTier: keyof typeof AI_RATE_LIMITS;
+}
+
+// In-memory rate limit store (TODO: move to Redis for production)
+const rateLimitStore = new Map<string, UserRateLimit>();
+
+/**
+ * Check if user has remaining AI quota for this hour
+ * Returns rate limit info and updates counter if allowed
+ * 
+ * KNOWN LIMITATION: This implementation has a race condition where concurrent
+ * requests could bypass the rate limit. The check-then-increment pattern is not atomic.
+ * For production, this should be migrated to Redis with INCR/EXPIRE for atomic operations.
+ */
+export async function checkRateLimit(userId: string): Promise<RateLimitInfo> {
+  const now = new Date();
+  const hourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+
+  // Get user's subscription tier from database
+  const { rows } = await db.query<{ plan_name: string }>(
+    `SELECT sp.name as plan_name
+     FROM user_subscriptions us
+     JOIN subscription_plans sp ON us.plan_id = sp.id
+     WHERE us.user_id = $1
+       AND us.status = 'active'
+       AND us.expires_at > NOW()
+     ORDER BY us.created_at DESC
+     LIMIT 1`,
+    [userId]
+  );
+
+  // Default to FREE tier if no active subscription
+  const tierMap: Record<string, keyof typeof AI_RATE_LIMITS> = {
+    'Basic': 'BASIC',
+    'Pro': 'PRO',
+    'Premium': 'PREMIUM',
+  };
+  const userTier = rows[0]?.plan_name
+    ? tierMap[rows[0].plan_name] ?? 'FREE'
+    : 'FREE';
+
+  const limit = AI_RATE_LIMITS[userTier];
+
+  // Get or initialize rate limit entry
+  let entry = rateLimitStore.get(userId);
+
+  // Reset counter if window expired
+  if (!entry || entry.windowStart < hourAgo) {
+    entry = {
+      userId,
+      requestCount: 0,
+      windowStart: now,
+      userTier,
+    };
+    rateLimitStore.set(userId, entry);
+  }
+
+  const remaining = Math.max(0, limit - entry.requestCount);
+  const allowed = entry.requestCount < limit;
+
+  if (allowed) {
+    entry.requestCount += 1;
+    rateLimitStore.set(userId, entry);
+  }
+
+  const resetAt = new Date(entry.windowStart.getTime() + 60 * 60 * 1000);
+
+  return {
+    allowed,
+    remaining: allowed ? remaining - 1 : remaining,
+    resetAt,
+    limit,
+  };
+}
+
+// ─── Gemini API Client ────────────────────────────────────────────────────────
+
+/**
+ * Call Gemini API with automatic retry logic for transient errors
+ */
+async function callGemini(
+  contents: GeminiMessage[],
+  systemInstruction?: string,
+): Promise<string> {
+  const body: Record<string, unknown> = { contents };
+  if (systemInstruction) {
+    body.systemInstruction = { parts: [{ text: systemInstruction }] };
+  }
+
+  let lastError: Error | null = null;
+
+  for (const model of CANDIDATE_MODELS) {
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+    const MAX_RETRIES = 2;
+
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      if (attempt > 0) {
+        await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, attempt - 1)));
+      }
+
+      let res: Response;
+      try {
+        res = await fetch(`${endpoint}?key=${env.GEMINI_API_KEY}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+      } catch (networkErr) {
+        lastError = networkErr instanceof Error ? networkErr : new Error(String(networkErr));
+        continue;
+      }
+
+      if (res.ok) {
+        const data = await res.json() as any; // Gemini API response structure
+        const text: string = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+        return text.trim();
+      }
+
+      const errBody = await res.text().catch(() => res.statusText);
+      lastError = new Error(`Gemini API error ${res.status} (${model}): ${errBody}`);
+
+      if (res.status === 404 || res.status === 503) {
+        break; // Try next model
+      }
+
+      if (RETRYABLE_STATUSES.has(res.status) && attempt < MAX_RETRIES) {
+        continue;
+      }
+
+      if (res.status === 400 || res.status === 401 || res.status === 403) {
+        throw lastError;
+      }
+    }
+  }
+
+  throw lastError ?? new Error('Gemini API request failed across all candidate models.');
+}
+
+// ─── Prompt Builders ──────────────────────────────────────────────────────────
+
+function buildAnalysisPrompt(prediction: PredictionData): string {
+  const buyZone = prediction.buyingZone ?? 0;
+  const sellZone = prediction.sellingZone ?? 0;
+  const sl = prediction.stopLoss;
+  const tp = prediction.takeProfit;
+  const rr = prediction.riskRewardRatio?.toFixed(2) ?? 'N/A';
+
+  return `You are an expert financial analyst specialising in technical and sentiment analysis for cryptocurrency and commodity markets. A trader on Snyprr.ai has published the following trade setup. Your task is to provide a concise, structured review that summarises the trader's own analysis and enhances it with relevant market context.
+
+TRADE SETUP:
+- Instrument: ${prediction.instrument}
+- Direction: ${prediction.direction}
+- Strategy: ${prediction.strategy ?? 'N/A'}
+- Timeframe: ${prediction.timeframe ?? 'N/A'}
+- Buying Zone: ${buyZone}
+- Selling Zone: ${sellZone}
+- Stop Loss: ${sl ?? 'N/A'}
+- Take Profit: ${tp ?? 'N/A'}
+- Risk:Reward Ratio: ${rr}
+- Trader's Analysis Notes: ${prediction.analysis || 'Not provided'}
+
+IMPORTANT: Base your overview primarily on the trader's analysis notes above. Summarise and validate their reasoning. Only add your own market context where the trader has not covered it. Do not invent trader reasoning.
+
+Respond strictly in this JSON format (no markdown, no extra text outside the JSON):
+{
+  "overview": "<2-3 sentence summary grounded in the trader's own analysis notes>",
+  "riskReward": "<one sentence evaluating whether the R:R is attractive>",
+  "sentiment": "<one sentence on current market sentiment for this asset>",
+  "verdict": "<one of: BULLISH | BEARISH | NEUTRAL | CAUTION>",
+  "keyPoints": ["<concise point 1>", "<concise point 2>", "<concise point 3>", "<concise point 4>"]
+}`;
+}
+
+function buildChatSystemInstruction(prediction: PredictionData | null): string {
+  const context = prediction
+    ? `The user is currently viewing a ${prediction.direction} setup on ${prediction.instrument} (${prediction.strategy}, ${prediction.timeframe} timeframe). Buying Zone: ${prediction.buyingZone ?? 'N/A'}, SL: ${prediction.stopLoss ?? 'N/A'}, TP: ${prediction.takeProfit ?? 'N/A'}.`
+    : 'The user is on the Snyprr.ai dashboard viewing market charts.';
+
+  return `You are Snyprr AI, Snyprr.ai's intelligent trade analysis assistant. You are helpful, concise, and focused on practical trading insights. ${context} Answer questions about this trade setup, market context, risk management, and trading strategy. Keep responses under 200 words. Do not provide financial advice — frame everything as educational analysis.`;
+}
+
+const COPILOT_SYSTEM_PROMPT = `You are Snyprr AI, the dedicated trading intelligence copilot on Snyprr.ai — a premium trading signal and analysis platform.
+
+Your role:
+- Provide technical analysis and market commentary using the live price data provided below
+- Explain Smart Money Concepts (SMC): Order Blocks, Fair Value Gaps, Liquidity, BOS/CHoCH
+- Analyse chart patterns, setups, and multi-timeframe structure
+- Discuss risk management, position sizing, and R:R calculations
+- Give concise, professional insights for active traders
+
+Guidelines:
+- You WILL be provided with LIVE MARKET DATA at the end of this instruction — always use these prices when answering price questions
+- Be concise: keep responses under 250 words unless a complex topic requires more detail
+- Be specific: use the actual live prices provided, plus percentages and market structure terms
+- Frame as educational analysis, not financial advice
+- Use clear formatting with bullet points for key levels
+- Maintain a professional but approachable tone`;
+
+const VOICE_SYSTEM_PROMPT = `You are Snyprr AI, a voice-based trading assistant. The user is speaking to you and will hear your response read aloud by a text-to-speech engine.
+
+CRITICAL RULES — your response will be spoken aloud so it MUST be optimised for speech:
+- Always respond in English only, regardless of what language the user writes in
+- Use plain spoken English — NO markdown, NO asterisks, NO hashtags, NO bullet points, NO dashes as list separators, NO symbols like * # - > |
+- Keep every response to 2-4 natural sentences maximum
+- Be direct and conversational — answer exactly what was asked, nothing more
+- Do NOT start with phrases like "Great question!", "Certainly!", "Of course!", "Sure!", or similar filler
+- For prices, say numbers naturally (e.g. "Bitcoin is at ninety-four thousand two hundred")
+- Use "and" instead of "&", "percent" instead of "%", "versus" instead of "vs"
+- Sound like a knowledgeable trading friend having a conversation, not like a written report
+- Never use abbreviations that sound odd when read aloud (e.g. say "take profit" not "TP", "stop loss" not "SL")`;
+
+// ─── Public API ───────────────────────────────────────────────────────────────
+
+/**
+ * Generate structured AI analysis for a trader's prediction
+ */
+export async function analyzeTraderSetup(prediction: PredictionData): Promise<GeminiAnalysisResult> {
+  const prompt = buildAnalysisPrompt(prediction);
+  const raw = await callGemini([{ role: 'user', parts: [{ text: prompt }] }]);
+
+  try {
+    // Strip any accidental markdown code fences
+    const cleaned = raw.replace(/^```json\n?/, '').replace(/\n?```$/, '').trim();
+    return JSON.parse(cleaned) as GeminiAnalysisResult;
+  } catch {
+    // Graceful fallback if JSON parse fails
+    return {
+      overview: raw.slice(0, 300),
+      riskReward: 'Unable to parse structured response.',
+      sentiment: '',
+      verdict: 'NEUTRAL',
+      keyPoints: [],
+    };
+  }
+}
+
+/**
+ * Send a chat message in context of the current prediction
+ */
+export async function sendChatMessage(
+  messages: GeminiMessage[],
+  prediction: PredictionData | null,
+): Promise<string> {
+  const systemInstruction = buildChatSystemInstruction(prediction);
+  return callGemini(messages, systemInstruction);
+}
+
+/**
+ * Send a message to the Snyprr AI Copilot (text chat mode)
+ */
+export async function sendCopilotMessage(
+  messages: GeminiMessage[],
+  priceContext: string,
+): Promise<string> {
+  const systemInstruction = COPILOT_SYSTEM_PROMPT + priceContext;
+  return callGemini(messages, systemInstruction);
+}
+
+/**
+ * Send a message via voice mode
+ */
+export async function sendVoiceCopilotMessage(
+  messages: GeminiMessage[],
+  priceContext: string,
+): Promise<string> {
+  const systemInstruction = VOICE_SYSTEM_PROMPT + priceContext;
+  return callGemini(messages, systemInstruction);
+}

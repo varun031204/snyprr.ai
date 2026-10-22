@@ -13,19 +13,19 @@ import { useUIStore } from '../../state/useUIStore';
 import { Logo } from '../../components/ui/Logo';
 
 const stats = [
-  { label: 'Historical Win Rate', value: '76.4%', icon: <BarChart2 className="w-5 h-5" /> },
-  { label: 'Avg Risk-to-Reward', value: '1 : 2.8', icon: <Target className="w-5 h-5" /> },
-  { label: '24/7 Available', value: '24/7', icon: <Clock className="w-5 h-5" /> },
-  { label: 'Published Predictions', value: '1,200+', icon: <TrendingUp className="w-5 h-5" /> },
+  { label: 'Desk Win Rate*', value: '76.4%', icon: <BarChart2 className="w-5 h-5" /> },
+  { label: 'Avg Desk R/R*', value: '1 : 2.8', icon: <Target className="w-5 h-5" /> },
+  { label: 'Always Available', value: '24/7', icon: <Clock className="w-5 h-5" /> },
+  { label: 'Published Setups', value: '1,200+', icon: <TrendingUp className="w-5 h-5" /> },
 ];
 
 const TESTIMONIALS = [
-  { name: 'Arjun Mehta', role: 'Retail Trader', initials: 'AM', color: 'from-violet-500 to-purple-600', rating: 5, text: 'Snyprr.ai completely changed how I follow the markets. The verified trader predictions save me hours of research every day.' },
-  { name: 'Priya Sharma', role: 'Crypto Enthusiast', initials: 'PS', color: 'from-emerald-500 to-teal-500', rating: 5, text: 'I love how transparent everything is — win rates, entry/exit levels, track records. No fluff, just actionable insights.' },
-  { name: 'Rohan Kapoor', role: 'Forex Trader', initials: 'RK', color: 'from-blue-500 to-cyan-500', rating: 5, text: 'The TradingView charts integrated directly in the dashboard are a game changer. Everything I need is in one place now.' },
-  { name: 'Sneha Patel', role: 'Stock Market Investor', initials: 'SP', color: 'from-rose-500 to-pink-500', rating: 4, text: "Best platform for following expert traders without the noise. I've improved my decision-making significantly since joining." },
-  { name: 'Karan Singh', role: 'Day Trader', initials: 'KS', color: 'from-orange-500 to-amber-500', rating: 5, text: 'The real-time predictions and clean UI make Snyprr.ai stand out. The subscription plans are totally worth it.' },
-  { name: 'Ananya Verma', role: 'Options Trader', initials: 'AV', color: 'from-indigo-500 to-blue-500', rating: 5, text: 'Finally a platform that treats users as smart investors. The data quality and analyst verification process is top-notch.' },
+  { name: 'Arjun Mehta', role: 'Retail Trader', initials: 'AM', color: 'from-violet-500 to-purple-600', rating: 5, text: 'Snyprr.ai changed how I study the markets. The analyst desk setups save me hours of research every day — everything is laid out clearly.' },
+  { name: 'Priya Sharma', role: 'Crypto Enthusiast', initials: 'PS', color: 'from-emerald-500 to-teal-500', rating: 5, text: 'I love how transparent everything is — defined zones, track records, historical outcomes. No fluff, just structured analysis.' },
+  { name: 'Rohan Kapoor', role: 'Forex Trader', initials: 'RK', color: 'from-blue-500 to-cyan-500', rating: 5, text: 'The TradingView charts integrated directly in the dashboard are a game changer. Everything I need for analysis is in one place.' },
+  { name: 'Sneha Patel', role: 'Market Analyst', initials: 'SP', color: 'from-rose-500 to-pink-500', rating: 4, text: "Best platform for structured market analysis without the noise. The clearly published zones and historical outcomes help me learn more systematically." },
+  { name: 'Karan Singh', role: 'Day Trader', initials: 'KS', color: 'from-orange-500 to-amber-500', rating: 5, text: 'The clean UI and well-structured setups make Snyprr.ai stand out. Great platform for anyone who wants to study market setups seriously.' },
+  { name: 'Ananya Verma', role: 'Market Enthusiast', initials: 'AV', color: 'from-indigo-500 to-blue-500', rating: 5, text: 'Finally a platform with a real published track record. The data quality and transparency of the analyst desk process is top-notch.' },
 ];
 
 function TestimonialsCarousel() {
@@ -379,13 +379,13 @@ export default function LandingPage() {
         <div className="relative z-10 flex-1 flex items-center w-full max-w-7xl mx-auto px-5 sm:px-8 md:px-12 py-16 md:py-20">
           <div className="max-w-xl">
             <h1 className="text-4xl md:text-5xl xl:text-6xl font-extrabold tracking-tight leading-[1.1] text-[var(--text-primary)] mb-6">
-              Follow the best
-              <span className="block neo-glow-text mt-1">trading predictions.</span>
+              Study verified
+              <span className="block neo-glow-text mt-1">market analysis setups.</span>
             </h1>
 
             <p className="text-base md:text-lg text-[var(--text-muted)] leading-relaxed mb-8">
-              Trade Beast delivers verified, high-conviction trading predictions and actionable market forecasts.
-              Discover, follow, and track — without execution noise.
+              Snyprr.ai publishes analyst desk setups with defined entry zones, exit zones, and rationale.
+              Track historical outcomes transparently — no execution, no financial advice.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3 mb-12">
@@ -411,6 +411,9 @@ export default function LandingPage() {
                 </GlassCard>
               ))}
             </div>
+            <p className="text-[9px] text-[var(--text-muted)] mt-1 max-w-sm leading-relaxed">
+              *Historical figures based on published desk setups. Past performance is not indicative of future results.
+            </p>
           </div>
         </div>
       </section>
@@ -421,7 +424,7 @@ export default function LandingPage() {
           <p className="text-xs font-medium text-[var(--brand-primary)] uppercase tracking-widest mb-2">The People Behind It</p>
           <h2 className="text-2xl md:text-3xl font-bold text-[var(--text-primary)]">Meet Our Core Team</h2>
           <p className="text-[var(--text-muted)] mt-3 text-sm max-w-xl mx-auto">
-            TradeBeast is built by a passionate team of traders, engineers, and product thinkers dedicated to making smarter trading intelligence accessible to everyone.
+            Snyprr.ai is built by a passionate team of market enthusiasts, engineers, and product thinkers dedicated to making structured market analysis accessible for educational purposes.
           </p>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
@@ -456,12 +459,12 @@ export default function LandingPage() {
         </div>
         <div className="grid md:grid-cols-2 gap-4 max-w-4xl mx-auto">
           {[
-            { q: 'What is Snyprr.ai?', a: 'Snyprr.ai is a verified trading prediction platform. Our in-house analyst desk publishes high-conviction market setups that you can track, follow, and learn from.' },
-            { q: 'Do I need to execute trades on Snyprr.ai?', a: 'No. Snyprr.ai is purely a prediction and analytics platform. You follow setups and track outcomes — all execution decisions remain yours.' },
-            { q: 'How is prediction accuracy verified?', a: 'Every prediction is published with entry, buying zone, and selling zone levels. Outcomes are declared by traders and tracked against live market data for a transparent track record.' },
-            { q: 'What markets are covered?', a: 'Currently Crypto (BTC, ETH, SOL, XRP) and Commodities (Gold, Silver). More instruments are added as the platform grows.' },
-            { q: 'Is there a free trial?', a: 'Yes — all plans come with a 30-day free trial. Full access, zero risk, cancel anytime before the trial ends.' },
-            { q: 'When will the full platform launch?', a: 'The public beta is live now. Full backend integration with real-time data, JWT auth, and live push notifications is rolling out in the next phase.' },
+            { q: 'What is Snyprr.ai?', a: 'Snyprr.ai is a market analysis and chart education platform. Our in-house analyst desk publishes setups — including defined entry zones, exit zones, and rationale — which you can study and track for educational purposes. Nothing on Snyprr.ai constitutes financial advice.' },
+            { q: 'Does Snyprr.ai execute trades?', a: 'No. Snyprr.ai does not execute trades, manage funds, or provide brokerage services. All execution decisions remain entirely yours. The platform is for study and educational tracking only.' },
+            { q: 'How is a setup\'s history tracked?', a: 'Every setup is published with defined zones at the time of publication. Outcome declarations are made by our analyst desk and compared against market data. Historical track records reflect published setups only and do not guarantee future accuracy.' },
+            { q: 'What markets are covered?', a: 'Currently Crypto (BTC, ETH, SOL, XRP) and Commodities (Gold, Silver). More instruments may be added as the platform grows.' },
+            { q: 'Is there a free trial?', a: 'Yes — all plans include a free trial period. Full access during the trial, cancel anytime before it ends. See the Subscriptions page for current trial length.' },
+            { q: 'Is the platform live?', a: 'Yes, the platform is live. We continue to expand features and instruments. Nothing published on Snyprr.ai should be treated as financial advice.' },
           ].map((faq) => (
             <GlassCard key={faq.q} hoverEffect={false} className="p-5 space-y-2">
               <p className="text-sm font-semibold text-[var(--text-primary)]">{faq.q}</p>
@@ -486,8 +489,8 @@ export default function LandingPage() {
       {/* ── CTA ── */}
       <section className="px-6 py-20 text-center">
         <GlassCard className="max-w-2xl mx-auto py-12 px-8">
-          <h2 className="text-3xl font-extrabold mb-3">Ready to track smarter?</h2>
-          <p className="text-[var(--text-muted)] mb-8">Join smart traders tracking high-conviction market ideas with verified performance.</p>
+          <h2 className="text-3xl font-extrabold mb-3">Ready to study smarter?</h2>
+          <p className="text-[var(--text-muted)] mb-8">Join members who study structured analyst setups and track historical outcomes transparently. For educational purposes only.</p>
           <div className="flex justify-center">
             <Button variant="primary" size="lg" onClick={() => navigate('/signup')} rightIcon={<ArrowRight className="w-5 h-5" />}>
               Create Free Account
@@ -503,21 +506,20 @@ export default function LandingPage() {
             COMMUNITY & SOCIALS
           </span>
           <h2 className="text-3xl sm:text-4xl font-extrabold text-[var(--text-primary)] tracking-tight">Follow Us Across Platforms</h2>
-          <p className="text-sm text-[var(--text-muted)] max-w-xl">Connect with our official channels for real-time market updates, daily chart breakdowns, alpha prediction alerts, and active trader discussions.</p>
+          <p className="text-sm text-[var(--text-muted)] max-w-xl">Connect with our official channels for market updates, daily chart breakdowns, educational content, and community discussions.</p>
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {[
-            { href: 'https://twitter.com', hover: 'hover:border-sky-500/50 hover:bg-sky-500/5', color: 'text-sky-400', name: 'Twitter / X', desc: 'Breaking market alerts, prediction signals, and real-time crypto & forex updates.', handle: 'Follow @TradeBeast', badge: '28.5K Followers', badgeCls: 'bg-sky-500/10 text-sky-400 border-sky-500/20', iconCls: 'bg-sky-500/10 text-sky-400 border-sky-500/20', svg: <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg> },
-            { href: 'https://instagram.com', hover: 'hover:border-pink-500/50 hover:bg-pink-500/5', color: 'text-pink-400', name: 'Instagram', desc: 'Visual chart breakdowns, educational trading carousels, and weekly win-rate recaps.', handle: 'Follow @tradebeast', badge: '42K Followers', badgeCls: 'bg-pink-500/10 text-pink-400 border-pink-500/20', iconCls: 'bg-gradient-to-tr from-amber-500/20 via-pink-500/20 to-purple-500/20 text-pink-400 border-pink-500/20', svg: <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="20" x="2" y="2" rx="5" ry="5" /><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" /><line x1="17.5" x2="17.51" y1="6.5" y2="6.5" /></svg> },
-            { href: 'https://facebook.com', hover: 'hover:border-blue-500/50 hover:bg-blue-500/5', color: 'text-blue-400', name: 'Facebook', desc: 'Official trader community group, strategy webinars, and comprehensive platform news.', handle: 'Join Community', badge: '18K Members', badgeCls: 'bg-blue-600/10 text-blue-400 border-blue-600/20', iconCls: 'bg-blue-600/10 text-blue-400 border-blue-600/20', svg: <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" /></svg> },
-          { href: 'https://discord.gg/snyprr', hover: 'hover:border-indigo-500/50 hover:bg-indigo-500/5', color: 'text-indigo-400', name: 'Discord Server', desc: 'Live voice trading desks, analyst chat rooms, and instant push notification feeds.', handle: 'Join VIP Server', badge: '14.2K Active', badgeCls: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20', iconCls: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20', svg: <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.929 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.893.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" /></svg> },
+            { href: 'https://twitter.com', hover: 'hover:border-sky-500/50 hover:bg-sky-500/5', color: 'text-sky-400', name: 'Twitter / X', desc: 'Market updates, chart breakdowns, and educational content on crypto and commodities.', handle: 'Follow @TradeBeast', iconCls: 'bg-sky-500/10 text-sky-400 border-sky-500/20', svg: <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg> },
+            { href: 'https://instagram.com', hover: 'hover:border-pink-500/50 hover:bg-pink-500/5', color: 'text-pink-400', name: 'Instagram', desc: 'Visual chart breakdowns, educational trading carousels, and platform updates.', handle: 'Follow @tradebeast', iconCls: 'bg-gradient-to-tr from-amber-500/20 via-pink-500/20 to-purple-500/20 text-pink-400 border-pink-500/20', svg: <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="20" x="2" y="2" rx="5" ry="5" /><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" /><line x1="17.5" x2="17.51" y1="6.5" y2="6.5" /></svg> },
+            { href: 'https://facebook.com', hover: 'hover:border-blue-500/50 hover:bg-blue-500/5', color: 'text-blue-400', name: 'Facebook', desc: 'Official community group, educational discussions, and platform news.', handle: 'Join Community', iconCls: 'bg-blue-600/10 text-blue-400 border-blue-600/20', svg: <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" /></svg> },
+          { href: 'https://discord.gg/snyprr', hover: 'hover:border-indigo-500/50 hover:bg-indigo-500/5', color: 'text-indigo-400', name: 'Discord Community', desc: 'Community discussions, educational sessions, and platform announcements.', handle: 'Join Server', iconCls: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20', svg: <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.929 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.893.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" /></svg> },
           ].map((s) => (
             <a key={s.href} href={s.href} target="_blank" rel="noopener noreferrer" className="group block">
               <GlassCard className={`h-full p-6 rounded-2xl flex flex-col justify-between border border-[var(--border-subtle)] ${s.hover} transition-all duration-300 transform group-hover:-translate-y-1`}>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div className={`w-12 h-12 rounded-2xl ${s.iconCls} border flex items-center justify-center group-hover:scale-110 transition-transform`}>{s.svg}</div>
-                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${s.badgeCls}`}>{s.badge}</span>
                   </div>
                   <div>
                     <h3 className={`text-base font-bold text-[var(--text-primary)] group-hover:${s.color} transition-colors`}>{s.name}</h3>
@@ -562,11 +564,16 @@ export default function LandingPage() {
           <Link to="/testimonials" className="hover:text-[var(--text-primary)] transition-colors">Testimonials</Link>
           <Link to="/contact-us" className="hover:text-[var(--text-primary)] transition-colors">Contact Us</Link>
           <Link to="/terms" className="hover:text-[var(--text-primary)] transition-colors">Terms &amp; Conditions</Link>
+          <Link to="/privacy" className="hover:text-[var(--text-primary)] transition-colors">Privacy Policy</Link>
+          <Link to="/risk-disclosure" className="hover:text-[var(--text-primary)] transition-colors">Risk Disclosure</Link>
           <Link to="/login" className="hover:text-[var(--text-primary)] transition-colors">Sign In</Link>
           <Link to="/signup" className="hover:text-[var(--text-primary)] transition-colors">Create Account</Link>
         </div>
         <p className="max-w-3xl mx-auto leading-relaxed text-[11px] text-[var(--text-muted)]">
-          © {new Date().getFullYear()} Snyprr.ai Inc. All rights reserved. Snyprr.ai is a market prediction and analytics platform for educational and informational purposes only. Trading financial markets carries substantial risk of loss.
+          © {new Date().getFullYear()} Snyprr.ai. All rights reserved. Snyprr.ai provides market analysis setups for educational and informational purposes only.
+          Nothing on this platform constitutes financial advice, investment advice, or a recommendation to buy or sell any financial instrument.
+          Trading financial markets involves substantial risk of loss and may not be suitable for all users.
+          Past performance of published setups does not guarantee future results.
         </p>
       </footer>
 

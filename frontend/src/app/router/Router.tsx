@@ -46,6 +46,7 @@ const PublicContactPage = lazy(() => import('../../features/landing/PublicContac
 const TermsPage = lazy(() => import('../../features/landing/TermsPage'));
 const NewsPage = lazy(() => import('../../features/news/NewsPage'));
 const PaperTradingPage = lazy(() => import('../../features/paper-trading/PaperTradingPage'));
+const AICopilotPage = lazy(() => import('../../features/ai-copilot/AICopilotPage'));
 
 const PageLoader = () => (
   <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-[var(--bg-base)]/60 backdrop-blur-sm">
@@ -199,6 +200,7 @@ const router = createBrowserRouter([
           { path: '/contact', element: <ContactPage /> },
           { path: '/news', element: <NewsPage /> },
           { path: '/paper-trading', element: <PaperTradingPage /> },
+          { path: '/ai-copilot', element: <AICopilotPage /> },
 
           // Trader routes
           {

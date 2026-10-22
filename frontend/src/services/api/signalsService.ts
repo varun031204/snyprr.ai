@@ -70,6 +70,7 @@ function toFrontendPrediction(s: BackendSignal): Prediction {
     instrument: s.instrument,
     category: inferCategory(s.instrument),
     direction: s.direction as PredictionDirection,
+    entryPrice: s.entry_price ?? s.buying_wall ?? undefined,
     buyingZone: s.buying_wall,
     sellingZone: s.selling_wall,
     stopLoss: s.stop_loss_price,

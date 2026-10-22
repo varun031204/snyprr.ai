@@ -264,16 +264,17 @@ export default function PredictionDetailPage() {
               />
               <div>
                 <h3 className="text-base font-bold text-[var(--text-primary)]">Snyprr Desk</h3>
-                <p className="text-xs text-[var(--text-muted)] mt-0.5">Verified In-House Analyst</p>
+                <p className="text-xs text-[var(--text-muted)] mt-0.5">In-House Analyst Desk</p>
               </div>
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[var(--color-success-bg)] text-[var(--color-success)] text-xs font-semibold border border-[var(--color-success)]/30">
-                <CheckCircle className="w-3.5 h-3.5" /> Verified Track Record
+                <CheckCircle className="w-3.5 h-3.5" /> Published Track Record
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-[var(--border-subtle)]">
               <div className="text-center">
-                <p className="text-base font-bold font-mono-num text-[var(--color-success)]">78.5%</p>
-                <p className="text-[10px] text-[var(--text-muted)]">Desk Win Rate</p>
+                <p className="text-base font-bold font-mono-num text-[var(--color-success)]">78.5%*</p>
+                <p className="text-[10px] text-[var(--text-muted)]">Historical Win Rate</p>
+                <p className="text-[9px] text-[var(--text-muted)] mt-0.5">*Past results only</p>
               </div>
               <div className="text-center">
                 <p className="text-base font-bold font-mono-num text-[var(--brand-primary)]">{prediction.viewsCount.toLocaleString()}</p>

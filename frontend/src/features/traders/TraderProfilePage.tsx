@@ -159,11 +159,10 @@ export default function TraderProfilePage() {
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key as any)}
-            className={`pb-3 text-sm font-semibold transition-all relative ${
-              activeTab === tab.key
+            className={`pb-3 text-sm font-semibold transition-all relative ${activeTab === tab.key
                 ? 'text-[var(--brand-primary)]'
                 : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-            }`}
+              }`}
           >
             {tab.label}
             {activeTab === tab.key && (
@@ -213,11 +212,11 @@ export default function TraderProfilePage() {
                   <div className="grid grid-cols-2 gap-2 bg-[var(--bg-secondary)] p-2 rounded-xl text-center">
                     <div>
                       <p className="text-[10px] text-[var(--color-success)] font-semibold">Buy Zone</p>
-                      <p className="text-xs font-bold font-mono-num text-[var(--color-success)]">{(p.buyingZone ?? p.entryPrice).toLocaleString()}</p>
+                      <p className="text-xs font-bold font-mono-num text-[var(--color-success)]">{(p.buyingZone ?? p.entryPrice ?? 0).toLocaleString()}</p>
                     </div>
                     <div>
                       <p className="text-[10px] text-[var(--color-danger)] font-semibold">Sell Zone</p>
-                      <p className="text-xs font-bold font-mono-num text-[var(--color-danger)]">{(p.sellingZone ?? p.takeProfit ?? p.entryPrice).toLocaleString()}</p>
+                      <p className="text-xs font-bold font-mono-num text-[var(--color-danger)]">{(p.sellingZone ?? p.takeProfit ?? p.entryPrice ?? 0).toLocaleString()}</p>
                     </div>
                   </div>
                 </GlassCard>

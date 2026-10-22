@@ -20,16 +20,17 @@ export const ClosePredictionModal: React.FC<ClosePredictionModalProps> = ({
   onClose,
 }) => {
   const [outcomeStatus, setOutcomeStatus] = useState<PredictionOutcome['status']>('TARGET_HIT');
-  const targetPrice = prediction ? (prediction.sellingZone ?? prediction.takeProfit ?? prediction.entryPrice) : 0;
-  const stopPrice = prediction ? (prediction.buyingZone ?? prediction.stopLoss ?? prediction.entryPrice) : 0;
+  const entryPrice = prediction ? (prediction.entryPrice ?? prediction.buyingZone ?? prediction.sellingZone ?? 0) : 0;
+  const targetPrice = prediction ? (prediction.sellingZone ?? prediction.takeProfit ?? entryPrice) : 0;
+  const stopPrice = prediction ? (prediction.buyingZone ?? prediction.stopLoss ?? entryPrice) : 0;
 
   const [exitPrice, setExitPrice] = useState<string>(() =>
     prediction
       ? (outcomeStatus === 'TARGET_HIT'
         ? targetPrice.toString()
         : outcomeStatus === 'STOP_HIT'
-        ? stopPrice.toString()
-        : prediction.entryPrice.toString())
+          ? stopPrice.toString()
+          : entryPrice.toString())
       : ''
   );
   const [returnPercentage, setReturnPercentage] = useState<string>('12.5');
@@ -45,20 +46,20 @@ export const ClosePredictionModal: React.FC<ClosePredictionModalProps> = ({
     if (status === 'TARGET_HIT') {
       setExitPrice(targetPrice.toString());
       // Calculate return %
-      const diff = Math.abs(targetPrice - prediction.entryPrice);
-      const pct = (diff / (prediction.entryPrice || 1)) * 100;
+      const diff = Math.abs(targetPrice - entryPrice);
+      const pct = (diff / (entryPrice || 1)) * 100;
       setReturnPercentage(pct.toFixed(2));
     } else if (status === 'STOP_HIT') {
       setExitPrice(stopPrice.toString());
-      const diff = Math.abs(prediction.entryPrice - stopPrice);
-      const pct = -(diff / (prediction.entryPrice || 1)) * 100;
+      const diff = Math.abs(entryPrice - stopPrice);
+      const pct = -(diff / (entryPrice || 1)) * 100;
       setReturnPercentage(pct.toFixed(2));
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const numExit = parseFloat(exitPrice) || prediction.entryPrice;
+    const numExit = parseFloat(exitPrice) || entryPrice;
     const numReturn = parseFloat(returnPercentage) || 0;
 
     const outcome: PredictionOutcome = {
@@ -71,7 +72,7 @@ export const ClosePredictionModal: React.FC<ClosePredictionModalProps> = ({
 
     try {
       await closeMutation.mutateAsync({ id: prediction.id, outcome });
-      
+
       if (outcomeStatus === 'TARGET_HIT') {
         confetti({
           particleCount: 100,

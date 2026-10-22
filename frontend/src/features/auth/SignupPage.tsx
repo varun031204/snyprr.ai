@@ -66,7 +66,10 @@ export default function SignupPage() {
           <Input label="Password" type="password" placeholder="Min. 8 characters" value={password} onChange={(e) => { setPassword(e.target.value); setLocalError(''); }} required />
 
           <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-            By creating an account, you acknowledge that Snyprr.ai is a prediction platform only. No trades are executed. Predictions are for informational purposes.
+            By creating an account you agree to our{' '}
+            <Link to="/terms" className="text-[var(--brand-primary)] hover:underline">Terms &amp; Conditions</Link>{' '}
+            and acknowledge that Snyprr.ai publishes analytical setups for educational and informational purposes only.
+            No trade execution occurs on this platform. Nothing on Snyprr.ai constitutes financial or investment advice.
           </p>
 
           <Button type="submit" variant="primary" size="lg" className="w-full" isLoading={isLoading}>

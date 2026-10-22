@@ -92,6 +92,7 @@ export interface Prediction {
   instrument: string; // e.g. 'BTC/USDT', 'ETH/USDT', 'GOLD'
   category: 'CRYPTO' | 'FOREX' | 'STOCKS' | 'INDICES' | 'COMMODITIES';
   direction: PredictionDirection;
+  entryPrice?: number;
   buyingZone?: number;
   sellingZone?: number;
   stopLoss?: number;

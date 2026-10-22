@@ -4,7 +4,7 @@ import {
   LayoutDashboard, TrendingUp, Users,
   BarChart2, BookOpen, Settings, LogOut, ShieldCheck,
   Menu, PenSquare, UserCircle,
-  CreditCard, Briefcase, Code2, Newspaper
+  CreditCard, Briefcase, Code2, Newspaper, Sparkles
 } from 'lucide-react';
 import { useAuthStore } from '../state/useAuthStore';
 import { useUIStore } from '../state/useUIStore';
@@ -20,6 +20,7 @@ interface NavItem {
 const userNav: NavItem[] = [
   { label: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
   { label: 'Predictions', path: '/predictions', icon: <TrendingUp className="w-5 h-5" /> },
+  { label: 'AI Copilot', path: '/ai-copilot', icon: <Sparkles className="w-5 h-5" /> },
   { label: 'News', path: '/news', icon: <Newspaper className="w-5 h-5" /> },
   { label: 'Paper Trading', path: '/my-trades', icon: <Briefcase className="w-5 h-5" /> },
   { label: 'Subscriptions', path: '/subscriptions', icon: <CreditCard className="w-5 h-5" /> },
@@ -28,6 +29,7 @@ const userNav: NavItem[] = [
 const traderNav: NavItem[] = [
   { label: 'Dashboard', path: '/trader/dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
   { label: 'My Predictions', path: '/trader/predictions', icon: <TrendingUp className="w-5 h-5" /> },
+  { label: 'AI Copilot', path: '/ai-copilot', icon: <Sparkles className="w-5 h-5" /> },
   { label: 'News', path: '/news', icon: <Newspaper className="w-5 h-5" /> },
   { label: 'Contact Developer Team', path: '/contact?dept=dev', icon: <Code2 className="w-5 h-5" /> },
 ];

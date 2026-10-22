@@ -1,15 +1,14 @@
 /**
- * Gemini 2.5 Flash service
- *
- * Reads the API key from the VITE_GEMINI_API_KEY env variable.
- * Add it to your .env file:  VITE_GEMINI_API_KEY=your_key_here
+ * Gemini AI Service (Frontend) - proxies all requests to backend API
+ * 
+ * SECURITY: This service no longer contains API keys or calls external APIs directly.
+ * All AI requests go through the backend at /api/ai/* with proper authentication,
+ * rate limiting, and user quota management.
  */
 
 import type { Prediction } from '../../types';
-
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
-const GEMINI_MODEL = 'gemini-3.6-flash';
-const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+import { getLivePriceContext } from '../market/priceService';
+import { httpPost, httpGet } from './client';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -26,108 +25,167 @@ export interface GeminiAnalysisResult {
     keyPoints: string[];
 }
 
-// ─── Build the system prompt ──────────────────────────────────────────────────
-
-function buildAnalysisPrompt(prediction: Prediction): string {
-    const buyZone = prediction.buyingZone ?? 0;
-    const sellZone = prediction.sellingZone ?? 0;
-    const sl = prediction.stopLoss;
-    const tp = prediction.takeProfit;
-    const rr = prediction.riskRewardRatio?.toFixed(2) ?? 'N/A';
-
-    return `You are an expert financial analyst specialising in technical and sentiment analysis for cryptocurrency and commodity markets. A trader on Snyprr.ai has published the following trade setup. Your task is to provide a concise, structured review that summarises the trader's own analysis and enhances it with relevant market context.
-
-TRADE SETUP:
-- Instrument: ${prediction.instrument}
-- Direction: ${prediction.direction}
-- Strategy: ${prediction.strategy}
-- Timeframe: ${prediction.timeframe}
-- Buying Zone: ${buyZone}
-- Selling Zone: ${sellZone}
-- Stop Loss: ${sl ?? 'N/A'}
-- Take Profit: ${tp ?? 'N/A'}
-- Risk:Reward Ratio: ${rr}
-- Trader's Analysis Notes: ${prediction.analysis || 'Not provided'}
-
-IMPORTANT: Base your overview primarily on the trader's analysis notes above. Summarise and validate their reasoning. Only add your own market context where the trader has not covered it. Do not invent trader reasoning.
-
-Respond strictly in this JSON format (no markdown, no extra text outside the JSON):
-{
-  "overview": "<2-3 sentence summary grounded in the trader's own analysis notes>",
-  "riskReward": "<one sentence evaluating whether the R:R is attractive>",
-  "sentiment": "<one sentence on current market sentiment for this asset>",
-  "verdict": "<one of: BULLISH | BEARISH | NEUTRAL | CAUTION>",
-  "keyPoints": ["<concise point 1>", "<concise point 2>", "<concise point 3>", "<concise point 4>"]
-}`;
+export interface RateLimitInfo {
+    limit: number;
+    remaining: number;
+    resetAt: string;
 }
 
-function buildChatSystemInstruction(prediction: Prediction | null): string {
-    const context = prediction
-        ? `The user is currently viewing a ${prediction.direction} setup on ${prediction.instrument} (${prediction.strategy}, ${prediction.timeframe} timeframe). Buying Zone: ${prediction.buyingZone ?? 'N/A'}, SL: ${prediction.stopLoss ?? 'N/A'}, TP: ${prediction.takeProfit ?? 'N/A'}.`
-        : 'The user is on the Snyprr.ai dashboard viewing market charts.';
-
-    return `You are Snyprr AI, Snyprr.ai's intelligent trade analysis assistant. You are helpful, concise, and focused on practical trading insights. ${context} Answer questions about this trade setup, market context, risk management, and trading strategy. Keep responses under 200 words. Do not provide financial advice — frame everything as educational analysis.`;
-}
-
-// ─── Core fetch helper ────────────────────────────────────────────────────────
-
-async function callGemini(
-    contents: GeminiMessage[],
-    systemInstruction?: string,
-): Promise<string> {
-    if (!GEMINI_API_KEY) {
-        throw new Error('VITE_GEMINI_API_KEY is not set. Add it to your .env file.');
-    }
-
-    const body: Record<string, unknown> = { contents };
-    if (systemInstruction) {
-        body.systemInstruction = { parts: [{ text: systemInstruction }] };
-    }
-
-    const res = await fetch(`${GEMINI_ENDPOINT}?key=${GEMINI_API_KEY}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-    });
-
-    if (!res.ok) {
-        const errBody = await res.text();
-        throw new Error(`Gemini API error ${res.status}: ${errBody}`);
-    }
-
-    const data = await res.json();
-    const text: string = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-    return text.trim();
+interface AIResponse<T> {
+    response?: T;
+    analysis?: T;
+    rateLimit: RateLimitInfo;
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
-/** Generate a structured AI analysis for a trader's prediction */
+/**
+ * Generate a structured AI analysis for a trader's prediction
+ * Calls: POST /api/ai/analyze
+ */
 export async function analyzeTraderSetup(prediction: Prediction): Promise<GeminiAnalysisResult> {
-    const prompt = buildAnalysisPrompt(prediction);
-    const raw = await callGemini([{ role: 'user', parts: [{ text: prompt }] }]);
-
     try {
-        // Strip any accidental markdown code fences
-        const cleaned = raw.replace(/^```json\n?/, '').replace(/\n?```$/, '').trim();
-        return JSON.parse(cleaned) as GeminiAnalysisResult;
-    } catch {
-        // Graceful fallback if JSON parse fails
-        return {
-            overview: raw.slice(0, 300),
-            riskReward: 'Unable to parse structured response.',
-            sentiment: '',
-            verdict: 'NEUTRAL',
-            keyPoints: [],
-        };
+        const response = await httpPost<AIResponse<GeminiAnalysisResult>>('/api/ai/analyze', {
+            prediction: {
+                instrument: prediction.instrument,
+                direction: prediction.direction,
+                strategy: prediction.strategy,
+                timeframe: prediction.timeframe,
+                buyingZone: prediction.buyingZone,
+                sellingZone: prediction.sellingZone,
+                stopLoss: prediction.stopLoss,
+                takeProfit: prediction.takeProfit,
+                riskRewardRatio: prediction.riskRewardRatio,
+                analysis: prediction.analysis,
+            },
+        });
+
+        if (!response.analysis) {
+            throw new Error('No analysis received from server');
+        }
+
+        return response.analysis;
+    } catch (error: any) {
+        // Handle rate limit errors specifically
+        if (error.status === 429) {
+            throw new Error(`AI quota exceeded. Resets at ${error.data?.rateLimit?.resetAt || 'soon'}.`);
+        }
+
+        // Re-throw with user-friendly message
+        throw new Error(error.data?.message || 'Failed to analyze trading setup. Please try again.');
     }
 }
 
-/** Send a chat message in context of the current prediction */
+/**
+ * Send a chat message in context of the current prediction
+ * Calls: POST /api/ai/chat
+ */
 export async function sendChatMessage(
     messages: GeminiMessage[],
     prediction: Prediction | null,
 ): Promise<string> {
-    const systemInstruction = buildChatSystemInstruction(prediction);
-    return callGemini(messages, systemInstruction);
+    try {
+        const response = await httpPost<AIResponse<string>>('/api/ai/chat', {
+            messages,
+            prediction: prediction ? {
+                instrument: prediction.instrument,
+                direction: prediction.direction,
+                strategy: prediction.strategy,
+                timeframe: prediction.timeframe,
+                buyingZone: prediction.buyingZone,
+                sellingZone: prediction.sellingZone,
+                stopLoss: prediction.stopLoss,
+                takeProfit: prediction.takeProfit,
+                analysis: prediction.analysis,
+            } : null,
+        });
+
+        if (!response.response) {
+            throw new Error('No response received from server');
+        }
+
+        return response.response;
+    } catch (error: any) {
+        if (error.status === 429) {
+            throw new Error(`AI quota exceeded. Resets at ${error.data?.rateLimit?.resetAt || 'soon'}.`);
+        }
+        throw new Error(error.data?.message || 'Failed to send chat message. Please try again.');
+    }
+}
+
+/**
+ * Send a message to the Snyprr AI Copilot (text chat mode).
+ * Fetches live market prices and sends them to the backend.
+ * Calls: POST /api/ai/copilot
+ */
+export async function sendCopilotMessage(
+    messages: GeminiMessage[],
+): Promise<string> {
+    try {
+        const priceContext = await getLivePriceContext();
+
+        const response = await httpPost<AIResponse<string>>('/api/ai/copilot', {
+            messages,
+            priceContext,
+        });
+
+        if (!response.response) {
+            throw new Error('No response received from server');
+        }
+
+        return response.response;
+    } catch (error: any) {
+        if (error.status === 429) {
+            throw new Error(`AI quota exceeded. Resets at ${error.data?.rateLimit?.resetAt || 'soon'}.`);
+        }
+        throw new Error(error.data?.message || 'Failed to send copilot message. Please try again.');
+    }
+}
+
+/**
+ * Send a message via voice mode.
+ * Uses a strict voice-optimised prompt (2-4 sentences, no markdown, English only).
+ * Calls: POST /api/ai/voice
+ */
+export async function sendVoiceCopilotMessage(
+    transcript: string,
+    history: GeminiMessage[],
+): Promise<string> {
+    try {
+        const priceContext = await getLivePriceContext();
+
+        const messages: GeminiMessage[] = [
+            ...history,
+            { role: 'user', parts: [{ text: transcript }] },
+        ];
+
+        const response = await httpPost<AIResponse<string>>('/api/ai/voice', {
+            messages,
+            priceContext,
+        });
+
+        if (!response.response) {
+            throw new Error('No response received from server');
+        }
+
+        return response.response;
+    } catch (error: any) {
+        if (error.status === 429) {
+            throw new Error(`AI quota exceeded. Resets at ${error.data?.rateLimit?.resetAt || 'soon'}.`);
+        }
+        throw new Error(error.data?.message || 'Failed to send voice message. Please try again.');
+    }
+}
+
+/**
+ * Get remaining AI quota for current user
+ * Calls: GET /api/ai/quota
+ */
+export async function getAIQuota(): Promise<RateLimitInfo> {
+    try {
+        const response = await httpGet<{ rateLimit: RateLimitInfo }>('/api/ai/quota');
+        return response.rateLimit;
+    } catch (error: any) {
+        throw new Error(error.data?.message || 'Failed to fetch AI quota.');
+    }
 }

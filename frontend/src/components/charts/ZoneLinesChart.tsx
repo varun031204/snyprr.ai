@@ -23,7 +23,7 @@ import {
   MousePointer, Trash2, Type, TrendingUp, TrendingDown,
   Minus, AlignJustify, ArrowRight, ArrowUpRight,
   Square, Triangle, Ruler, GitCommitHorizontal,
-  TrendingUp as TrendIcon, BarChart2, Eraser, Layers, X,
+  TrendingUp as TrendIcon, BarChart2, Eraser, Layers, X, Hand,
 } from 'lucide-react';
 import type { Prediction } from '../../types';
 import { useUIStore } from '../../state/useUIStore';
@@ -64,8 +64,7 @@ type PT = { time: number; price: number };
 interface Base { id: string; color: string; }
 interface HLine extends Base { type: 'hline'; price: number; label: string; }
 interface VLine extends Base { type: 'vline'; time: number; }
-interface ExtLine extends Base { type: 'extline'; p1: PT; p2: PT; }
-interface TLine extends Base { type: 'trendline' | 'ray' | 'arrow'; p1: PT; p2: PT; }
+interface TLine extends Base { type: 'extline' | 'trendline' | 'ray' | 'arrow'; p1: PT; p2: PT; }
 interface HChannel extends Base { type: 'hchannel'; priceTop: number; priceBot: number; }
 interface PChannel extends Base { type: 'pchannel'; p1: PT; p2: PT; offset: number; }
 interface Rect extends Base { type: 'rect'; p1: PT; p2: PT; fill: string; }
@@ -77,7 +76,7 @@ interface ShortPos extends Base { type: 'short'; entry: number; tp: number; sl: 
 interface Measure extends Base { type: 'measure'; p1: PT; p2: PT; }
 interface TextLbl extends Base { type: 'text'; price: number; time: number; text: string; }
 
-type Drawing = HLine | VLine | ExtLine | TLine | HChannel | PChannel | Rect | Tri | Zone | Fib | LongPos | ShortPos | Measure | TextLbl;
+type Drawing = HLine | VLine | TLine | HChannel | PChannel | Rect | Tri | Zone | Fib | LongPos | ShortPos | Measure | TextLbl;
 
 // ─── Drag handle descriptor ─────────────────────────────────────────────────────
 interface Handle {
@@ -358,7 +357,7 @@ export const ZoneLinesChart: React.FC<Props> = ({
         if (!pts.length) { setPendingPts([pt]); pendingPtsRef.current = [pt]; }
         else {
           const p1 = pts[0];
-          if (tool === 'extline') add({ id, type: 'extline', p1, p2: pt, color: col } as ExtLine);
+          if (tool === 'extline') add({ id, type: 'extline', p1, p2: pt, color: col } as TLine);
           if (tool === 'trendline') add({ id, type: 'trendline', p1, p2: pt, color: col } as TLine);
           if (tool === 'ray') add({ id, type: 'ray', p1, p2: pt, color: col } as TLine);
           if (tool === 'arrow') add({ id, type: 'arrow', p1, p2: pt, color: col } as TLine);
@@ -795,9 +794,12 @@ export const ZoneLinesChart: React.FC<Props> = ({
       }
     }
 
-    return elems;
+    // The overlay root is pointer-transparent so every gesture reaches the
+    // chart canvas (pan / zoom / crosshair). Drawings and drag handles opt back
+    // in with `pointerEvents: all` so selection still works while drawing.
+    return <g style={{ pointerEvents: allowDrawing ? 'all' : 'none' }}>{elems}</g>;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tick, svgSize, instrument, drawings, pendingPts, preview, activeTool, selectedId, buildHandles, onHandleMouseDown]);
+  }, [tick, svgSize, instrument, drawings, pendingPts, preview, activeTool, selectedId, buildHandles, onHandleMouseDown, allowDrawing]);
 
   // ── Nav helpers ───────────────────────────────────────────────────────────────
   const scrollL = useCallback(() => { const ts = chartRef.current?.timeScale(); if (!ts) return; const r = ts.getVisibleLogicalRange(); if (!r) return; ts.setVisibleLogicalRange({ from: r.from - Math.max(5, (r.to - r.from) * 0.25), to: r.to - Math.max(5, (r.to - r.from) * 0.25) }); }, []);
@@ -861,10 +863,11 @@ export const ZoneLinesChart: React.FC<Props> = ({
         {/* Canvas */}
         <div ref={containerRef} className="absolute inset-0" />
 
-        {/* SVG overlay — pointer-events enabled for handles when in cursor mode */}
+        {/* SVG overlay — transparent to pointer input so the chart underneath
+            stays fully interactive; child drawings re-enable events for clicks. */}
         <svg className="absolute inset-0 z-10"
           width={svgSize.w} height={svgSize.h}
-          style={{ overflow: 'visible', pointerEvents: allowDrawing && activeTool === 'cursor' ? 'all' : 'none' }}>
+          style={{ overflow: 'visible', pointerEvents: 'none' }}>
           {renderSVG()}
         </svg>
 
@@ -889,6 +892,13 @@ export const ZoneLinesChart: React.FC<Props> = ({
                 ))}
               </React.Fragment>
             ))}
+            <div className="w-full h-px bg-[var(--border-subtle)] my-0.5" />
+            {/* Interactivity toggle — restores cursor / pan / zoom mode */}
+            <Tip label={activeTool === 'cursor' ? 'Interactivity ON — chart pan, zoom & crosshair' : 'Re-activate chart interactivity (cursor mode)'}
+              active={activeTool === 'cursor'}
+              onClick={() => { setActiveTool('cursor'); setPendingPts([]); pendingPtsRef.current = []; setEditPanel(null); }}>
+              <Hand className="w-4 h-4" />
+            </Tip>
             <div className="w-full h-px bg-[var(--border-subtle)] my-0.5" />
             <Tip label="Clear all drawings" active={false} onClick={clearAll}>
               <Trash2 className={`w-4 h-4 ${insDrawings.length === 0 ? 'opacity-30' : 'text-[var(--color-danger)]'}`} />

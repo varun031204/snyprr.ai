@@ -49,6 +49,7 @@ interface PaperTradingState {
   startingBalance: number;
   positions: PaperPosition[];
 
+  /** @returns the new position id, or null when rejected (insufficient margin). */
   openPosition: (params: {
     instrument: string;
     direction: PTDirection;
@@ -59,7 +60,7 @@ interface PaperTradingState {
     stopLoss: number | null;
     takeProfit: number | null;
     note: string;
-  }) => void;
+  }) => string | null;
 
   closePosition: (id: string, closePrice: number) => void;
   liquidatePosition: (id: string) => void;
@@ -94,7 +95,7 @@ export const usePaperTradingStore = create<PaperTradingState>()(
       openPosition: ({ instrument, direction, size, entryPrice, notionalUsd, leverage, stopLoss, takeProfit, note }) => {
         const margin = parseFloat((notionalUsd / leverage).toFixed(2));
         const { balance } = get();
-        if (margin > balance) return;
+        if (margin > balance) return null;
 
         const position: PaperPosition = {
           id: `pt_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
@@ -121,6 +122,8 @@ export const usePaperTradingStore = create<PaperTradingState>()(
           balance: parseFloat((state.balance - margin).toFixed(2)),
           positions: [position, ...state.positions],
         }));
+
+        return position.id;
       },
 
       closePosition: (id, closePrice) => {
