@@ -35,7 +35,7 @@ src/
 │   ├── providers/      # QueryProvider and ThemeProvider
 │   └── router/         # React Router configuration with lazy-loading
 ├── components/
-│   ├── ai/             # Beast AI Assistant Drawer
+│   ├── ai/             # Snyprr AI Assistant Drawer
 │   ├── charts/         # SimpleChart SVG candlestick adapter with level overlays
 │   ├── feedback/       # ToastContainer & ToastCard
 │   ├── search/         # GlobalSearchModal (⌘K shortcut)

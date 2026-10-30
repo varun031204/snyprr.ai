@@ -36,8 +36,8 @@ export default function SubscriptionsPage() {
       await subscribeMutation.mutateAsync(selectedPlanId);
       addToast({
         type: 'success',
-        title: '15-Day Free Trial Started 🎉',
-        message: 'Your 15-day trial is now active with full access to premium predictions and VIP alerts.',
+        title: '7-Day Free Trial Started 🎉',
+        message: 'Your 7-Day trial is now active with full access to premium predictions and VIP alerts.',
       });
       setIsCheckoutOpen(false);
     } catch {
@@ -101,7 +101,7 @@ export default function SubscriptionsPage() {
             </div>
             <div>
               <h2 className="text-sm sm:text-base font-bold text-[var(--text-primary)] flex items-center gap-2">
-                15-Day Free Trial Available
+                7-Day Free Trial Available
                 <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-[var(--color-success-bg)] text-[var(--color-success)] border border-[var(--color-success)]/30">
                   0 Cost Today
                 </span>
@@ -180,17 +180,21 @@ export default function SubscriptionsPage() {
                   <div>
                     <div className="flex items-baseline gap-1">
                       <span className="text-4xl font-extrabold font-mono-num text-[var(--text-primary)]">
-                        ${price}
+                        ₹{price.toLocaleString('en-IN')}
                       </span>
                       <span className="text-xs text-[var(--text-muted)]">/ month</span>
-                      {billingCycle === 'yearly' && (
-                        <span className="text-[10px] text-[var(--text-muted)] ml-2">
-                          (billed ${plan.priceYearly}/yr)
-                        </span>
-                      )}
                     </div>
+                    {billingCycle === 'yearly' && (
+                      <p className="text-xs text-[var(--text-muted)] mt-1">
+                        <span className="line-through">₹{plan.priceYearly > plan.priceMonthly * 12 ? (plan.priceMonthly * 12).toLocaleString('en-IN') : ''}</span>
+                        {' '}
+                        <span className="font-bold text-[var(--color-success)]">₹{plan.priceYearly.toLocaleString('en-IN')}/year</span>
+                        {' '}
+                        <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[var(--color-success-bg)] text-[var(--color-success)] border border-[var(--color-success)]/30">10% OFF</span>
+                      </p>
+                    )}
                     <p className="text-[11px] font-semibold text-[var(--color-success)] mt-1.5 flex items-center gap-1">
-                      <ShieldCheck className="w-3.5 h-3.5" /> Includes 15-Day Free Trial
+                      <ShieldCheck className="w-3.5 h-3.5" /> Includes 7-Day Free Trial (₹0 due today)
                     </p>
                   </div>
 
@@ -216,7 +220,7 @@ export default function SubscriptionsPage() {
                   leftIcon={<Sparkles className="w-4 h-4" />}
                   onClick={() => handleOpenCheckout(plan.id)}
                 >
-                  Start 15-Day Free Trial
+                  Start 7-Day Free Trial
                 </Button>
               </GlassCard>
             );
@@ -228,7 +232,7 @@ export default function SubscriptionsPage() {
       <Modal
         isOpen={isCheckoutOpen}
         onClose={() => setIsCheckoutOpen(false)}
-        title="Start 15-Day Free Trial"
+        title="Start 7-Day Free Trial"
         maxWidth="md"
       >
         {selectedPlan && (
@@ -245,22 +249,22 @@ export default function SubscriptionsPage() {
               <div className="pt-2 border-t border-[var(--border-subtle)] space-y-1.5 text-xs">
                 <div className="flex justify-between text-[var(--text-secondary)]">
                   <span>Regular Rate:</span>
-                  <span>${billingCycle === 'monthly' ? selectedPlan.priceMonthly : selectedPlan.priceYearly}/{billingCycle === 'monthly' ? 'mo' : 'yr'}</span>
+                  <span>₹{billingCycle === 'monthly' ? selectedPlan.priceMonthly.toLocaleString('en-IN') : selectedPlan.priceYearly.toLocaleString('en-IN')}/{billingCycle === 'monthly' ? 'mo' : 'yr'}</span>
                 </div>
                 <div className="flex justify-between text-[var(--color-success)] font-semibold">
-                  <span>15-Day Free Trial Discount:</span>
+                  <span>7-Day Free Trial Discount:</span>
                   <span>-100%</span>
                 </div>
                 <div className="flex justify-between text-[var(--text-primary)] font-bold text-sm pt-1 border-t border-[var(--border-subtle)]">
                   <span>Due Today:</span>
-                  <span className="font-mono-num text-[var(--color-success)]">$0.00</span>
+                  <span className="font-mono-num text-[var(--color-success)]">₹0.00</span>
                 </div>
               </div>
             </div>
 
             <div className="p-3 rounded-xl border border-[var(--border-subtle)] text-xs text-[var(--text-muted)] flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-[var(--brand-primary)] flex-shrink-0" />
-              <span>Zero risk. Instant activation. You will not be billed during your 15-day trial period.</span>
+              <span>Zero risk. Instant activation. You will not be billed during your 7-Day trial period.</span>
             </div>
 
             <div className="flex justify-end gap-2 pt-2 border-t border-[var(--border-subtle)]">
@@ -273,7 +277,7 @@ export default function SubscriptionsPage() {
                 isLoading={subscribeMutation.isPending}
                 leftIcon={<Zap className="w-4 h-4" />}
               >
-                Activate 15-Day Free Trial
+                Activate 7-Day Free Trial
               </Button>
             </div>
           </div>
@@ -282,3 +286,4 @@ export default function SubscriptionsPage() {
     </div>
   );
 }
+

@@ -93,6 +93,49 @@ async function fetchCandles(sym: string, interval: string, limit = 300) {
   const raw: any[][] = await r.json();
   return raw.map(k => ({ time: Math.floor(k[0] / 1000) as any, open: +k[1], high: +k[2], low: +k[3], close: +k[4] }));
 }
+
+// ── Live data: WebSocket for crypto, polling for commodities ───────────────────
+function openKlineWS(
+  symbol: string,
+  interval: string,
+  onUpdate: (c: { time: number; open: number; high: number; low: number; close: number }) => void,
+  onError: () => void,
+): WebSocket | null {
+  try {
+    const ws = new WebSocket(`wss://stream.binance.com:9443/ws/${symbol.toLowerCase()}@kline_${interval}`);
+    ws.onmessage = (ev) => {
+      try {
+        const msg = JSON.parse(ev.data);
+        if (msg.e !== 'kline' || !msg.k) return;
+        onUpdate({ time: Math.floor(msg.k.t / 1000), open: +msg.k.o, high: +msg.k.h, low: +msg.k.l, close: +msg.k.c });
+      } catch { }
+    };
+    ws.onerror = onError;
+    return ws;
+  } catch { onError(); return null; }
+}
+
+async function pollLatestCandle(sym: string, interval: string): Promise<{ time: number; open: number; high: number; low: number; close: number } | null> {
+  try {
+    const r = await fetch(`https://api.binance.com/api/v3/klines?symbol=${sym}&interval=${interval}&limit=1`);
+    if (!r.ok) return null;
+    const raw: any[][] = await r.json();
+    if (!raw.length) return null;
+    const k = raw[0];
+    return { time: Math.floor(k[0] / 1000), open: +k[1], high: +k[2], low: +k[3], close: +k[4] };
+  } catch { return null; }
+}
+
+async function pollCommodityPrice(ins: string): Promise<number | null> {
+  try {
+    const sym = ins === 'GOLD' ? 'XAU' : ins === 'SILVER' ? 'XAG' : null;
+    if (!sym) return null;
+    const r = await fetch(`https://api.gold-api.com/price/${sym}`);
+    if (!r.ok) return null;
+    const d = await r.json();
+    return d.price ?? null;
+  } catch { return null; }
+}
 function deterministicCandles(ins: string, count = 300) {
   const CFG: Record<string, { price: number; vol: number; prec: number }> = {
     GOLD: { price: 2684.5, vol: 0.0035, prec: 2 }, SILVER: { price: 31.85, vol: 0.0075, prec: 3 },
@@ -212,6 +255,10 @@ export const ZoneLinesChart: React.FC<Props> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candleRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
+  // ── Live data refs ──────────────────────────────────────────────────────────
+  const wsRef = useRef<WebSocket | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastCandleRef = useRef<{ time: number; open: number; high: number; low: number; close: number } | null>(null);
   const { theme } = useUIStore();
   const themeRef = useRef(theme);
 
@@ -421,14 +468,77 @@ export const ZoneLinesChart: React.FC<Props> = ({
   // Theme sync
   useEffect(() => { if (!chartRef.current) return; const { bg, border, text } = getColors(); chartRef.current.applyOptions({ layout: { background: { color: bg }, textColor: text }, grid: { vertLines: { color: border }, horzLines: { color: border } }, rightPriceScale: { borderColor: border }, timeScale: { borderColor: border } }); }, [theme, getColors]);
 
-  // Load candles
+  // Load candles + start live updates
   useEffect(() => {
     const s = candleRef.current; if (!s) return;
     const prec = instrument === 'XRP/USDT' ? 4 : instrument === 'SILVER' ? 3 : 2;
     s.applyOptions({ priceFormat: { type: 'price', precision: prec, minMove: Math.pow(10, -prec) } });
-    const load = binanceSym ? fetchCandles(binanceSym, interval).catch(() => deterministicCandles(instrument)) : Promise.resolve(deterministicCandles(instrument));
-    load.then(d => { s.setData(d); chartRef.current?.timeScale().fitContent(); });
+
+    // Clean up previous live connection
+    if (wsRef.current) { try { wsRef.current.close(); } catch { } wsRef.current = null; }
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+
+    const startLive = (initialData: any[]) => {
+      s.setData(initialData);
+      if (initialData.length) lastCandleRef.current = initialData[initialData.length - 1];
+      chartRef.current?.timeScale().fitContent();
+    };
+
+    if (binanceSym) {
+      // Crypto: load initial candles from Binance REST, then WebSocket for REAL-TIME
+      fetchCandles(binanceSym, interval)
+        .then(d => {
+          startLive(d);
+          let lastWsMsgTime = 0;
+
+          // Start WebSocket for REAL-TIME candle updates (sub-second, on every trade tick)
+          wsRef.current = openKlineWS(
+            binanceSym, interval,
+            (c) => {
+              if (!candleRef.current) return;
+              lastWsMsgTime = Date.now();
+              // WebSocket is live — stop polling backup
+              if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+              candleRef.current.update(c as any);
+              lastCandleRef.current = c;
+            },
+            () => { /* WebSocket error — watchdog polling handles backup */ },
+          );
+
+          // Watchdog: poll ONLY when WebSocket hasn't delivered in 8 seconds
+          pollRef.current = setInterval(async () => {
+            if (lastWsMsgTime > 0 && Date.now() - lastWsMsgTime < 8000) return; // WS is live
+            if (!candleRef.current) return;
+            const latest = await pollLatestCandle(binanceSym, interval);
+            if (latest) { candleRef.current.update(latest as any); lastCandleRef.current = latest; }
+          }, 5_000); // only fires as backup when WebSocket is silent
+        })
+        .catch(() => {
+          startLive(deterministicCandles(instrument));
+        });
+    } else if (instrument === 'GOLD' || instrument === 'SILVER') {
+      // Commodities: deterministic candles + live price polling
+      startLive(deterministicCandles(instrument));
+      pollRef.current = setInterval(async () => {
+        const livePrice = await pollCommodityPrice(instrument);
+        if (livePrice == null || !candleRef.current || !lastCandleRef.current) return;
+        const last = lastCandleRef.current;
+        const updated = { time: last.time, open: last.open, high: Math.max(last.high, livePrice), low: Math.min(last.low, livePrice), close: livePrice };
+        candleRef.current.update(updated as any);
+        lastCandleRef.current = updated;
+      }, 15_000);
+    } else {
+      startLive(deterministicCandles(instrument));
+    }
   }, [binanceSym, instrument, interval]);
+
+  // Clean up live connections on unmount
+  useEffect(() => {
+    return () => {
+      if (wsRef.current) { try { wsRef.current.close(); } catch { } wsRef.current = null; }
+      if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+    };
+  }, []);
 
   // Signal lines
   useEffect(() => {

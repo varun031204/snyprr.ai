@@ -14,7 +14,7 @@ import { usePredictions, useCreatePrediction } from '../../hooks/usePredictionsQ
 import { useAuthStore } from '../../state/useAuthStore';
 import { useMarketStore } from '../../state/useMarketStore';
 import { useUIStore } from '../../state/useUIStore';
-import { TradingChartPro } from '../../components/charts/TradingChartPro';
+import { GoChartingWidget as TradingChartPro } from '../../components/charts/gocharting/GoChartingWidget';
 import { CHART_ITEMS } from '../../constants';
 import type { Prediction, PredictionDirection } from '../../types';
 
@@ -494,27 +494,27 @@ export default function TraderDashboardPage() {
           {isLoading
             ? Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-20 rounded-2xl" />)
             : predictions.length === 0
-            ? <GlassCard hoverEffect={false}><p className="text-sm text-[var(--text-muted)] text-center py-2">No predictions yet.</p></GlassCard>
-            : predictions.slice(0, 5).map((p) => (
-              <GlassCard key={p.id} className="flex items-center gap-3 cursor-pointer" onClick={() => navigate(`/predictions/${p.id}`)}>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-[var(--text-muted)] mb-1 truncate">{p.instrument} · {p.timeframe}</p>
-                  <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{p.title}</p>
-                  {(p.stopLoss || p.takeProfit) && (
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1">
-                      {p.stopLoss && <span className="text-[10px] font-mono text-orange-400 whitespace-nowrap">SL: {p.stopLoss.toLocaleString()}</span>}
-                      {p.takeProfit && <span className="text-[10px] font-mono text-emerald-400 whitespace-nowrap">TP1: {p.takeProfit.toLocaleString()}</span>}
-                      {p.takeProfit2 && <span className="text-[10px] font-mono text-emerald-300 whitespace-nowrap">TP2: {p.takeProfit2.toLocaleString()}</span>}
-                      {p.takeProfit3 && <span className="text-[10px] font-mono text-emerald-200 whitespace-nowrap">TP3: {p.takeProfit3.toLocaleString()}</span>}
-                    </div>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <DirectionBadge direction={p.direction} />
-                  <StatusBadge status={p.status} />
-                </div>
-              </GlassCard>
-            ))}
+              ? <GlassCard hoverEffect={false}><p className="text-sm text-[var(--text-muted)] text-center py-2">No predictions yet.</p></GlassCard>
+              : predictions.slice(0, 5).map((p) => (
+                <GlassCard key={p.id} className="flex items-center gap-3 cursor-pointer" onClick={() => navigate(`/predictions/${p.id}`)}>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-[var(--text-muted)] mb-1 truncate">{p.instrument} · {p.timeframe}</p>
+                    <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{p.title}</p>
+                    {(p.stopLoss || p.takeProfit) && (
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1">
+                        {p.stopLoss && <span className="text-[10px] font-mono text-orange-400 whitespace-nowrap">SL: {p.stopLoss.toLocaleString()}</span>}
+                        {p.takeProfit && <span className="text-[10px] font-mono text-emerald-400 whitespace-nowrap">TP1: {p.takeProfit.toLocaleString()}</span>}
+                        {p.takeProfit2 && <span className="text-[10px] font-mono text-emerald-300 whitespace-nowrap">TP2: {p.takeProfit2.toLocaleString()}</span>}
+                        {p.takeProfit3 && <span className="text-[10px] font-mono text-emerald-200 whitespace-nowrap">TP3: {p.takeProfit3.toLocaleString()}</span>}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <DirectionBadge direction={p.direction} />
+                    <StatusBadge status={p.status} />
+                  </div>
+                </GlassCard>
+              ))}
         </div>
 
         <div className="space-y-4">

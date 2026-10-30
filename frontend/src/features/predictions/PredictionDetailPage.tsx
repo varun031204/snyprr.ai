@@ -10,7 +10,7 @@ import { usePredictionDetail, usePublishPrediction } from '../../hooks/usePredic
 import { useUserStore } from '../../state/useUserStore';
 import { useAuthStore } from '../../state/useAuthStore';
 import { useUIStore } from '../../state/useUIStore';
-import { TradingChartPro } from '../../components/charts/TradingChartPro';
+import { GoChartingWidget as TradingChartPro } from '../../components/charts/gocharting/GoChartingWidget';
 import { ClosePredictionModal } from './components/ClosePredictionModal';
 
 export default function PredictionDetailPage() {

@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { Button } from '../../components/ui/Button';
-import { ZoneLinesChart } from '../../components/charts/ZoneLinesChart';
+import { GoChartingWidget as ZoneLinesChart } from '../../components/charts/gocharting/GoChartingWidget';
 import { usePaperTradingStore, type PTDirection, type PaperPosition } from '../../state/usePaperTradingStore';
 import { CHART_ITEMS } from '../../constants';
 import type { Prediction } from '../../types';
@@ -169,8 +169,8 @@ const OrderForm: React.FC<OrderFormProps> = ({ instrument, livePrice, balance, o
         <div className="flex items-center justify-between">
           <label className="text-[11px] font-semibold text-[var(--text-muted)]">Leverage</label>
           <span className={`text-xs font-extrabold px-2 py-0.5 rounded-full transition-colors ${leverage >= 20 ? 'bg-[var(--color-danger-bg)] text-[var(--color-danger)]'
-              : leverage >= 5 ? 'bg-amber-500/10 text-amber-400'
-                : 'bg-[var(--brand-glow)] text-[var(--brand-primary)]'
+            : leverage >= 5 ? 'bg-amber-500/10 text-amber-400'
+              : 'bg-[var(--brand-glow)] text-[var(--brand-primary)]'
             }`}>
             {leverage}×
           </span>
@@ -188,10 +188,10 @@ const OrderForm: React.FC<OrderFormProps> = ({ instrument, livePrice, balance, o
           {LEVERAGE_OPTIONS.map(lv => (
             <button key={lv} type="button" onClick={() => setLeverage(lv)}
               className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition-all cursor-pointer ${leverage === lv
-                  ? lv >= 20 ? 'bg-[var(--color-danger)] text-white'
-                    : lv >= 5 ? 'bg-amber-500 text-white'
-                      : 'bg-[var(--brand-primary)] text-white'
-                  : 'bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                ? lv >= 20 ? 'bg-[var(--color-danger)] text-white'
+                  : lv >= 5 ? 'bg-amber-500 text-white'
+                    : 'bg-[var(--brand-primary)] text-white'
+                : 'bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
                 }`}>
               {lv}×
             </button>

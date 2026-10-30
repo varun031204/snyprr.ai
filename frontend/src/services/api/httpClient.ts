@@ -27,7 +27,12 @@ async function handleResponse<T>(response: Response): Promise<T> {
     return response.json() as Promise<T>;
   }
 
-  let errorBody: { error?: string; message?: string; details?: Record<string, string[]> } = {};
+  let errorBody: {
+    error?: string;
+    message?: string;
+    details?: Record<string, string[]>;
+    rateLimit?: unknown;
+  } = {};
   try {
     errorBody = await response.json();
   } catch {
@@ -45,8 +50,10 @@ async function handleResponse<T>(response: Response): Promise<T> {
       throw new ForbiddenError(message);
     case 404:
       throw new NotFoundError(message);
+    case 429:
+      throw new ApiError(message, 429, 'RATE_LIMIT', errorBody.details, errorBody);
     default:
-      throw new ApiError(message, response.status);
+      throw new ApiError(message, response.status, undefined, errorBody.details, errorBody);
   }
 }
 

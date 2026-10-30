@@ -24,9 +24,14 @@ export default function SignupPage() {
     clearError();
     setLocalError('');
     try {
-      await signUp(email, password, name);
-      // Redirect to OTP verification — code sent to email automatically
-      navigate(`/verify-otp?email=${encodeURIComponent(email)}`);
+      const { needsOtp } = await signUp(email, password, name);
+      if (needsOtp) {
+        // Email confirmation is ON — redirect to OTP verification page
+        navigate(`/verify-otp?email=${encodeURIComponent(email)}`);
+      } else {
+        // Email confirmation is OFF — user is already logged in, go to dashboard
+        navigate('/dashboard');
+      }
     } catch {
       // authError is set by the store
     }

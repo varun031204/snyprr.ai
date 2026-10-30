@@ -16,7 +16,7 @@ interface AuthState {
   // Actions
   initialize: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, fullName?: string) => Promise<void>;
+  signUp: (email: string, password: string, fullName?: string) => Promise<{ needsOtp: boolean }>;
   verifyOtp: (email: string, token: string) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
@@ -109,12 +109,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   signUp: async (email: string, password: string, fullName?: string) => {
     set({ isLoading: true, authError: null });
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: fullName ? { full_name: fullName } : undefined,
-        // Do NOT pass emailRedirectTo — we use OTP code flow instead
       },
     });
     if (error) {
@@ -133,13 +132,27 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         message = 'Too many signup attempts. Please wait a few minutes and try again.';
       } else if (lower.includes('already registered') || lower.includes('user already exists')) {
         message = 'An account with this email already exists. Please sign in instead.';
+      } else if (lower.includes('smtp') || lower.includes('email') && lower.includes('send')) {
+        message = 'Unable to send verification email. Please check your email address and try again, or contact support.';
       }
       // Removed the SMTP catch-all so the real Supabase error is shown directly
 
       set({ isLoading: false, authError: message });
       throw error;
     }
+
+    // If Supabase returned a session, email confirmation is OFF — user is
+    // already authenticated. Hydrate the profile and signal no OTP needed.
+    if (data.session) {
+      await get()._hydrateUser(data.session);
+      set({ isLoading: false });
+      return { needsOtp: false };
+    }
+
+    // No session returned — email confirmation is ON. User needs to enter
+    // the OTP code sent to their email.
     set({ isLoading: false });
+    return { needsOtp: true };
   },
 
 

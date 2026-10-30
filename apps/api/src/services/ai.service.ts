@@ -1,11 +1,16 @@
 /**
  * Gemini AI service - server-side implementation
- * 
+ *
  * Handles all AI requests with:
  * - Secure API key management (never exposed to frontend)
- * - Per-user rate limiting
- * - Input validation and sanitization
+ * - Per-user rate limiting (in-memory; see limitations below)
+ * - Input validation helpers used by the controller
  * - Exponential backoff retry logic
+ *
+ * RATE LIMIT LIMITATIONS:
+ * - In-memory Map is per-process only. Multiple API instances do NOT share quota.
+ * - Failed Gemini calls still consume quota once a request is accepted (pre-call consume).
+ * - Per-user serialization prevents same-process concurrent bypass of the counter.
  */
 
 import { env } from '../config/env.js';
@@ -57,64 +62,67 @@ export interface RateLimitInfo {
 
 // ─── Rate Limiting ────────────────────────────────────────────────────────────
 
-const AI_RATE_LIMITS = {
+export const AI_RATE_LIMITS = {
   FREE: 10,     // 10 requests per hour
   BASIC: 30,    // 30 requests per hour
   PRO: 100,     // 100 requests per hour
   PREMIUM: 500, // 500 requests per hour
 } as const;
 
+export type AiTier = keyof typeof AI_RATE_LIMITS;
+
 interface UserRateLimit {
   userId: string;
   requestCount: number;
   windowStart: Date;
-  userTier: keyof typeof AI_RATE_LIMITS;
+  userTier: AiTier;
 }
 
-// In-memory rate limit store (TODO: move to Redis for production)
+/** In-memory rate limit store — NOT shared across processes/instances. */
 const rateLimitStore = new Map<string, UserRateLimit>();
 
-/**
- * Check if user has remaining AI quota for this hour
- * Returns rate limit info and updates counter if allowed
- * 
- * KNOWN LIMITATION: This implementation has a race condition where concurrent
- * requests could bypass the rate limit. The check-then-increment pattern is not atomic.
- * For production, this should be migrated to Redis with INCR/EXPIRE for atomic operations.
- */
-export async function checkRateLimit(userId: string): Promise<RateLimitInfo> {
-  const now = new Date();
-  const hourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+/** Serializes rate-limit mutations per user within this process. */
+const rateLimitChains = new Map<string, Promise<unknown>>();
 
-  // Get user's subscription tier from database
-  const { rows } = await db.query<{ plan_name: string }>(
-    `SELECT sp.name as plan_name
-     FROM user_subscriptions us
-     JOIN subscription_plans sp ON us.plan_id = sp.id
-     WHERE us.user_id = $1
-       AND us.status = 'active'
-       AND us.expires_at > NOW()
-     ORDER BY us.created_at DESC
-     LIMIT 1`,
-    [userId]
-  );
-
-  // Default to FREE tier if no active subscription
-  const tierMap: Record<string, keyof typeof AI_RATE_LIMITS> = {
-    'Basic': 'BASIC',
-    'Pro': 'PRO',
-    'Premium': 'PREMIUM',
+function mapPlanNameToTier(planName: string | undefined | null): AiTier {
+  if (!planName) return 'FREE';
+  const key = planName.trim().toLowerCase();
+  const tierMap: Record<string, AiTier> = {
+    basic: 'BASIC',
+    pro: 'PRO',
+    premium: 'PREMIUM',
+    vip: 'PREMIUM',
   };
-  const userTier = rows[0]?.plan_name
-    ? tierMap[rows[0].plan_name] ?? 'FREE'
-    : 'FREE';
+  return tierMap[key] ?? 'FREE';
+}
 
-  const limit = AI_RATE_LIMITS[userTier];
+async function resolveUserTier(userId: string): Promise<AiTier> {
+  try {
+    // Match existing codebase convention: subscription status is stored as 'ACTIVE'
+    const { rows } = await db.query<{ plan_name: string }>(
+      `SELECT sp.name as plan_name
+       FROM user_subscriptions us
+       JOIN subscription_plans sp ON us.plan_id = sp.id
+       WHERE us.user_id = $1
+         AND UPPER(us.status) = 'ACTIVE'
+         AND (us.expires_at IS NULL OR us.expires_at > NOW())
+       ORDER BY us.created_at DESC
+       LIMIT 1`,
+      [userId]
+    );
+    return mapPlanNameToTier(rows[0]?.plan_name);
+  } catch (err) {
+    // Fail closed to FREE on DB errors — do not throw secrets/connection details upward
+    console.error('[AI] Failed to resolve subscription tier:', {
+      message: err instanceof Error ? err.message : 'unknown',
+    });
+    return 'FREE';
+  }
+}
 
-  // Get or initialize rate limit entry
+function readWindow(userId: string, userTier: AiTier, now: Date): UserRateLimit {
+  const hourAgo = new Date(now.getTime() - 60 * 60 * 1000);
   let entry = rateLimitStore.get(userId);
-
-  // Reset counter if window expired
   if (!entry || entry.windowStart < hourAgo) {
     entry = {
       userId,
@@ -123,30 +131,90 @@ export async function checkRateLimit(userId: string): Promise<RateLimitInfo> {
       userTier,
     };
     rateLimitStore.set(userId, entry);
+  } else {
+    entry.userTier = userTier;
   }
+  return entry;
+}
 
+function toRateLimitInfo(entry: UserRateLimit, limit: number, allowed: boolean): RateLimitInfo {
   const remaining = Math.max(0, limit - entry.requestCount);
-  const allowed = entry.requestCount < limit;
-
-  if (allowed) {
-    entry.requestCount += 1;
-    rateLimitStore.set(userId, entry);
-  }
-
-  const resetAt = new Date(entry.windowStart.getTime() + 60 * 60 * 1000);
-
   return {
     allowed,
-    remaining: allowed ? remaining - 1 : remaining,
-    resetAt,
+    remaining,
+    resetAt: new Date(entry.windowStart.getTime() + 60 * 60 * 1000),
     limit,
   };
+}
+
+async function withUserRateLock<T>(userId: string, fn: () => Promise<T>): Promise<T> {
+  const previous = rateLimitChains.get(userId) ?? Promise.resolve();
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const chained = previous.catch(() => undefined).then(() => gate);
+  rateLimitChains.set(userId, chained);
+
+  await previous.catch(() => undefined);
+  try {
+    return await fn();
+  } finally {
+    release();
+    if (rateLimitChains.get(userId) === chained) {
+      rateLimitChains.delete(userId);
+    }
+  }
+}
+
+/**
+ * Peek current quota without consuming a request.
+ * Used by GET /api/ai/quota.
+ */
+export async function getRateLimitStatus(userId: string): Promise<RateLimitInfo> {
+  return withUserRateLock(userId, async () => {
+    const now = new Date();
+    const userTier = await resolveUserTier(userId);
+    const limit = AI_RATE_LIMITS[userTier];
+    const entry = readWindow(userId, userTier, now);
+    const allowed = entry.requestCount < limit;
+    return toRateLimitInfo(entry, limit, allowed);
+  });
+}
+
+/**
+ * Check quota and consume one unit when allowed.
+ * Applied before expensive Gemini calls.
+ */
+export async function checkRateLimit(userId: string): Promise<RateLimitInfo> {
+  return withUserRateLock(userId, async () => {
+    const now = new Date();
+    const userTier = await resolveUserTier(userId);
+    const limit = AI_RATE_LIMITS[userTier];
+    const entry = readWindow(userId, userTier, now);
+    const allowed = entry.requestCount < limit;
+
+    if (allowed) {
+      entry.requestCount += 1;
+      rateLimitStore.set(userId, entry);
+    }
+
+    return toRateLimitInfo(entry, limit, allowed);
+  });
+}
+
+/** Test helper — clears in-memory quota state. */
+export function resetRateLimitStore(): void {
+  rateLimitStore.clear();
+  rateLimitChains.clear();
 }
 
 // ─── Gemini API Client ────────────────────────────────────────────────────────
 
 /**
- * Call Gemini API with automatic retry logic for transient errors
+ * Call Gemini API with automatic retry logic for transient errors.
+ * Never include the API key or raw provider bodies in thrown Error messages
+ * (controllers must not forward those to clients).
  */
 async function callGemini(
   contents: GeminiMessage[],
@@ -157,7 +225,7 @@ async function callGemini(
     body.systemInstruction = { parts: [{ text: systemInstruction }] };
   }
 
-  let lastError: Error | null = null;
+  let lastStatus: number | null = null;
 
   for (const model of CANDIDATE_MODELS) {
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
@@ -175,19 +243,22 @@ async function callGemini(
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
         });
-      } catch (networkErr) {
-        lastError = networkErr instanceof Error ? networkErr : new Error(String(networkErr));
+      } catch {
+        lastStatus = null;
         continue;
       }
 
       if (res.ok) {
-        const data = await res.json() as any; // Gemini API response structure
+        const data = (await res.json()) as {
+          candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+        };
         const text: string = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
         return text.trim();
       }
 
-      const errBody = await res.text().catch(() => res.statusText);
-      lastError = new Error(`Gemini API error ${res.status} (${model}): ${errBody}`);
+      lastStatus = res.status;
+      // Drain body for connection reuse; do not attach to thrown errors
+      await res.text().catch(() => undefined);
 
       if (res.status === 404 || res.status === 503) {
         break; // Try next model
@@ -198,12 +269,12 @@ async function callGemini(
       }
 
       if (res.status === 400 || res.status === 401 || res.status === 403) {
-        throw lastError;
+        throw new Error(`AI_PROVIDER_ERROR:${res.status}`);
       }
     }
   }
 
-  throw lastError ?? new Error('Gemini API request failed across all candidate models.');
+  throw new Error(lastStatus ? `AI_PROVIDER_ERROR:${lastStatus}` : 'AI_PROVIDER_UNAVAILABLE');
 }
 
 // ─── Prompt Builders ──────────────────────────────────────────────────────────

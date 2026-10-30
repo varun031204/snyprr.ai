@@ -10,6 +10,13 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
+// Vitest sets NODE_ENV=test before importing the app. Provide a non-secret
+// placeholder so unit tests can boot without a real Gemini key. Production and
+// development still require a real GEMINI_API_KEY via schema validation below.
+if (process.env.NODE_ENV === 'test' && !process.env.GEMINI_API_KEY) {
+  process.env.GEMINI_API_KEY = 'test-gemini-key-not-for-production';
+}
+
 const envSchema = z.object({
   PORT: z.coerce.number().default(4000),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),

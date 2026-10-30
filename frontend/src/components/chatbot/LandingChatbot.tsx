@@ -4,7 +4,7 @@ import {
   MessageCircle, X, Send, Bot, ChevronDown, RotateCcw,
   Sparkles, ArrowRight, ExternalLink, HelpCircle, ShieldCheck,
   TrendingUp, CreditCard, Users, CheckCircle2, ThumbsUp, ThumbsDown,
-  Copy, Check, Volume2, VolumeX, BarChart2, Zap, ArrowUpRight
+  Copy, Check, Volume2, VolumeX, BarChart2, Zap, ArrowUpRight, Mail, Loader2
 } from 'lucide-react';
 
 interface ChatAction {
@@ -22,12 +22,16 @@ interface Message {
   suggestions?: string[];
   reaction?: 'up' | 'down';
   copied?: boolean;
+  /** When true, renders the inline email-escalation form instead of a plain text bubble. */
+  escalate?: boolean;
 }
 
 interface BotResponse {
   text: string;
   action?: ChatAction;
   suggestions?: string[];
+  /** When true, the bot message should render the email-escalation form. */
+  escalate?: boolean;
 }
 
 // Live signals for the Signals Tab
@@ -68,116 +72,116 @@ const KNOWLEDGE_BASE: {
   keywords: string[];
   response: BotResponse;
 }[] = [
-  {
-    keywords: ['hi', 'hello', 'hey', 'greetings', 'start', 'morning', 'afternoon', 'evening'],
-    response: {
-      text: "👋 Hey there! Welcome to **Trade Beast**.\n\nI'm **Beast AI**, your 24/7 interactive assistant. Ask me anything, or explore our interactive tabs above for **Live Signals** and **Plan Comparison**!",
-      suggestions: ['Check live BTC signal', 'Compare pricing plans', 'How does TradeBeast work?'],
+    {
+      keywords: ['hi', 'hello', 'hey', 'greetings', 'start', 'morning', 'afternoon', 'evening'],
+      response: {
+        text: "👋 Hey there! Welcome to **Trade Beast**.\n\nI'm **Snyprr AI**, your 24/7 interactive assistant. Ask me anything, or explore our interactive tabs above for **Live Signals** and **Plan Comparison**!",
+        suggestions: ['Check live BTC signal', 'Compare pricing plans', 'How does TradeBeast work?'],
+      },
     },
-  },
-  {
-    keywords: ['what is', 'how does it work', 'explain', 'about tradebeast', 'overview', 'concept'],
-    response: {
-      text: "🔮 **Trade Beast** is a verified prediction & trade-idea tracking platform.\n\n• Verified analysts publish high-conviction ideas with precise **Buying & Selling Zones**.\n• You track ideas in real time without broker integration or custody risk.\n• Public, auditable win-rate scorecards for every trader.",
-      action: { label: 'Explore Active Predictions', path: '/predictions' },
-      suggestions: ['Does TradeBeast execute trades?', 'Are traders verified?', 'View Pricing'],
+    {
+      keywords: ['what is', 'how does it work', 'explain', 'about tradebeast', 'overview', 'concept'],
+      response: {
+        text: "🔮 **Trade Beast** is a verified prediction & trade-idea tracking platform.\n\n• Verified analysts publish high-conviction ideas with precise **Buying & Selling Zones**.\n• You track ideas in real time without broker integration or custody risk.\n• Public, auditable win-rate scorecards for every trader.",
+        action: { label: 'Explore Active Predictions', path: '/predictions' },
+        suggestions: ['Does TradeBeast execute trades?', 'Are traders verified?', 'View Pricing'],
+      },
     },
-  },
-  {
-    keywords: ['signal', 'signals', 'live signal', 'current idea', 'btc setup', 'gold setup'],
-    response: {
-      text: "⚡ **Live Market Signal Peek**:\n• **BTC/USDT**: LONG Zone $91,800 - $92,500 ➔ Target $101,000\n• **ETH/USDT**: LONG Zone $3,350 ➔ Target $3,850\n• **GOLD**: LONG Zone $2,860 ➔ Target $2,980\n\nSwitch to the **Live Signals** tab above for full confluences!",
-      action: { label: 'View All Live Predictions', path: '/predictions' },
-      suggestions: ['How is win rate calculated?', 'Explore pricing plans'],
+    {
+      keywords: ['signal', 'signals', 'live signal', 'current idea', 'btc setup', 'gold setup'],
+      response: {
+        text: "⚡ **Live Market Signal Peek**:\n• **BTC/USDT**: LONG Zone $91,800 - $92,500 ➔ Target $101,000\n• **ETH/USDT**: LONG Zone $3,350 ➔ Target $3,850\n• **GOLD**: LONG Zone $2,860 ➔ Target $2,980\n\nSwitch to the **Live Signals** tab above for full confluences!",
+        action: { label: 'View All Live Predictions', path: '/predictions' },
+        suggestions: ['How is win rate calculated?', 'Explore pricing plans'],
+      },
     },
-  },
-  {
-    keywords: ['execute', 'auto trade', 'broker', 'custody', 'exchange', 'connect wallet', 'place orders'],
-    response: {
-      text: "🛡️ **Trade Beast NEVER executes trades on your behalf.**\n\nWe provide verified intelligence and technical confluences. You retain 100% control of your funds on your preferred broker or exchange.",
-      suggestions: ['How are win rates calculated?', 'What is a prediction?', 'View pricing'],
+    {
+      keywords: ['execute', 'auto trade', 'broker', 'custody', 'exchange', 'connect wallet', 'place orders'],
+      response: {
+        text: "🛡️ **Trade Beast NEVER executes trades on your behalf.**\n\nWe provide verified intelligence and technical confluences. You retain 100% control of your funds on your preferred broker or exchange.",
+        suggestions: ['How are win rates calculated?', 'What is a prediction?', 'View pricing'],
+      },
     },
-  },
-  {
-    keywords: ['price', 'pricing', 'cost', 'plan', 'subscription', 'pro', 'vip', 'fee', 'charge', 'expensive'],
-    response: {
-      text: "💎 **Subscription Plans**:\n• **Free**: Essential prediction tracking & basic analytics.\n• **Pro ($49/mo)**: Top 15% analysts, live zone lines & push alerts.\n• **VIP ($149/mo)**: Unlimited predictions, 1-on-1 desk access & priority dev support.\n\nSwitch to the **Plans** tab above for an interactive calculator!",
-      action: { label: 'Explore Pricing Section', href: '#pricing' },
-      suggestions: ['Is there a free trial?', 'How do I start?'],
+    {
+      keywords: ['price', 'pricing', 'cost', 'plan', 'subscription', 'pro', 'vip', 'fee', 'charge', 'expensive'],
+      response: {
+        text: "💎 **Subscription Plans**:\n• **Free**: Essential prediction tracking & basic analytics.\n• **Pro ($49/mo)**: Top 15% analysts, live zone lines & push alerts.\n• **VIP ($149/mo)**: Unlimited predictions, 1-on-1 desk access & priority dev support.\n\nSwitch to the **Plans** tab above for an interactive calculator!",
+        action: { label: 'Explore Pricing Section', href: '#pricing' },
+        suggestions: ['Is there a free trial?', 'How do I start?'],
+      },
     },
-  },
-  {
-    keywords: ['free', 'trial', 'free tier', 'zero cost'],
-    response: {
-      text: "🎁 **Yes!** Trade Beast has a generous **Free Tier** to start tracking verified ideas right now. Premium plans also come with a risk-free **30-Day Trial**.",
-      action: { label: 'Create Free Account', path: '/signup' },
-      suggestions: ['Explore Pricing Section', 'Who are the traders?'],
+    {
+      keywords: ['free', 'trial', 'free tier', 'zero cost'],
+      response: {
+        text: "🎁 **Yes!** Trade Beast has a generous **Free Tier** to start tracking verified ideas right now. Premium plans also come with a risk-free **30-Day Trial**.",
+        action: { label: 'Create Free Account', path: '/signup' },
+        suggestions: ['Explore Pricing Section', 'Who are the traders?'],
+      },
     },
-  },
-  {
-    keywords: ['trader', 'analyst', 'verified', 'who', 'creator', 'reputation', 'accuracy'],
-    response: {
-      text: "🏆 Every analyst on Trade Beast goes through a rigorous verification audit. Their historical win rates (**76.4% platform avg**), profit factors, and risk-to-reward ratios are publicly auditable.",
-      action: { label: 'Browse Verified Traders', path: '/traders' },
-      suggestions: ['How is win rate calculated?', 'Can I become a trader?'],
+    {
+      keywords: ['trader', 'analyst', 'verified', 'who', 'creator', 'reputation', 'accuracy'],
+      response: {
+        text: "🏆 Every analyst on Trade Beast goes through a rigorous verification audit. Their historical win rates (**76.4% platform avg**), profit factors, and risk-to-reward ratios are publicly auditable.",
+        action: { label: 'Browse Verified Traders', path: '/traders' },
+        suggestions: ['How is win rate calculated?', 'Can I become a trader?'],
+      },
     },
-  },
-  {
-    keywords: ['become trader', 'apply', 'publish', 'monetize', 'verification application'],
-    response: {
-      text: "📈 **Are you a seasoned analyst?** Apply for verification via the trader portal. Publish ideas, build an audience, and monetize high-conviction predictions.",
-      action: { label: 'Apply for Verification', path: '/contact?dept=dev' },
-      suggestions: ['Contact developer team', 'What is a prediction?'],
+    {
+      keywords: ['become trader', 'apply', 'publish', 'monetize', 'verification application'],
+      response: {
+        text: "📈 **Are you a seasoned analyst?** Apply for verification via the trader portal. Publish ideas, build an audience, and monetize high-conviction predictions.",
+        action: { label: 'Apply for Verification', path: '/contact?dept=dev' },
+        suggestions: ['Contact developer team', 'What is a prediction?'],
+      },
     },
-  },
-  {
-    keywords: ['win rate', 'accuracy', 'calculation', 'risk reward', 'formula'],
-    response: {
-      text: "📊 **Win Rate Formula**:\n`(Successful Closed Trades reaching Selling Zone ÷ Total Closed Predictions) × 100`\n\nOur current platform average is **76.4%** with an average risk-to-reward ratio of **1 : 2.8**.",
-      suggestions: ['Check live BTC signal', 'Explore predictions'],
+    {
+      keywords: ['win rate', 'accuracy', 'calculation', 'risk reward', 'formula'],
+      response: {
+        text: "📊 **Win Rate Formula**:\n`(Successful Closed Trades reaching Selling Zone ÷ Total Closed Predictions) × 100`\n\nOur current platform average is **76.4%** with an average risk-to-reward ratio of **1 : 2.8**.",
+        suggestions: ['Check live BTC signal', 'Explore predictions'],
+      },
     },
-  },
-  {
-    keywords: ['market', 'coin', 'crypto', 'forex', 'gold', 'silver', 'xau', 'xag', 'btc', 'eth', 'sol', 'xrp'],
-    response: {
-      text: "⚡ **Covered Markets**:\n• **Crypto**: BTC, ETH, SOL, XRP\n• **Commodities / Forex**: Gold (XAU/USD), Silver (XAG/USD)\n\nAll instruments feature responsive Lightweight TradingView charts and custom zones.",
-      action: { label: 'Check Live Predictions', path: '/predictions' },
-      suggestions: ['How do I get started?', 'View pricing'],
+    {
+      keywords: ['market', 'coin', 'crypto', 'forex', 'gold', 'silver', 'xau', 'xag', 'btc', 'eth', 'sol', 'xrp'],
+      response: {
+        text: "⚡ **Covered Markets**:\n• **Crypto**: BTC, ETH, SOL, XRP\n• **Commodities / Forex**: Gold (XAU/USD), Silver (XAG/USD)\n\nAll instruments feature responsive Lightweight TradingView charts and custom zones.",
+        action: { label: 'Check Live Predictions', path: '/predictions' },
+        suggestions: ['How do I get started?', 'View pricing'],
+      },
     },
-  },
-  {
-    keywords: ['developer', 'dev team', 'engineering', 'bug', 'api', 'technical support'],
-    response: {
-      text: "🛠️ **Developer & Engineering Desk**:\n• Email: **dev@tradebeast.io** (SLA < 1 hr)\n• Dedicated channel for verified traders, API integrations, and charting bugs.",
-      action: { label: 'Contact Developer Team', path: '/contact?dept=dev' },
-      suggestions: ['Join Community Discord', 'Follow on Twitter'],
+    {
+      keywords: ['developer', 'dev team', 'engineering', 'bug', 'api', 'technical support'],
+      response: {
+        text: "🛠️ **Developer & Engineering Desk**:\n• Email: **dev@tradebeast.io** (SLA < 1 hr)\n• Dedicated channel for verified traders, API integrations, and charting bugs.",
+        action: { label: 'Contact Developer Team', path: '/contact?dept=dev' },
+        suggestions: ['Join Community Discord', 'Follow on Twitter'],
+      },
     },
-  },
-  {
-    keywords: ['contact', 'support', 'email', 'help', 'question', 'ticket'],
-    response: {
-      text: "📫 **24/7 Support Desk**:\n• Email: **support@tradebeast.io**\n• Average reply time < 2 hours.",
-      action: { label: 'Open Support Desk', path: '/contact' },
-      suggestions: ['Join Community Discord', 'Is TradeBeast free?'],
+    {
+      keywords: ['contact', 'support', 'email', 'help', 'question', 'ticket'],
+      response: {
+        text: "📫 **24/7 Support Desk**:\n• Email: **support@tradebeast.io**\n• Average reply time < 2 hours.",
+        action: { label: 'Open Support Desk', path: '/contact' },
+        suggestions: ['Join Community Discord', 'Is TradeBeast free?'],
+      },
     },
-  },
-  {
-    keywords: ['discord', 'twitter', 'social', 'community', 'instagram', 'facebook', 'follow'],
-    response: {
-      text: "🌐 **Follow Us & Join 20K+ Traders**:\n• **Discord**: discord.gg/tradebeast (14K+ active)\n• **Twitter / X**: @TradeBeastHQ\n• **Instagram**: @tradebeast.official\n• **Facebook**: Trade Beast Global",
-      action: { label: 'Join Official Discord', href: 'https://discord.gg/tradebeast' },
-      suggestions: ['Check live BTC signal', 'How do I start?'],
+    {
+      keywords: ['discord', 'twitter', 'social', 'community', 'instagram', 'facebook', 'follow'],
+      response: {
+        text: "🌐 **Follow Us & Join 20K+ Traders**:\n• **Discord**: discord.gg/tradebeast (14K+ active)\n• **Twitter / X**: @TradeBeastHQ\n• **Instagram**: @tradebeast.official\n• **Facebook**: Trade Beast Global",
+        action: { label: 'Join Official Discord', href: 'https://discord.gg/tradebeast' },
+        suggestions: ['Check live BTC signal', 'How do I start?'],
+      },
     },
-  },
-  {
-    keywords: ['start', 'signup', 'register', 'create account', 'join', 'login'],
-    response: {
-      text: "🚀 **Ready to start?** Create your account in seconds and unlock live prediction feeds instantly.",
-      action: { label: 'Create Free Account', path: '/signup' },
-      suggestions: ['Explore Pricing Section', 'What markets are covered?'],
+    {
+      keywords: ['start', 'signup', 'register', 'create account', 'join', 'login'],
+      response: {
+        text: "🚀 **Ready to start?** Create your account in seconds and unlock live prediction feeds instantly.",
+        action: { label: 'Create Free Account', path: '/signup' },
+        suggestions: ['Explore Pricing Section', 'What markets are covered?'],
+      },
     },
-  },
-];
+  ];
 
 function matchQuery(input: string): BotResponse {
   const clean = input.toLowerCase().trim();
@@ -202,9 +206,10 @@ function matchQuery(input: string): BotResponse {
     return bestMatch;
   }
 
+  // No pre-fed answer found — escalate to email for human resolution.
   return {
-    text: "I want to get you the exact information! Try asking about our **live signals**, **verified win rates**, **pricing plans**, or connecting directly with our **developer team**.",
-    action: { label: 'Contact Support Desk', path: '/contact' },
+    text: "I don't have a pre-fed answer for that question. Let me escalate this to our **support team** — they'll get back to you **via email** with a resolution.",
+    escalate: true,
     suggestions: ['Check live BTC signal', 'View pricing plans', 'What is TradeBeast?'],
   };
 }
@@ -247,13 +252,22 @@ export const LandingChatbot: React.FC = () => {
     {
       id: 'init-0',
       role: 'bot',
-      text: "👋 Hi! I'm **Beast AI**, your real-time trading guide.\n\nAsk me anything below, or switch tabs above for **Live Signals** and **Interactive Plans**!",
+      text: "👋 Hi! I'm **Snyprr AI**, your real-time trading guide.\n\nAsk me anything below, or switch tabs above for **Live Signals** and **Interactive Plans**!",
       time: 'Just now',
       suggestions: ['Check live BTC signal', 'Compare pricing plans', 'How does TradeBeast work?'],
     },
   ]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+
+  // ── Email escalation state ────────────────────────────────────────────────
+  // When the KB has no answer, we collect the user's email + question and
+  // escalate to the support team. Resolution is delivered via email only.
+  const [escalateEmail, setEscalateEmail] = useState('');
+  const [escalateMessage, setEscalateMessage] = useState('');
+  const [escalateSubmitting, setEscalateSubmitting] = useState(false);
+  const [escalateDone, setEscalateDone] = useState(false);
+  const [lastUserQuery, setLastUserQuery] = useState('');
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -295,6 +309,11 @@ export const LandingChatbot: React.FC = () => {
     const query = text.trim();
     if (!query) return;
 
+    // Track the last user query for email escalation pre-fill
+    setLastUserQuery(query);
+    // Reset escalation state on each new message
+    setEscalateDone(false);
+
     const userMsg: Message = {
       id: `user-${Date.now()}`,
       role: 'user',
@@ -316,7 +335,12 @@ export const LandingChatbot: React.FC = () => {
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         action: match.action,
         suggestions: match.suggestions,
+        escalate: match.escalate,
       };
+      // Pre-fill the escalation message with the user's question
+      if (match.escalate) {
+        setEscalateMessage(query);
+      }
       setMessages((prev) => [...prev, botMsg]);
       setIsTyping(false);
       if (soundEnabled) playChime();
@@ -341,7 +365,53 @@ export const LandingChatbot: React.FC = () => {
     }, 1800);
   };
 
+  /**
+   * Escalate an unanswered query to the support team via email.
+   * Opens the user's email client with a pre-filled message to support.
+   * Resolution is delivered via email only — the chatbot does not attempt
+   * to answer questions that are not in its pre-fed knowledge base.
+   */
+  const handleEscalateSubmit = () => {
+    const email = escalateEmail.trim();
+    const message = escalateMessage.trim();
+    if (!email || !message) return;
+
+    // Basic email validation
+    const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    if (!emailValid) return;
+
+    setEscalateSubmitting(true);
+
+    // Build a mailto: link that pre-fills the support email with the user's
+    // question. This requires no backend and genuinely sends the query to
+    // the support inbox for human resolution via email.
+    const subject = `Support Query: ${message.slice(0, 60)}${message.length > 60 ? '...' : ''}`;
+    const body = `Query from user: ${email}\n\nQuestion:\n${message}\n\n---\nSent via Snyprr AI Chatbot escalation`;
+    const mailtoUrl = `mailto:support@snyprr.ai?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+    // Open in a new window/tab so the chatbot stays open
+    window.open(mailtoUrl, '_blank');
+
+    setTimeout(() => {
+      setEscalateSubmitting(false);
+      setEscalateDone(true);
+
+      // Add a confirmation bot message
+      const confirmMsg: Message = {
+        id: `bot-escalate-${Date.now()}`,
+        role: 'bot',
+        text: `✅ Your query has been escalated to our support team.\n\nYou'll receive a response at **${email}** via email. Our team typically replies within 24 hours.\n\nResolution will be provided via email only.`,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        suggestions: ['Check live BTC signal', 'View pricing plans', 'What is TradeBeast?'],
+      };
+      setMessages((prev) => [...prev, confirmMsg]);
+    }, 800);
+  };
+
   const handleClear = () => {
+    setEscalateDone(false);
+    setEscalateEmail('');
+    setEscalateMessage('');
     setMessages([
       {
         id: `init-${Date.now()}`,
@@ -380,7 +450,7 @@ export const LandingChatbot: React.FC = () => {
         >
           <div className="w-2.5 h-2.5 rounded-full bg-[var(--color-success)] animate-pulse shadow-[0_0_8px_var(--color-success)]" />
           <p className="text-xs font-semibold text-[var(--text-primary)] flex items-center gap-1.5">
-            <span>Ask Beast AI</span>
+            <span>Ask Snyprr AI</span>
             <span className="text-[10px] text-[var(--brand-primary)] font-bold uppercase tracking-wider">Online</span>
           </p>
           <button
@@ -396,7 +466,7 @@ export const LandingChatbot: React.FC = () => {
       {/* Floating Toggle Button */}
       <button
         onClick={() => { setOpen(!open); setShowTeaser(false); }}
-        aria-label="Open Beast AI Assistant"
+        aria-label="Open Snyprr AI Assistant"
         className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-2xl bg-gradient-to-br from-[var(--brand-primary)] via-[var(--brand-vivid)] to-indigo-600 text-white shadow-2xl flex items-center justify-center hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer group"
         style={{ boxShadow: '0 0 35px var(--brand-glow)' }}
       >
@@ -412,9 +482,8 @@ export const LandingChatbot: React.FC = () => {
 
       {/* Interactive Chat Window */}
       <div
-        className={`fixed bottom-24 right-6 z-50 w-[400px] max-w-[calc(100vw-28px)] rounded-3xl border border-[var(--border-strong)] bg-[var(--bg-surface-glass)] backdrop-blur-2xl shadow-2xl flex flex-col transition-all duration-300 origin-bottom-right overflow-hidden ${
-          open ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-90 pointer-events-none'
-        }`}
+        className={`fixed bottom-24 right-6 z-50 w-[400px] max-w-[calc(100vw-28px)] rounded-3xl border border-[var(--border-strong)] bg-[var(--bg-surface-glass)] backdrop-blur-2xl shadow-2xl flex flex-col transition-all duration-300 origin-bottom-right overflow-hidden ${open ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-90 pointer-events-none'
+          }`}
         style={{ height: '570px', maxHeight: 'calc(100vh - 120px)' }}
       >
         {/* Header */}
@@ -427,7 +496,7 @@ export const LandingChatbot: React.FC = () => {
               </div>
               <div>
                 <div className="flex items-center gap-1.5">
-                  <h3 className="text-xs font-extrabold text-[var(--text-primary)]">Beast AI</h3>
+                  <h3 className="text-xs font-extrabold text-[var(--text-primary)]">Snyprr AI</h3>
                   <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-[var(--brand-primary)]/15 text-[var(--brand-primary)] border border-[var(--brand-primary)]/20">
                     Active
                   </span>
@@ -468,33 +537,30 @@ export const LandingChatbot: React.FC = () => {
           <div className="flex items-center gap-1 p-1 rounded-xl bg-[var(--bg-base)]/80 border border-[var(--border-subtle)] text-[11px] font-semibold">
             <button
               onClick={() => setActiveTab('chat')}
-              className={`flex-1 py-1 px-2 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                activeTab === 'chat'
-                  ? 'bg-[var(--brand-primary)] text-white shadow-sm'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-              }`}
+              className={`flex-1 py-1 px-2 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${activeTab === 'chat'
+                ? 'bg-[var(--brand-primary)] text-white shadow-sm'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                }`}
             >
               <Bot className="w-3.5 h-3.5" />
               <span>Chat</span>
             </button>
             <button
               onClick={() => setActiveTab('signals')}
-              className={`flex-1 py-1 px-2 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                activeTab === 'signals'
-                  ? 'bg-[var(--brand-primary)] text-white shadow-sm'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-              }`}
+              className={`flex-1 py-1 px-2 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${activeTab === 'signals'
+                ? 'bg-[var(--brand-primary)] text-white shadow-sm'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                }`}
             >
               <TrendingUp className="w-3.5 h-3.5" />
               <span>Live Signals</span>
             </button>
             <button
               onClick={() => setActiveTab('plans')}
-              className={`flex-1 py-1 px-2 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                activeTab === 'plans'
-                  ? 'bg-[var(--brand-primary)] text-white shadow-sm'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-              }`}
+              className={`flex-1 py-1 px-2 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${activeTab === 'plans'
+                ? 'bg-[var(--brand-primary)] text-white shadow-sm'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                }`}
             >
               <CreditCard className="w-3.5 h-3.5" />
               <span>Plans</span>
@@ -535,95 +601,160 @@ export const LandingChatbot: React.FC = () => {
 
             {/* Message Thread */}
             <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3.5 scrollbar-thin">
-              {messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'} space-y-1`}
-                >
-                  <div className={`flex gap-2 max-w-[92%] ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                    {msg.role === 'bot' && (
-                      <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-[var(--brand-primary)] to-[var(--brand-vivid)] text-white flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm">
-                        <Sparkles className="w-3 h-3" />
-                      </div>
-                    )}
-                    <div
-                      className={`px-3.5 py-2.5 rounded-2xl text-xs ${
-                        msg.role === 'user'
+              {messages.map((msg, msgIndex) => {
+                const isLastEscalate = msg.escalate && !messages.slice(msgIndex + 1).some((m) => m.escalate);
+                return (
+                  <div
+                    key={msg.id}
+                    className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'} space-y-1`}
+                  >
+                    <div className={`flex gap-2 max-w-[92%] ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                      {msg.role === 'bot' && (
+                        <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-[var(--brand-primary)] to-[var(--brand-vivid)] text-white flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm">
+                          <Sparkles className="w-3 h-3" />
+                        </div>
+                      )}
+                      <div
+                        className={`px-3.5 py-2.5 rounded-2xl text-xs ${msg.role === 'user'
                           ? 'bg-gradient-to-r from-[var(--brand-primary)] to-[var(--brand-vivid)] text-white rounded-tr-sm shadow-md font-medium'
                           : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] border border-[var(--border-subtle)] rounded-tl-sm shadow-sm'
-                      }`}
-                    >
-                      {formatText(msg.text)}
+                          }`}
+                      >
+                        {formatText(msg.text)}
 
-                      {/* Interactive Action Button */}
-                      {msg.action && (
-                        <button
-                          onClick={() => handleActionClick(msg.action!)}
-                          className="mt-2.5 w-full py-2 px-3 rounded-xl bg-[var(--brand-glow)] hover:bg-[var(--brand-primary)] text-[var(--brand-primary)] hover:text-white border border-[var(--brand-primary)]/40 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer group shadow-sm"
-                        >
-                          <span>{msg.action.label}</span>
-                          {msg.action.href && !msg.action.href.startsWith('#') ? (
-                            <ExternalLink className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-                          ) : (
-                            <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-                          )}
-                        </button>
-                      )}
+                        {/* Interactive Action Button */}
+                        {msg.action && (
+                          <button
+                            onClick={() => handleActionClick(msg.action!)}
+                            className="mt-2.5 w-full py-2 px-3 rounded-xl bg-[var(--brand-glow)] hover:bg-[var(--brand-primary)] text-[var(--brand-primary)] hover:text-white border border-[var(--brand-primary)]/40 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer group shadow-sm"
+                          >
+                            <span>{msg.action.label}</span>
+                            {msg.action.href && !msg.action.href.startsWith('#') ? (
+                              <ExternalLink className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                            ) : (
+                              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                            )}
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Bot Interactive Actions: Thumbs Up / Down / Copy */}
-                  {msg.role === 'bot' && (
-                    <div className="flex items-center gap-1 pl-8">
-                      <button
-                        onClick={() => handleReaction(msg.id, 'up')}
-                        className={`p-1 rounded-md transition-colors ${
-                          msg.reaction === 'up'
+                    {/* Bot Interactive Actions: Thumbs Up / Down / Copy */}
+                    {msg.role === 'bot' && (
+                      <div className="flex items-center gap-1 pl-8">
+                        <button
+                          onClick={() => handleReaction(msg.id, 'up')}
+                          className={`p-1 rounded-md transition-colors ${msg.reaction === 'up'
                             ? 'text-[var(--color-success)] bg-[var(--color-success-bg)]'
                             : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)]'
-                        }`}
-                        title="Helpful"
-                      >
-                        <ThumbsUp className="w-3 h-3" />
-                      </button>
-                      <button
-                        onClick={() => handleReaction(msg.id, 'down')}
-                        className={`p-1 rounded-md transition-colors ${
-                          msg.reaction === 'down'
+                            }`}
+                          title="Helpful"
+                        >
+                          <ThumbsUp className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={() => handleReaction(msg.id, 'down')}
+                          className={`p-1 rounded-md transition-colors ${msg.reaction === 'down'
                             ? 'text-[var(--color-danger)] bg-[var(--color-danger-bg)]'
                             : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)]'
-                        }`}
-                        title="Not helpful"
-                      >
-                        <ThumbsDown className="w-3 h-3" />
-                      </button>
-                      <button
-                        onClick={() => handleCopy(msg.id, msg.text)}
-                        className="p-1 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] transition-colors"
-                        title="Copy answer"
-                      >
-                        {msg.copied ? <Check className="w-3 h-3 text-[var(--color-success)]" /> : <Copy className="w-3 h-3" />}
-                      </button>
-                      <span className="text-[9px] text-[var(--text-muted)] ml-1">{msg.time}</span>
-                    </div>
-                  )}
-
-                  {/* Dynamic Next Question Chips */}
-                  {msg.suggestions && msg.suggestions.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 pl-8 pt-0.5">
-                      {msg.suggestions.map((s, sIdx) => (
-                        <button
-                          key={sIdx}
-                          onClick={() => handleSend(s)}
-                          className="text-[10px] font-semibold px-2.5 py-1 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--brand-glow)] text-[var(--text-muted)] hover:text-[var(--brand-primary)] border border-[var(--border-subtle)] hover:border-[var(--brand-primary)]/40 transition-all cursor-pointer active:scale-95"
+                            }`}
+                          title="Not helpful"
                         >
-                          {s}
+                          <ThumbsDown className="w-3 h-3" />
                         </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
+                        <button
+                          onClick={() => handleCopy(msg.id, msg.text)}
+                          className="p-1 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] transition-colors"
+                          title="Copy answer"
+                        >
+                          {msg.copied ? <Check className="w-3 h-3 text-[var(--color-success)]" /> : <Copy className="w-3 h-3" />}
+                        </button>
+                        <span className="text-[9px] text-[var(--text-muted)] ml-1">{msg.time}</span>
+                      </div>
+                    )}
+
+                    {/* Email Escalation Form — shown only for the latest unmatched query */}
+                    {msg.escalate && msg.role === 'bot' && isLastEscalate && (
+                      <div className="pl-8 w-full max-w-[92%]">
+                        {!escalateDone ? (
+                          <div className="rounded-2xl border border-[var(--brand-primary)]/40 bg-[var(--brand-glow)]/20 p-3.5 space-y-3 shadow-sm">
+                            <div className="flex items-center gap-2">
+                              <Mail className="w-4 h-4 text-[var(--brand-primary)] flex-shrink-0" />
+                              <p className="text-[11px] font-bold text-[var(--text-primary)]">Escalate to Support via Email</p>
+                            </div>
+                            <p className="text-[10px] text-[var(--text-muted)] leading-relaxed">
+                              I don't have this answer pre-fed. Submit your question and email — our team will resolve it via email only.
+                            </p>
+                            {/* Email Input */}
+                            <div className="space-y-1">
+                              <label className="text-[9px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">Your Email</label>
+                              <input
+                                type="email"
+                                value={escalateEmail}
+                                onChange={(e) => setEscalateEmail(e.target.value)}
+                                placeholder="you@example.com"
+                                className="w-full px-3 py-2 rounded-xl bg-[var(--bg-base)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none focus:border-[var(--brand-primary)] focus:ring-2 focus:ring-[var(--brand-primary)]/20 transition-all"
+                              />
+                            </div>
+                            {/* Message Input */}
+                            <div className="space-y-1">
+                              <label className="text-[9px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">Your Question</label>
+                              <textarea
+                                value={escalateMessage}
+                                onChange={(e) => setEscalateMessage(e.target.value)}
+                                placeholder="Describe your question..."
+                                rows={3}
+                                className="w-full px-3 py-2 rounded-xl bg-[var(--bg-base)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none focus:border-[var(--brand-primary)] focus:ring-2 focus:ring-[var(--brand-primary)]/20 transition-all resize-none"
+                              />
+                            </div>
+                            {/* Submit Button */}
+                            <button
+                              onClick={handleEscalateSubmit}
+                              disabled={!escalateEmail.trim() || !escalateMessage.trim() || escalateSubmitting}
+                              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[var(--brand-primary)] to-[var(--brand-vivid)] text-white text-xs font-bold flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 active:scale-95 transition-all cursor-pointer shadow-sm"
+                            >
+                              {escalateSubmitting ? (
+                                <>
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  <span>Sending...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Mail className="w-3.5 h-3.5" />
+                                  <span>Submit Query to Support</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="rounded-2xl border border-[var(--color-success)]/40 bg-[var(--color-success-bg)] p-3 flex items-center gap-2.5 shadow-sm">
+                            <CheckCircle2 className="w-5 h-5 text-[var(--color-success)] flex-shrink-0" />
+                            <div>
+                              <p className="text-[11px] font-bold text-[var(--color-success)]">Query Escalated</p>
+                              <p className="text-[10px] text-[var(--text-muted)]">You'll receive a resolution via email.</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Dynamic Next Question Chips */}
+                    {msg.suggestions && msg.suggestions.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 pl-8 pt-0.5">
+                        {msg.suggestions.map((s, sIdx) => (
+                          <button
+                            key={sIdx}
+                            onClick={() => handleSend(s)}
+                            className="text-[10px] font-semibold px-2.5 py-1 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--brand-glow)] text-[var(--text-muted)] hover:text-[var(--brand-primary)] border border-[var(--border-subtle)] hover:border-[var(--brand-primary)]/40 transition-all cursor-pointer active:scale-95"
+                          >
+                            {s}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
 
               {/* Typing Animation */}
               {isTyping && (
@@ -751,17 +882,15 @@ export const LandingChatbot: React.FC = () => {
             <div className="flex items-center justify-center gap-2 p-1 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] max-w-[220px] mx-auto text-[11px] font-semibold">
               <button
                 onClick={() => setAnnualBilling(false)}
-                className={`flex-1 py-1 rounded-lg transition-colors cursor-pointer ${
-                  !annualBilling ? 'bg-[var(--brand-primary)] text-white' : 'text-[var(--text-muted)]'
-                }`}
+                className={`flex-1 py-1 rounded-lg transition-colors cursor-pointer ${!annualBilling ? 'bg-[var(--brand-primary)] text-white' : 'text-[var(--text-muted)]'
+                  }`}
               >
                 Monthly
               </button>
               <button
                 onClick={() => setAnnualBilling(true)}
-                className={`flex-1 py-1 rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-1 ${
-                  annualBilling ? 'bg-[var(--brand-primary)] text-white' : 'text-[var(--text-muted)]'
-                }`}
+                className={`flex-1 py-1 rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-1 ${annualBilling ? 'bg-[var(--brand-primary)] text-white' : 'text-[var(--text-muted)]'
+                  }`}
               >
                 <span>Annual</span>
                 <span className="text-[9px] bg-amber-400/20 text-amber-400 px-1 rounded">-20%</span>

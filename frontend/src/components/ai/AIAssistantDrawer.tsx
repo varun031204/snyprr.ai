@@ -5,7 +5,7 @@ import {
   TrendingUp, TrendingDown, BarChart2, Zap, Copy, Check,
   ThumbsUp, ThumbsDown, ArrowRight, ChevronRight,
   Activity, Target, Shield, Layers, Volume2, VolumeX,
-  MessageSquare, LineChart, Wrench,
+  MessageSquare, LineChart, Wrench, Mail, Loader2, CheckCircle2,
 } from 'lucide-react';
 import { useUIStore } from '../../state/useUIStore';
 
@@ -19,12 +19,16 @@ interface Message {
   copied?: boolean;
   chips?: string[];
   action?: { label: string; path: string };
+  /** When true, renders the inline email-escalation form. */
+  escalate?: boolean;
 }
 
 interface BotResponse {
   text: string;
   chips?: string[];
   action?: { label: string; path: string };
+  /** When true, the bot message should render the email-escalation form. */
+  escalate?: boolean;
 }
 
 // ─── Knowledge Base ───────────────────────────────────────────────────────────
@@ -32,7 +36,7 @@ const KB: { keywords: string[]; response: BotResponse }[] = [
   {
     keywords: ['hi', 'hello', 'hey', 'start', 'help'],
     response: {
-      text: "👋 Welcome back, Trader!\n\nI'm **Beast AI**, your real-time trade intelligence agent. I can help you:\n• Analyze trade setups & risk/reward\n• Explain market structure (SMC, FVG, OB)\n• Review active predictions\n• Guide you through the platform",
+      text: "👋 Welcome back, Trader!\n\nI'm **Snyprr AI**, your real-time trade intelligence agent. I can help you:\n• Analyze trade setups & risk/reward\n• Explain market structure (SMC, FVG, OB)\n• Review active predictions\n• Guide you through the platform",
       chips: ['Analyze BTC setup', 'Explain SMC strategy', 'View active predictions', 'What is an FVG?'],
     },
   },
@@ -132,8 +136,10 @@ function matchQuery(input: string): BotResponse {
 
   if (best && topScore > 0) return best;
 
+  // No pre-fed answer — escalate to email for human resolution.
   return {
-    text: "🤔 Great question! I'm still learning about that specific topic. Try asking me about:\n• **BTC, ETH or GOLD** setups\n• **SMC strategy** and confluences\n• **Risk management** principles\n• **How predictions work** on TradeBeast",
+    text: "I don't have a pre-fed answer for that question. Let me escalate this to our **support team** — they'll get back to you **via email** with a resolution.",
+    escalate: true,
     chips: ['Analyze BTC setup', 'Explain SMC strategy', 'How does risk management work?'],
   };
 }
@@ -186,7 +192,7 @@ export const AIAssistantDrawer: React.FC = () => {
     {
       id: 'init',
       sender: 'ai',
-      text: "👋 Hey! I'm **Beast AI**, your trade intelligence agent.\n\nAsk me about any setup, strategy, or instrument — or explore the **Market Pulse** and **Tools** tabs!",
+      text: "👋 Hey! I'm **Snyprr AI**, your trade intelligence agent.\n\nAsk me about any setup, strategy, or instrument — or explore the **Market Pulse** and **Tools** tabs!",
       timestamp: 'Just now',
       chips: ['Analyze BTC setup', 'Explain SMC strategy', 'How do predictions work?', 'View active signals'],
     },
@@ -198,6 +204,14 @@ export const AIAssistantDrawer: React.FC = () => {
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // ── Email escalation state ────────────────────────────────────────────────
+  // When the KB has no answer, we collect the user's email + question and
+  // escalate to the support team. Resolution is delivered via email only.
+  const [escalateEmail, setEscalateEmail] = useState('');
+  const [escalateMessage, setEscalateMessage] = useState('');
+  const [escalateSubmitting, setEscalateSubmitting] = useState(false);
+  const [escalateDone, setEscalateDone] = useState(false);
+
   useEffect(() => {
     if (aiDrawerOpen && activeTab === 'chat') {
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 60);
@@ -208,6 +222,9 @@ export const AIAssistantDrawer: React.FC = () => {
   const handleSend = useCallback((text: string, image?: string) => {
     const query = text.trim();
     if (!query && !image) return;
+
+    // Reset escalation state on each new message
+    setEscalateDone(false);
 
     const userMsg: Message = {
       id: `user-${Date.now()}`,
@@ -235,6 +252,11 @@ export const AIAssistantDrawer: React.FC = () => {
         resp = matchQuery(query);
       }
 
+      // Pre-fill escalation message with the user's question
+      if (resp.escalate) {
+        setEscalateMessage(query);
+      }
+
       const botMsg: Message = {
         id: `ai-${Date.now()}`,
         sender: 'ai',
@@ -242,6 +264,7 @@ export const AIAssistantDrawer: React.FC = () => {
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         chips: resp.chips,
         action: resp.action,
+        escalate: resp.escalate,
       };
       setMessages((p) => [...p, botMsg]);
       setIsTyping(false);
@@ -273,6 +296,9 @@ export const AIAssistantDrawer: React.FC = () => {
   };
 
   const handleReset = () => {
+    setEscalateDone(false);
+    setEscalateEmail('');
+    setEscalateMessage('');
     setMessages([{
       id: `init-${Date.now()}`,
       sender: 'ai',
@@ -280,6 +306,42 @@ export const AIAssistantDrawer: React.FC = () => {
       timestamp: 'Just now',
       chips: ['Analyze BTC setup', 'Explain SMC strategy', 'View active signals'],
     }]);
+  };
+
+  /**
+   * Escalate an unanswered query to the support team via email.
+   * Opens the user's email client with a pre-filled message to support.
+   * Resolution is delivered via email only.
+   */
+  const handleEscalateSubmit = () => {
+    const email = escalateEmail.trim();
+    const message = escalateMessage.trim();
+    if (!email || !message) return;
+
+    const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    if (!emailValid) return;
+
+    setEscalateSubmitting(true);
+
+    const subject = `Support Query: ${message.slice(0, 60)}${message.length > 60 ? '...' : ''}`;
+    const body = `Query from user: ${email}\n\nQuestion:\n${message}\n\n---\nSent via Snyprr AI Chatbot escalation`;
+    const mailtoUrl = `mailto:support@snyprr.ai?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+    window.open(mailtoUrl, '_blank');
+
+    setTimeout(() => {
+      setEscalateSubmitting(false);
+      setEscalateDone(true);
+
+      const confirmMsg: Message = {
+        id: `ai-escalate-${Date.now()}`,
+        sender: 'ai',
+        text: `✅ Your query has been escalated to our support team.\n\nYou'll receive a response at **${email}** via email. Our team typically replies within 24 hours.\n\nResolution will be provided via email only.`,
+        timestamp: 'Just now',
+        chips: ['Analyze BTC setup', 'Explain SMC strategy', 'View active signals'],
+      };
+      setMessages((p) => [...p, confirmMsg]);
+    }, 800);
   };
 
   const formatText = (text: string) => text.split('\n').map((line, i) => {
@@ -301,7 +363,7 @@ export const AIAssistantDrawer: React.FC = () => {
     <aside
       className="fixed bottom-5 right-5 sm:bottom-6 sm:right-6 z-50 w-[calc(100vw-2.5rem)] sm:w-[400px] flex flex-col bg-[var(--bg-surface-glass)] backdrop-blur-2xl border border-[var(--border-glass)] rounded-3xl shadow-2xl overflow-hidden animate-fade-in"
       style={{ height: '580px', maxHeight: 'calc(100vh - 100px)' }}
-      aria-label="Beast AI Assistant"
+      aria-label="Snyprr AI Assistant"
     >
       {/* ── Header ── */}
       <div className="px-4 pt-3.5 pb-2 border-b border-[var(--border-subtle)] bg-gradient-to-r from-[var(--bg-surface)] to-[var(--bg-secondary)] flex-shrink-0 space-y-3">
@@ -313,7 +375,7 @@ export const AIAssistantDrawer: React.FC = () => {
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <h3 className="text-xs font-extrabold text-[var(--text-primary)]">Beast AI</h3>
+                <h3 className="text-xs font-extrabold text-[var(--text-primary)]">Snyprr AI</h3>
                 <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-[var(--brand-primary)]/15 text-[var(--brand-primary)] border border-[var(--brand-primary)]/20">
                   Platform Agent
                 </span>
@@ -379,76 +441,141 @@ export const AIAssistantDrawer: React.FC = () => {
 
           {/* Message Thread */}
           <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4 scrollbar-thin">
-            {messages.map((msg) => (
-              <div key={msg.id} className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'} space-y-1.5`}>
-                <div className={`flex gap-2 max-w-[93%] ${msg.sender === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                  {/* Avatar */}
+            {messages.map((msg, msgIndex) => {
+              const isLastEscalate = msg.escalate && !messages.slice(msgIndex + 1).some((m) => m.escalate);
+              return (
+                <div key={msg.id} className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'} space-y-1.5`}>
+                  <div className={`flex gap-2 max-w-[93%] ${msg.sender === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                    {/* Avatar */}
+                    {msg.sender === 'ai' && (
+                      <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-[var(--brand-primary)] to-[var(--brand-vivid)] text-white flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm">
+                        <Sparkles className="w-3 h-3" />
+                      </div>
+                    )}
+                    {msg.sender === 'user' && (
+                      <div className="w-6 h-6 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-subtle)] flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <User className="w-3 h-3 text-[var(--text-muted)]" />
+                      </div>
+                    )}
+
+                    {/* Bubble */}
+                    <div className={`px-3.5 py-2.5 rounded-2xl text-xs leading-relaxed ${msg.sender === 'user'
+                      ? 'bg-gradient-to-r from-[var(--brand-primary)] to-[var(--brand-vivid)] text-white rounded-tr-sm shadow-md'
+                      : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] border border-[var(--border-subtle)] rounded-tl-sm shadow-sm'
+                      }`}>
+                      {msg.image && (
+                        <img src={msg.image} alt="Chart" className="w-full rounded-xl max-h-32 object-cover mb-2 border border-white/20" />
+                      )}
+                      {formatText(msg.text)}
+
+                      {/* Action CTA inside bubble */}
+                      {msg.action && (
+                        <button
+                          onClick={() => { navigate(msg.action!.path); setAIDrawerOpen(false); }}
+                          className="mt-2.5 w-full py-1.5 px-3 rounded-xl bg-[var(--brand-glow)] hover:bg-[var(--brand-primary)] text-[var(--brand-primary)] hover:text-white border border-[var(--brand-primary)]/40 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer group"
+                        >
+                          {msg.action.label}
+                          <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Bot: reaction + copy + timestamp */}
                   {msg.sender === 'ai' && (
-                    <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-[var(--brand-primary)] to-[var(--brand-vivid)] text-white flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm">
-                      <Sparkles className="w-3 h-3" />
-                    </div>
-                  )}
-                  {msg.sender === 'user' && (
-                    <div className="w-6 h-6 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-subtle)] flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <User className="w-3 h-3 text-[var(--text-muted)]" />
-                    </div>
-                  )}
-
-                  {/* Bubble */}
-                  <div className={`px-3.5 py-2.5 rounded-2xl text-xs leading-relaxed ${msg.sender === 'user'
-                    ? 'bg-gradient-to-r from-[var(--brand-primary)] to-[var(--brand-vivid)] text-white rounded-tr-sm shadow-md'
-                    : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] border border-[var(--border-subtle)] rounded-tl-sm shadow-sm'
-                  }`}>
-                    {msg.image && (
-                      <img src={msg.image} alt="Chart" className="w-full rounded-xl max-h-32 object-cover mb-2 border border-white/20" />
-                    )}
-                    {formatText(msg.text)}
-
-                    {/* Action CTA inside bubble */}
-                    {msg.action && (
-                      <button
-                        onClick={() => { navigate(msg.action!.path); setAIDrawerOpen(false); }}
-                        className="mt-2.5 w-full py-1.5 px-3 rounded-xl bg-[var(--brand-glow)] hover:bg-[var(--brand-primary)] text-[var(--brand-primary)] hover:text-white border border-[var(--brand-primary)]/40 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer group"
-                      >
-                        {msg.action.label}
-                        <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                    <div className="flex items-center gap-1 pl-8">
+                      <button onClick={() => handleReaction(msg.id, 'up')} className={`p-1 rounded-md transition-colors ${msg.reaction === 'up' ? 'text-[var(--color-success)] bg-[var(--color-success-bg)]' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)]'}`} title="Helpful">
+                        <ThumbsUp className="w-3 h-3" />
                       </button>
-                    )}
-                  </div>
+                      <button onClick={() => handleReaction(msg.id, 'down')} className={`p-1 rounded-md transition-colors ${msg.reaction === 'down' ? 'text-[var(--color-danger)] bg-[var(--color-danger-bg)]' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)]'}`} title="Not helpful">
+                        <ThumbsDown className="w-3 h-3" />
+                      </button>
+                      <button onClick={() => handleCopy(msg.id, msg.text)} className="p-1 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] transition-colors" title="Copy">
+                        {msg.copied ? <Check className="w-3 h-3 text-[var(--color-success)]" /> : <Copy className="w-3 h-3" />}
+                      </button>
+                      <span className="text-[9px] text-[var(--text-muted)] ml-1">{msg.timestamp}</span>
+                    </div>
+                  )}
+
+                  {/* Email Escalation Form — shown only for the latest unmatched query */}
+                  {msg.escalate && msg.sender === 'ai' && isLastEscalate && (
+                    <div className="pl-8 w-full max-w-[93%]">
+                      {!escalateDone ? (
+                        <div className="rounded-2xl border border-[var(--brand-primary)]/40 bg-[var(--brand-glow)]/20 p-3.5 space-y-3 shadow-sm">
+                          <div className="flex items-center gap-2">
+                            <Mail className="w-4 h-4 text-[var(--brand-primary)] flex-shrink-0" />
+                            <p className="text-[11px] font-bold text-[var(--text-primary)]">Escalate to Support via Email</p>
+                          </div>
+                          <p className="text-[10px] text-[var(--text-muted)] leading-relaxed">
+                            I don't have this answer pre-fed. Submit your question and email — our team will resolve it via email only.
+                          </p>
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">Your Email</label>
+                            <input
+                              type="email"
+                              value={escalateEmail}
+                              onChange={(e) => setEscalateEmail(e.target.value)}
+                              placeholder="you@example.com"
+                              className="w-full px-3 py-2 rounded-xl bg-[var(--bg-base)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none focus:border-[var(--brand-primary)] focus:ring-2 focus:ring-[var(--brand-primary)]/20 transition-all"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">Your Question</label>
+                            <textarea
+                              value={escalateMessage}
+                              onChange={(e) => setEscalateMessage(e.target.value)}
+                              placeholder="Describe your question..."
+                              rows={3}
+                              className="w-full px-3 py-2 rounded-xl bg-[var(--bg-base)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none focus:border-[var(--brand-primary)] focus:ring-2 focus:ring-[var(--brand-primary)]/20 transition-all resize-none"
+                            />
+                          </div>
+                          <button
+                            onClick={handleEscalateSubmit}
+                            disabled={!escalateEmail.trim() || !escalateMessage.trim() || escalateSubmitting}
+                            className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[var(--brand-primary)] to-[var(--brand-vivid)] text-white text-xs font-bold flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 active:scale-95 transition-all cursor-pointer shadow-sm"
+                          >
+                            {escalateSubmitting ? (
+                              <>
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                <span>Sending...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Mail className="w-3.5 h-3.5" />
+                                <span>Submit Query to Support</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="rounded-2xl border border-[var(--color-success)]/40 bg-[var(--color-success-bg)] p-3 flex items-center gap-2.5 shadow-sm">
+                          <CheckCircle2 className="w-5 h-5 text-[var(--color-success)] flex-shrink-0" />
+                          <div>
+                            <p className="text-[11px] font-bold text-[var(--color-success)]">Query Escalated</p>
+                            <p className="text-[10px] text-[var(--text-muted)]">You'll receive a resolution via email.</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Follow-up chips */}
+                  {msg.chips && msg.chips.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 pl-8 pt-0.5">
+                      {msg.chips.map((chip, ci) => (
+                        <button
+                          key={ci}
+                          onClick={() => handleSend(chip)}
+                          className="text-[10px] font-semibold px-2.5 py-1 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--brand-glow)] text-[var(--text-muted)] hover:text-[var(--brand-primary)] border border-[var(--border-subtle)] hover:border-[var(--brand-primary)]/30 transition-all cursor-pointer active:scale-95"
+                        >
+                          {chip}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-
-                {/* Bot: reaction + copy + timestamp */}
-                {msg.sender === 'ai' && (
-                  <div className="flex items-center gap-1 pl-8">
-                    <button onClick={() => handleReaction(msg.id, 'up')} className={`p-1 rounded-md transition-colors ${msg.reaction === 'up' ? 'text-[var(--color-success)] bg-[var(--color-success-bg)]' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)]'}`} title="Helpful">
-                      <ThumbsUp className="w-3 h-3" />
-                    </button>
-                    <button onClick={() => handleReaction(msg.id, 'down')} className={`p-1 rounded-md transition-colors ${msg.reaction === 'down' ? 'text-[var(--color-danger)] bg-[var(--color-danger-bg)]' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)]'}`} title="Not helpful">
-                      <ThumbsDown className="w-3 h-3" />
-                    </button>
-                    <button onClick={() => handleCopy(msg.id, msg.text)} className="p-1 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] transition-colors" title="Copy">
-                      {msg.copied ? <Check className="w-3 h-3 text-[var(--color-success)]" /> : <Copy className="w-3 h-3" />}
-                    </button>
-                    <span className="text-[9px] text-[var(--text-muted)] ml-1">{msg.timestamp}</span>
-                  </div>
-                )}
-
-                {/* Follow-up chips */}
-                {msg.chips && msg.chips.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 pl-8 pt-0.5">
-                    {msg.chips.map((chip, ci) => (
-                      <button
-                        key={ci}
-                        onClick={() => handleSend(chip)}
-                        className="text-[10px] font-semibold px-2.5 py-1 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--brand-glow)] text-[var(--text-muted)] hover:text-[var(--brand-primary)] border border-[var(--border-subtle)] hover:border-[var(--brand-primary)]/30 transition-all cursor-pointer active:scale-95"
-                      >
-                        {chip}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
+              );
+            })}
 
             {/* Typing indicator */}
             {isTyping && (

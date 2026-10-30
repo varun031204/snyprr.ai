@@ -9,7 +9,7 @@ import { StatCard } from '../../components/ui/StatCard';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { Button } from '../../components/ui/Button';
 import { DirectionBadge } from '../../components/ui/Badge';
-import { TradingChartPro } from '../../components/charts/TradingChartPro';
+import { GoChartingWidget as TradingChartPro } from '../../components/charts/gocharting/GoChartingWidget';
 import { PaperTradeOrderPanel, PaperTradeDraftLevels } from './PaperTradeOrderPanel';
 import { usePaperTradingStore, type PaperPosition } from '../../state/usePaperTradingStore';
 import { useMarketStore } from '../../state/useMarketStore';

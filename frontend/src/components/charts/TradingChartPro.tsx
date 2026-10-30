@@ -83,6 +83,106 @@ async function fetchBinanceCandles(symbol: string, interval: string, limit = 200
   return raw.map(k => ({ time: Math.floor(k[0] / 1000) as any, open: parseFloat(k[1]), high: parseFloat(k[2]), low: parseFloat(k[3]), close: parseFloat(k[4]) }));
 }
 
+// ── WebSocket live updates for crypto instruments ─────────────────────────────
+// Binance WebSocket stream: wss://stream.binance.com:9443/ws/btcusdt@kline_1h
+// Delivers real-time kline updates — the chart candle updates on every trade.
+
+interface BinanceKlineMessage {
+  e: string;       // event type
+  E: number;       // event time
+  s: string;       // symbol
+  k: {
+    t: number;     // kline start time (ms)
+    T: number;     // kline close time (ms)
+    s: string;     // symbol
+    i: string;     // interval
+    o: string;     // open
+    c: string;     // close
+    h: string;     // high
+    l: string;     // low
+    x: boolean;    // is this kline closed?
+  };
+}
+
+function openBinanceWebSocket(
+  symbol: string,
+  interval: string,
+  onUpdate: (candle: { time: number; open: number; high: number; low: number; close: number; isClosed: boolean }) => void,
+  onError: () => void,
+): WebSocket | null {
+  try {
+    const wsSymbol = symbol.toLowerCase();
+    const ws = new WebSocket(`wss://stream.binance.com:9443/ws/${wsSymbol}@kline_${interval}`);
+
+    ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data) as BinanceKlineMessage;
+        if (msg.e !== 'kline' || !msg.k) return;
+        onUpdate({
+          time: Math.floor(msg.k.t / 1000),
+          open: parseFloat(msg.k.o),
+          high: parseFloat(msg.k.h),
+          low: parseFloat(msg.k.l),
+          close: parseFloat(msg.k.c),
+          isClosed: msg.k.x,
+        });
+      } catch {
+        // ignore parse errors
+      }
+    };
+
+    ws.onerror = () => {
+      onError();
+    };
+
+    return ws;
+  } catch {
+    onError();
+    return null;
+  }
+}
+
+// ── Polling fallback for when WebSocket is unavailable ─────────────────────────
+// Fetches the latest candle from Binance REST API every 10 seconds.
+
+async function pollBinanceLatest(symbol: string, interval: string): Promise<{ time: number; open: number; high: number; low: number; close: number } | null> {
+  try {
+    const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=1`);
+    if (!res.ok) return null;
+    const raw: any[][] = await res.json();
+    if (!raw.length) return null;
+    const k = raw[0];
+    return { time: Math.floor(k[0] / 1000), open: parseFloat(k[1]), high: parseFloat(k[2]), low: parseFloat(k[3]), close: parseFloat(k[4]) };
+  } catch {
+    return null;
+  }
+}
+
+// ── Gold/Silver live price polling ────────────────────────────────────────────
+// Uses CoinGecko-like free APIs for commodity spot prices.
+
+async function pollCommodityPrice(instrument: string): Promise<number | null> {
+  try {
+    // Try metalpriceapi.com free endpoint (no key needed for basic gold/silver)
+    if (instrument === 'GOLD') {
+      const res = await fetch('https://api.gold-api.com/price/XAU');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.price) return data.price;
+      }
+    } else if (instrument === 'SILVER') {
+      const res = await fetch('https://api.gold-api.com/price/XAG');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.price) return data.price;
+      }
+    }
+  } catch {
+    // fall through
+  }
+  return null;
+}
+
 function uid() { return Math.random().toString(36).slice(2, 10); }
 
 const TOOL_LABELS: Record<DrawingTool, string> = { pointer: 'Select / Move', horizontal: 'Horizontal Line', trendline: 'Trend Line', long: 'Long Position', short: 'Short Position', rectangle: 'Rectangle', brush: 'Brush / Freehand', text: 'Text Annotation' };
@@ -106,6 +206,10 @@ export const TradingChartPro: React.FC<TradingChartProProps> = ({
   const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const priceLineRefs = useRef<any[]>([]);
   const textInputRef = useRef<HTMLInputElement>(null);
+  // ── Live data refs ──────────────────────────────────────────────────────────
+  const wsRef = useRef<WebSocket | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastCandleRef = useRef<{ time: number; open: number; high: number; low: number; close: number } | null>(null);
   const { theme } = useUIStore();
   const themeRef = useRef(theme);
 
@@ -197,14 +301,89 @@ export const TradingChartPro: React.FC<TradingChartProProps> = ({
     const prec = p4 ? 4 : p3 ? 3 : 2;
     const mm = p4 ? 0.0001 : p3 ? 0.001 : 0.01;
     seriesRef.current.applyOptions({ priceFormat: { type: 'price', precision: prec, minMove: mm } });
+
+    // Clean up any previous live connection before loading new data
+    if (wsRef.current) { try { wsRef.current.close(); } catch { } wsRef.current = null; }
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+
     if (binanceSymbol) {
+      // ── Crypto: Binance REST for initial candles, then WebSocket for REAL-TIME ──
       try {
         const c = await fetchBinanceCandles(binanceSymbol, interval);
         seriesRef.current.setData(c);
+        if (c.length) lastCandleRef.current = c[c.length - 1];
         chartRef.current?.timeScale().fitContent();
+
+        // Track last WebSocket message time for smart fallback
+        let lastWsMsgTime = 0;
+
+        // Start WebSocket for REAL-TIME candle updates (sub-second, on every trade tick)
+        wsRef.current = openBinanceWebSocket(
+          binanceSymbol,
+          interval,
+          (candle) => {
+            if (!seriesRef.current) return;
+            lastWsMsgTime = Date.now();
+            // WebSocket is live — stop polling backup
+            if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+            seriesRef.current.update({
+              time: candle.time as any,
+              open: candle.open,
+              high: candle.high,
+              low: candle.low,
+              close: candle.close,
+            });
+            lastCandleRef.current = { time: candle.time, open: candle.open, high: candle.high, low: candle.low, close: candle.close };
+          },
+          () => { /* WebSocket error — watchdog polling handles backup */ },
+        );
+
+        // Watchdog: poll ONLY when WebSocket hasn't delivered in 8 seconds.
+        // When WebSocket is live, this interval does nothing (returns early).
+        // When WebSocket fails silently, this keeps the chart updated.
+        pollRef.current = setInterval(async () => {
+          if (lastWsMsgTime > 0 && Date.now() - lastWsMsgTime < 8000) return; // WS is live
+          if (!seriesRef.current) return;
+          const latest = await pollBinanceLatest(binanceSymbol, interval);
+          if (latest) {
+            seriesRef.current.update(latest as any);
+            lastCandleRef.current = latest;
+          }
+        }, 5_000); // only fires as backup when WebSocket is silent
+
         return;
-      } catch { }
+      } catch {
+        // Binance REST also failed — fall through to deterministic candles
+      }
     }
+
+    // ── Gold/Silver: try live price polling, else deterministic fallback ──
+    if (instrument === 'GOLD' || instrument === 'SILVER') {
+      const candles = getDeterministicCandles(instrument);
+      seriesRef.current.setData(candles);
+      if (candles.length) lastCandleRef.current = candles[candles.length - 1];
+      chartRef.current?.timeScale().fitContent();
+
+      // Start polling for live commodity price updates
+      pollRef.current = setInterval(async () => {
+        const livePrice = await pollCommodityPrice(instrument);
+        if (livePrice == null || !seriesRef.current || !lastCandleRef.current) return;
+        // Update the last candle's close price with the live spot price
+        const last = lastCandleRef.current;
+        const updated = {
+          time: last.time,
+          open: last.open,
+          high: Math.max(last.high, livePrice),
+          low: Math.min(last.low, livePrice),
+          close: livePrice,
+        };
+        seriesRef.current.update(updated as any);
+        lastCandleRef.current = updated;
+      }, 15_000); // poll every 15 seconds
+      return;
+    }
+
+    // ── Fallback: deterministic (static) candles ──
     seriesRef.current.setData(getDeterministicCandles(instrument));
     chartRef.current?.timeScale().fitContent();
   }, [binanceSymbol, instrument, interval]);
@@ -212,6 +391,14 @@ export const TradingChartPro: React.FC<TradingChartProProps> = ({
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // ── Clean up live data connections on unmount ────────────────────────────────
+  useEffect(() => {
+    return () => {
+      if (wsRef.current) { try { wsRef.current.close(); } catch { } wsRef.current = null; }
+      if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+    };
+  }, []);
 
   useEffect(() => {
     const series = seriesRef.current;

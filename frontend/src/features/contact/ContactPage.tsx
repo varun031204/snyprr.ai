@@ -166,7 +166,7 @@ export default function ContactPage() {
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-[var(--border-subtle)]">
             <p className="text-xs text-[var(--text-muted)]">
               <HelpCircle className="w-4 h-4 text-[var(--brand-primary)] inline-block align-middle mr-1.5" />
-              <span>Need instant answers? You can also ask our floating <strong>Beast AI Chatbot</strong> in the bottom right corner.</span>
+              <span>Need instant answers? You can also ask our floating <strong>Snyprr AI Chatbot</strong> in the bottom right corner.</span>
             </p>
 
             <Button

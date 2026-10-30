@@ -21,13 +21,22 @@ export class ApiError extends Error {
   public statusCode: number;
   public errorCode?: string;
   public details?: Record<string, string[]>;
+  /** Raw JSON body from the API when available (e.g. rate-limit metadata). */
+  public data?: unknown;
 
-  constructor(message: string, statusCode: number = 500, errorCode?: string, details?: Record<string, string[]>) {
+  constructor(
+    message: string,
+    statusCode: number = 500,
+    errorCode?: string,
+    details?: Record<string, string[]>,
+    data?: unknown,
+  ) {
     super(message);
     this.name = 'ApiError';
     this.statusCode = statusCode;
     this.errorCode = errorCode;
     this.details = details;
+    this.data = data;
   }
 }
 

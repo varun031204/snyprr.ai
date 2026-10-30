@@ -38,21 +38,49 @@ interface BackendSubscription {
   } | null;
 }
 
-// ─── Adapters ─────────────────────────────────────────────────────────────────
+// ─── Local plan definitions (authoritative until payment gateway is live) ─────
+// Prices in ₹. These mirror the LandingPage pricing section.
+// When the payment gateway is integrated, replace with live backend data.
 
-function toFrontendPlan(p: BackendPlan): SubscriptionPlan {
-  // Map billing_interval to monthly/yearly prices
-  const isYearly = p.billing_interval === 'yearly';
-  return {
-    id: p.id,
-    name: p.name,
-    description: p.description ?? '',
-    priceMonthly: isYearly ? parseFloat((p.price / 12).toFixed(2)) : p.price,
-    priceYearly: isYearly ? p.price : parseFloat((p.price * 12).toFixed(2)),
-    features: [], // Extended in future iterations
-    isPopular: p.name.toUpperCase().includes('PRO'),
-  };
-}
+const LOCAL_PLANS: SubscriptionPlan[] = [
+  {
+    id: 'standard',
+    name: 'Standard',
+    description: 'Perfect for individual traders learning market analysis',
+    priceMonthly: 999,
+    priceYearly: 10999,
+    badge: undefined,
+    isPopular: false,
+    features: [
+      'Chart Analysis with Explanation',
+      'Access to Copilot / AI Assistant',
+      'Paper Trading Simulation',
+      'Real-time Market Data',
+      'Historical Setup Outcomes',
+      'Community Access',
+    ],
+  },
+  {
+    id: 'premium',
+    name: 'Premium',
+    description: 'Advanced features for serious traders',
+    priceMonthly: 1499,
+    priceYearly: 15999,
+    badge: 'Most Popular',
+    isPopular: true,
+    features: [
+      'Everything in Standard',
+      '1-on-1 Educational Slot Booking',
+      'Master Trader Sessions',
+      '24/7 Priority Support',
+      'Advanced AI Analytics',
+      'Custom Alerts & Notifications',
+      'Export & Download Reports',
+    ],
+  },
+];
+
+// ─── Adapters ─────────────────────────────────────────────────────────────────
 
 function toFrontendSubscription(s: BackendSubscription): UserSubscription {
   return {
@@ -70,12 +98,26 @@ function toFrontendSubscription(s: BackendSubscription): UserSubscription {
 
 class SubscriptionsService implements ISubscriptionApi {
   async getPlans(): Promise<ApiResponse<SubscriptionPlan[]>> {
-    const raw = await httpGetPublic<{ data: BackendPlan[] }>('/api/subscriptions/plans');
-    return {
-      success: true,
-      data: (raw.data ?? []).map(toFrontendPlan),
-      timestamp: new Date().toISOString(),
-    };
+    // Try backend first; fall back to local definitions if unavailable or empty
+    try {
+      const raw = await httpGetPublic<{ data: BackendPlan[] }>('/api/subscriptions/plans');
+      const backendPlans = raw.data ?? [];
+      // Backend returns plans without features or ₹ pricing — use local definitions
+      if (backendPlans.length === 0) {
+        return { success: true, data: LOCAL_PLANS, timestamp: new Date().toISOString() };
+      }
+      // Merge backend plan IDs with local feature/pricing data
+      const merged = LOCAL_PLANS.map((local) => {
+        const backend = backendPlans.find(
+          (b) => b.name.toLowerCase() === local.name.toLowerCase(),
+        );
+        return backend ? { ...local, id: backend.id } : local;
+      });
+      return { success: true, data: merged, timestamp: new Date().toISOString() };
+    } catch {
+      // Backend unreachable — serve local plans
+      return { success: true, data: LOCAL_PLANS, timestamp: new Date().toISOString() };
+    }
   }
 
   async getMySubscriptions(): Promise<ApiResponse<UserSubscription[]>> {

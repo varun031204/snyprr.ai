@@ -188,6 +188,137 @@
   }
 }
 
+/* Testimonials Section Animations */
+@keyframes testimonials-section-in {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes testimonials-header-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes testimonials-carousel-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes testimonial-enter-right {
+  from {
+    opacity: 0;
+    transform: translateX(50px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes testimonial-enter-left {
+  from {
+    opacity: 0;
+    transform: translateX(-50px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes testimonial-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes gradient-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+/* Mission Section Animations */
+@keyframes mission-fade-in {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes mission-card-in {
+  from {
+    opacity: 0;
+    transform: translateX(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+/* Pricing Section Animations */
+@keyframes pricing-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pricing-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes feature-fade-in {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 /* Hero chart glow pulse */
 @keyframes heroPulse {
 
@@ -323,4 +454,4 @@ input:disabled {
 .animate-orb-speaking      { animation: orb-speaking-burst 0.9s ease-in-out infinite; }
 .animate-subtitle-appear   { animation: subtitle-appear 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 .animate-voice-btn-glow    { animation: voice-btn-glow-pulse 2s ease-in-out infinite; }
-.animate-voice-ring        { animation: voice-ring-expand 1.2s ease-out infinite; }
+.animate-voice-ring        { animation: voice-ring-expand 1.2s ease-out infinite; }

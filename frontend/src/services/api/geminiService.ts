@@ -8,7 +8,8 @@
 
 import type { Prediction } from '../../types';
 import { getLivePriceContext } from '../market/priceService';
-import { httpPost, httpGet } from './client';
+import { httpPost, httpGet } from './httpClient';
+import { ApiError } from './types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -65,14 +66,8 @@ export async function analyzeTraderSetup(prediction: Prediction): Promise<Gemini
         }
 
         return response.analysis;
-    } catch (error: any) {
-        // Handle rate limit errors specifically
-        if (error.status === 429) {
-            throw new Error(`AI quota exceeded. Resets at ${error.data?.rateLimit?.resetAt || 'soon'}.`);
-        }
-
-        // Re-throw with user-friendly message
-        throw new Error(error.data?.message || 'Failed to analyze trading setup. Please try again.');
+    } catch (error: unknown) {
+        throw toAIUserError(error, 'Failed to analyze trading setup. Please try again.');
     }
 }
 
@@ -105,11 +100,8 @@ export async function sendChatMessage(
         }
 
         return response.response;
-    } catch (error: any) {
-        if (error.status === 429) {
-            throw new Error(`AI quota exceeded. Resets at ${error.data?.rateLimit?.resetAt || 'soon'}.`);
-        }
-        throw new Error(error.data?.message || 'Failed to send chat message. Please try again.');
+    } catch (error: unknown) {
+        throw toAIUserError(error, 'Failed to send chat message. Please try again.');
     }
 }
 
@@ -134,11 +126,8 @@ export async function sendCopilotMessage(
         }
 
         return response.response;
-    } catch (error: any) {
-        if (error.status === 429) {
-            throw new Error(`AI quota exceeded. Resets at ${error.data?.rateLimit?.resetAt || 'soon'}.`);
-        }
-        throw new Error(error.data?.message || 'Failed to send copilot message. Please try again.');
+    } catch (error: unknown) {
+        throw toAIUserError(error, 'Failed to send copilot message. Please try again.');
     }
 }
 
@@ -169,11 +158,8 @@ export async function sendVoiceCopilotMessage(
         }
 
         return response.response;
-    } catch (error: any) {
-        if (error.status === 429) {
-            throw new Error(`AI quota exceeded. Resets at ${error.data?.rateLimit?.resetAt || 'soon'}.`);
-        }
-        throw new Error(error.data?.message || 'Failed to send voice message. Please try again.');
+    } catch (error: unknown) {
+        throw toAIUserError(error, 'Failed to send voice message. Please try again.');
     }
 }
 
@@ -185,7 +171,21 @@ export async function getAIQuota(): Promise<RateLimitInfo> {
     try {
         const response = await httpGet<{ rateLimit: RateLimitInfo }>('/api/ai/quota');
         return response.rateLimit;
-    } catch (error: any) {
-        throw new Error(error.data?.message || 'Failed to fetch AI quota.');
+    } catch (error: unknown) {
+        throw toAIUserError(error, 'Failed to fetch AI quota.');
     }
+}
+
+function toAIUserError(error: unknown, fallback: string): Error {
+    if (error instanceof ApiError) {
+        if (error.statusCode === 429) {
+            const resetAt = (error.data as { rateLimit?: RateLimitInfo } | undefined)?.rateLimit?.resetAt;
+            return new Error(`AI quota exceeded. Resets at ${resetAt || 'soon'}.`);
+        }
+        return new Error(error.message || fallback);
+    }
+    if (error instanceof Error && error.message) {
+        return new Error(error.message);
+    }
+    return new Error(fallback);
 }
