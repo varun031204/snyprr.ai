@@ -137,9 +137,10 @@ export const useMarketStore = create<MarketState>((set, get) => ({
   },
 }));
 
-// ── Auto-refresh every 10 seconds on module load ───────────────────────────────
-// Fetch immediately so the UI shows live prices as soon as the page loads.
+// ── Auto-refresh every 60 seconds on module load ──────────────────────────────
+// Prices update via the backend proxy (CoinGecko). 60s is enough for a dashboard.
+// The backend caches results for 30s so multiple users share one CoinGecko call.
 (function startPolling() {
   useMarketStore.getState().refreshTickers(); // immediate first fetch
-  setInterval(() => useMarketStore.getState().refreshTickers(), 10_000);
+  setInterval(() => useMarketStore.getState().refreshTickers(), 60_000);
 })();

@@ -298,7 +298,7 @@ export function createSnyprDatafeed(): Datafeed {
           if (Date.now() - lastMsgTime < 8000) return;
           const candle = await fetchLatestCandle(binanceSym, interval);
           if (candle) onRealtimeCallback(candle);
-        }, 5000);
+        }, 30_000); // 30s — backend caches for 2min, CoinGecko rate limit friendly
       };
 
       try {
