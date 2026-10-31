@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: snyprr-api
+    runtime: node
+    rootDir: apps/api
+    buildCommand: npm install
+    startCommand: npx tsx src/server.ts
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: FRONTEND_URL
+        fromGroup: snyprr-secrets
+      - key: SUPABASE_URL
+        fromGroup: snyprr-secrets
+      - key: SUPABASE_ANON_KEY
+        fromGroup: snyprr-secrets
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        fromGroup: snyprr-secrets
+      - key: DATABASE_URL
+        fromGroup: snyprr-secrets
+      - key: GEMINI_API_KEY
+        fromGroup: snyprr-secrets
