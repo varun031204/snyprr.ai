@@ -1,21 +1,12 @@
 /**
  * GoCharting Datafeed
  *
- * Provides historical + real-time data to the GoCharting SDK:
- *   - Crypto (BTC, ETH, SOL, XRP)  →  Binance REST + WebSocket
- *   - Commodities (GOLD, SILVER)    →  gold-api.com polling
- *
- * The datafeed fulfils the GoCharting `Datafeed` contract:
- *   - resolveSymbol()   – returns SymbolInfo metadata
- *   - getBars()         – returns BarsResult (array of Bar objects)
- *   - subscribeTicks()  – opens a Binance WebSocket and fires the
- *                         chart's RealtimeCallback on every kline tick
- *   - unsubscribeTicks()– closes the WebSocket for that subscription
- *   - destroy()         – tears down all open connections
+ * Provides historical + real-time data to the GoCharting SDK.
+ * All Binance calls are routed through the backend proxy (/api/market/*)
+ * to avoid India geo-blocks on api.binance.com.
  */
 
-// Local type definitions — SDK types previously from @gocharting/chart-sdk
-// which is now loaded via CDN instead of npm.
+// ── Local types (replaces @gocharting/chart-sdk imports) ─────────────────────
 
 export interface SymbolInfo {
   symbol: string;
@@ -78,7 +69,7 @@ export interface Datafeed {
   destroy?(): void;
 }
 
-// ── Instrument maps ────────────────────────────────────────────────────────────
+// ── Config ────────────────────────────────────────────────────────────────────
 
 const INSTRUMENT_TO_BINANCE: Record<string, string> = {
   'BTC/USDT': 'BTCUSDT',
@@ -87,20 +78,16 @@ const INSTRUMENT_TO_BINANCE: Record<string, string> = {
   'XRP/USDT': 'XRPUSDT',
 };
 
-/** Map from GoCharting interval type → Binance interval string */
 const RESOLUTION_MAP: Record<string, string> = {
-  // GoCharting native format (what the SDK passes to getBars/subscribeTicks)
   '1m': '1m', '2m': '1m', '3m': '3m', '5m': '5m',
   '15m': '15m', '30m': '30m',
   '1h': '1h', '2h': '2h', '4h': '4h',
   '6h': '6h', '12h': '12h',
   '1D': '1d', '1W': '1w', '1M': '1M',
-  // Legacy numeric format (TV-compat, kept just in case)
   '1': '1m', '3': '3m', '5': '5m', '15': '15m', '30': '30m',
   '60': '1h', '120': '2h', '240': '4h', '360': '6h', '720': '12h',
 };
 
-/** Precision config per instrument */
 const PRECISION: Record<string, { prec: number; tickSize: number; quote: string; session: string }> = {
   'BTC/USDT': { prec: 2, tickSize: 0.1, quote: 'USDT', session: '24x7' },
   'ETH/USDT': { prec: 2, tickSize: 0.01, quote: 'USDT', session: '24x7' },
@@ -110,30 +97,29 @@ const PRECISION: Record<string, { prec: number; tickSize: number; quote: string;
   'SILVER': { prec: 3, tickSize: 0.001, quote: 'USD', session: '24x7' },
 };
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
+// Backend proxy base URL — routes all Binance calls server-side to avoid geo-blocks
+const API_BASE = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:4000';
 
-function toBinanceInterval(resolution: string | { type?: string; baseType?: string; scale?: string | number; units?: string | number }): string {
-  if (typeof resolution === 'string') {
-    return RESOLUTION_MAP[resolution] ?? '1h';
-  }
-  // Resolution object — type / baseType are the GoCharting native strings like "1h", "4h", "1D"
-  const r = resolution as any;
-  if (r.type) return RESOLUTION_MAP[r.type] ?? '1h';
-  if (r.baseType) return RESOLUTION_MAP[r.baseType] ?? '1h';
-  // Fallback: reconstruct from scale/units
-  if (r.scale === 'hours') return `${r.units ?? 1}h`;
-  if (r.scale === 'days') return '1d';
-  if (r.scale === 'weeks') return '1w';
-  if (r.scale === 'minutes') return `${r.units ?? 1}m`;
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function toBinanceInterval(resolution: any): string {
+  if (typeof resolution === 'string') return RESOLUTION_MAP[resolution] ?? '1h';
+  if (resolution?.type) return RESOLUTION_MAP[resolution.type] ?? '1h';
+  if (resolution?.baseType) return RESOLUTION_MAP[resolution.baseType] ?? '1h';
+  if (resolution?.scale === 'hours') return `${resolution.units ?? 1}h`;
+  if (resolution?.scale === 'days') return '1d';
+  if (resolution?.scale === 'weeks') return '1w';
+  if (resolution?.scale === 'minutes') return `${resolution.units ?? 1}m`;
   return '1h';
 }
 
-// ── API proxy base URL ────────────────────────────────────────────────────────
-// All Binance calls go through the backend proxy to avoid India geo-blocks
-const API_BASE = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:4000';
-
-async function fetchBinanceBars(binanceSymbol: string, interval: string, fromMs: number, toMs: number): Promise<BarsResult> {
-  const limit = 1000;
+async function fetchProxyKlines(
+  binanceSymbol: string,
+  interval: string,
+  fromMs: number,
+  toMs: number,
+  limit = 1000,
+): Promise<BarsResult> {
   const params = new URLSearchParams({
     symbol: binanceSymbol,
     interval,
@@ -155,32 +141,51 @@ async function fetchBinanceBars(binanceSymbol: string, interval: string, fromMs:
   return { bars, meta: bars.length === 0 ? { noData: true } : undefined };
 }
 
-async function fetchCommodityBars(instrument: string): Promise<BarsResult> {
-  // For commodities we generate synthetic historical bars since there's no
-  // free historical REST API. We return 300 hourly candles ending now.
-  const cfg = PRECISION[instrument] ?? { prec: 2 };
-  const basePrice = instrument === 'GOLD' ? 2684.5 : 31.85;
-  const vol = instrument === 'GOLD' ? 0.0035 : 0.0075;
+async function fetchLatestCandle(
+  binanceSymbol: string,
+  interval: string,
+): Promise<Bar | null> {
+  try {
+    const params = new URLSearchParams({ symbol: binanceSymbol, interval, limit: '1' });
+    const res = await fetch(`${API_BASE}/api/market/klines?${params.toString()}`);
+    if (!res.ok) return null;
+    const raw: any[][] = await res.json();
+    if (!raw.length) return null;
+    const k = raw[0];
+    return {
+      time: Number(k[0]), open: parseFloat(k[1]), high: parseFloat(k[2]),
+      low: parseFloat(k[3]), close: parseFloat(k[4]), volume: parseFloat(k[5]),
+    };
+  } catch { return null; }
+}
+
+function syntheticBars(instrument: string): BarsResult {
+  const BASE: Record<string, { price: number; vol: number; prec: number }> = {
+    'BTC/USDT': { price: 70000, vol: 0.012, prec: 2 },
+    'ETH/USDT': { price: 2400, vol: 0.014, prec: 2 },
+    'SOL/USDT': { price: 180, vol: 0.018, prec: 2 },
+    'XRP/USDT': { price: 1.30, vol: 0.016, prec: 4 },
+    'GOLD': { price: 2700, vol: 0.0035, prec: 2 },
+    'SILVER': { price: 32, vol: 0.0075, prec: 3 },
+  };
+  const cfg = BASE[instrument] ?? { price: 100, vol: 0.01, prec: 2 };
   const now = Date.now();
-  let p = basePrice;
+  let p = cfg.price;
   let seed = 0;
   for (let i = 0; i < instrument.length; i++) seed = (seed << 5) - seed + instrument.charCodeAt(i);
   seed = Math.abs(seed) || 5381;
   const rand = () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; };
-  const bars = [];
-  const count = 300;
-  for (let i = count - 1; i >= 0; i--) {
+  const bars: Bar[] = [];
+  for (let i = 299; i >= 0; i--) {
     const t = now - i * 3600_000;
-    const drift = (rand() - 0.49) * vol * p;
+    const drift = (rand() - 0.49) * cfg.vol * p;
     const open = parseFloat(p.toFixed(cfg.prec));
     const close = parseFloat((p - drift).toFixed(cfg.prec));
     const sp = Math.abs(close - open);
     bars.push({
-      time: t,
-      open,
+      time: t, open, close,
       high: parseFloat((Math.max(open, close) + rand() * (sp + p * 0.001)).toFixed(cfg.prec)),
       low: parseFloat((Math.min(open, close) - rand() * (sp + p * 0.001)).toFixed(cfg.prec)),
-      close,
       volume: 0,
     });
     p = parseFloat(close.toFixed(cfg.prec));
@@ -188,37 +193,32 @@ async function fetchCommodityBars(instrument: string): Promise<BarsResult> {
   return { bars };
 }
 
-// ── WebSocket subscriptions ────────────────────────────────────────────────────
+// ── Datafeed factory ──────────────────────────────────────────────────────────
 
 interface Sub {
-  ws: WebSocket;
+  ws: WebSocket | null;
   binanceSymbol: string;
   interval: string;
   pollTimer?: ReturnType<typeof setInterval>;
 }
 
-// ── Datafeed factory ──────────────────────────────────────────────────────────
-
 export function createSnyprDatafeed(): Datafeed {
   const subs = new Map<string, Sub>();
 
+  // ── resolveSymbol ──────────────────────────────────────────────────────────
   function resolveSymbol(
     symbolName: string,
     onResolve: (si: SymbolInfo) => void,
     onError: (err: string) => void,
   ) {
-    // symbolName arrives as the `instrument` string from our CHART_ITEMS
     const cfg = PRECISION[symbolName];
-    if (!cfg) {
-      onError(`Unknown instrument: ${symbolName}`);
-      return;
-    }
+    if (!cfg) { onError(`Unknown instrument: ${symbolName}`); return; }
 
     const isForex = symbolName === 'GOLD' || symbolName === 'SILVER';
     const exchange = isForex ? 'OANDA' : 'BINANCE';
     const segment = isForex ? 'FOREX' : 'SPOT';
 
-    const si: SymbolInfo = {
+    setTimeout(() => onResolve({
       symbol: symbolName,
       full_name: `${exchange}:${segment}:${symbolName}`,
       name: symbolName,
@@ -241,21 +241,17 @@ export function createSnyprDatafeed(): Datafeed {
       data_status: 'streaming',
       tradeable: false,
       exchange_info: {
-        name: exchange.toLowerCase(),
-        code: exchange,
-        zone: 'Etc/UTC',
+        name: exchange.toLowerCase(), code: exchange, zone: 'Etc/UTC',
         hours: Array.from({ length: 7 }, () => ({ open: true })),
         valid_intervals: ['1', '5', '15', '30', '60', '240', '1D', '1W'],
       },
-    };
-
-    // resolveSymbol must call onResolve async (per GoCharting docs)
-    setTimeout(() => onResolve(si), 0);
+    }), 0);
   }
 
+  // ── getBars ────────────────────────────────────────────────────────────────
   async function getBars(
     symbolInfo: SymbolInfo,
-    resolution: string | any,
+    resolution: any,
     periodParams: PeriodParams,
   ): Promise<BarsResult> {
     const instrument = symbolInfo.symbol;
@@ -274,17 +270,16 @@ export function createSnyprDatafeed(): Datafeed {
 
     if (binanceSym) {
       try {
-        return await fetchBinanceBars(binanceSym, interval, fromMs, toMs);
-      } catch {
-        // fallthrough
-      }
+        return await fetchProxyKlines(binanceSym, interval, fromMs, toMs);
+      } catch { /* proxy not available yet — fall through to synthetic */ }
     }
-    return fetchCommodityBars(instrument);
+    return syntheticBars(instrument);
   }
 
+  // ── subscribeTicks ─────────────────────────────────────────────────────────
   function subscribeTicks(
     symbolInfo: SymbolInfo,
-    resolution: string | any,
+    resolution: any,
     onRealtimeCallback: (data: any) => void,
     subscriberUID: string,
   ) {
@@ -293,85 +288,58 @@ export function createSnyprDatafeed(): Datafeed {
     const interval = toBinanceInterval(resolution);
 
     if (binanceSym) {
-      const wsUrl = `wss://stream.binance.com:9443/ws/${binanceSym.toLowerCase()}@kline_${interval}`;
-      let ws: WebSocket;
+      let ws: WebSocket | null = null;
       let lastMsgTime = 0;
       let pollTimer: ReturnType<typeof setInterval> | undefined;
 
       const startPoll = () => {
         if (pollTimer) return;
         pollTimer = setInterval(async () => {
-          if (Date.now() - lastMsgTime < 8000) return; // WS is live
-          try {
-            const params = new URLSearchParams({ symbol: binanceSym, interval, limit: '1' });
-            const res = await fetch(`${API_BASE}/api/market/klines?${params.toString()}`);
-            if (!res.ok) return;
-            const raw: any[][] = await res.json();
-            if (!raw.length) return;
-            const k = raw[0];
-            onRealtimeCallback({
-              time: Number(k[0]),
-              open: parseFloat(k[1]),
-              high: parseFloat(k[2]),
-              low: parseFloat(k[3]),
-              close: parseFloat(k[4]),
-              volume: parseFloat(k[5]),
-            });
-          } catch { }
+          if (Date.now() - lastMsgTime < 8000) return;
+          const candle = await fetchLatestCandle(binanceSym, interval);
+          if (candle) onRealtimeCallback(candle);
         }, 5000);
       };
 
       try {
-        ws = new WebSocket(wsUrl);
+        ws = new WebSocket(`wss://stream.binance.com:9443/ws/${binanceSym.toLowerCase()}@kline_${interval}`);
         ws.onopen = () => startPoll();
+        ws.onerror = () => startPoll();
         ws.onmessage = (ev) => {
           try {
             const msg = JSON.parse(ev.data);
             if (msg.e !== 'kline' || !msg.k) return;
             lastMsgTime = Date.now();
-            // Stop the poll timer since WS is live
             if (pollTimer) { clearInterval(pollTimer); pollTimer = undefined; }
             onRealtimeCallback({
-              time: Number(msg.k.t),
-              open: parseFloat(msg.k.o),
-              high: parseFloat(msg.k.h),
-              low: parseFloat(msg.k.l),
-              close: parseFloat(msg.k.c),
-              volume: parseFloat(msg.k.v),
+              time: Number(msg.k.t), open: parseFloat(msg.k.o),
+              high: parseFloat(msg.k.h), low: parseFloat(msg.k.l),
+              close: parseFloat(msg.k.c), volume: parseFloat(msg.k.v),
             });
           } catch { }
         };
-        ws.onerror = () => startPoll();
-        subs.set(subscriberUID, { ws, binanceSymbol: binanceSym, interval, pollTimer });
-      } catch {
-        startPoll();
-        // Create a placeholder so unsubscribe has something to clean up
-        subs.set(subscriberUID, { ws: null as any, binanceSymbol: binanceSym, interval, pollTimer });
-      }
+      } catch { startPoll(); }
+
+      subs.set(subscriberUID, { ws, binanceSymbol: binanceSym, interval, pollTimer });
     } else {
-      // Commodity: poll gold-api.com every 15 seconds
+      // Commodities — poll gold-api.com
       const pollTimer = setInterval(async () => {
         try {
           const sym = instrument === 'GOLD' ? 'XAU' : 'XAG';
           const res = await fetch(`https://api.gold-api.com/price/${sym}`);
           if (!res.ok) return;
           const data = await res.json();
-          if (data.price) {
-            onRealtimeCallback({
-              time: Date.now(),
-              open: data.price,
-              high: data.price,
-              low: data.price,
-              close: data.price,
-              volume: 0,
-            });
-          }
+          if (data.price) onRealtimeCallback({
+            time: Date.now(), open: data.price, high: data.price,
+            low: data.price, close: data.price, volume: 0,
+          });
         } catch { }
       }, 15000);
-      subs.set(subscriberUID, { ws: null as any, binanceSymbol: '', interval, pollTimer });
+      subs.set(subscriberUID, { ws: null, binanceSymbol: '', interval, pollTimer });
     }
   }
 
+  // ── unsubscribeTicks / destroy ─────────────────────────────────────────────
   function unsubscribeTicks(subscriberUID: string) {
     const sub = subs.get(subscriberUID);
     if (!sub) return;
