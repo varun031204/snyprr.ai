@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
+    "build:tsx": "tsx src/server.ts",
     "start": "node dist/server.js",
+    "start:tsx": "tsx src/server.ts",
     "test": "vitest run",
     "test:db": "tsx src/db/check-connection.ts"
   },
