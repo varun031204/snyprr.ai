@@ -1,50 +1,32 @@
 /**
  * Market Data Proxy Routes
  *
- * Proxies market data server-side using CoinGecko (no geo-blocks, no API key).
- * Results are cached server-side to stay well within CoinGecko's 30 req/min limit.
+ * Uses data-api.binance.vision — Binance's official CDN mirror that bypasses
+ * India geo-blocks and Render IP restrictions. No API key required.
+ * Results are cached server-side to reduce external calls.
  *
- * GET /api/market/tickers   — live prices + 24h change for all crypto symbols
- * GET /api/market/klines    — OHLCV candles for chart rendering
- * GET /api/market/calendar  — ForexFactory economic calendar (CORS proxy)
+ * GET /api/market/tickers   — live prices + 24h change
+ * GET /api/market/klines    — OHLCV candles
+ * GET /api/market/calendar  — ForexFactory economic calendar
  */
 
 import { Router, Request, Response } from 'express';
 
 const router = Router();
 
-// ── Server-side cache to avoid rate-limiting CoinGecko ────────────────────────
-// CoinGecko free = 30 req/min. Multiple users + 10s polling = instant rate-limit.
-// Cache server-side so all users share one CoinGecko call.
+// Binance Vision CDN mirror — works from India + Render US regions
+const BINANCE_VISION = 'https://data-api.binance.vision';
 
-interface CacheEntry<T> { data: T; fetchedAt: number }
-const tickerCache: CacheEntry<any> | null = null;
-const klineCache = new Map<string, CacheEntry<any>>();
-const calendarCache: CacheEntry<any> | null = null;
+// ── Server-side cache ─────────────────────────────────────────────────────────
 
-let _tickerCache: CacheEntry<any[]> | null = null;
-let _calendarCache: CacheEntry<any[]> | null = null;
-const _klineCache = new Map<string, CacheEntry<any[]>>();
+interface CacheEntry { data: any; fetchedAt: number }
+let _tickerCache: CacheEntry | null = null;
+let _calendarCache: CacheEntry | null = null;
+const _klineCache = new Map<string, CacheEntry>();
 
 const TICKER_TTL = 30_000;   // 30s
 const KLINE_TTL = 120_000;  // 2min
 const CALENDAR_TTL = 900_000;  // 15min
-
-// ── CoinGecko ID map ──────────────────────────────────────────────────────────
-
-const SYMBOL_TO_GECKO: Record<string, string> = {
-  BTCUSDT: 'bitcoin',
-  ETHUSDT: 'ethereum',
-  SOLUSDT: 'solana',
-  XRPUSDT: 'ripple',
-};
-
-const GECKO_TO_SYMBOL: Record<string, string> = {
-  bitcoin: 'BTCUSDT',
-  ethereum: 'ETHUSDT',
-  solana: 'SOLUSDT',
-  ripple: 'XRPUSDT',
-};
 
 function setHttpCache(res: Response, seconds: number) {
   res.set('Cache-Control', `public, max-age=${seconds}, stale-while-revalidate=${seconds * 2}`);
@@ -54,42 +36,37 @@ function setHttpCache(res: Response, seconds: number) {
 
 router.get('/tickers', async (_req: Request, res: Response) => {
   try {
-    // Return server-side cache if fresh
     if (_tickerCache && Date.now() - _tickerCache.fetchedAt < TICKER_TTL) {
       setHttpCache(res, 15);
       res.json(_tickerCache.data);
       return;
     }
 
-    const ids = Object.values(SYMBOL_TO_GECKO).join(',');
-    const url = `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true&include_24hr_vol=true`;
-    const response = await fetch(url, {
-      headers: { Accept: 'application/json' },
-      signal: AbortSignal.timeout(10_000),
-    });
-    if (!response.ok) throw new Error(`CoinGecko ${response.status}`);
+    const symbols = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XRPUSDT'];
 
-    const data: Record<string, { usd: number; usd_24h_change?: number; usd_24h_vol?: number }> = await response.json();
+    // Fetch 24hr stats and current price in parallel
+    const [statsRes, priceRes] = await Promise.all([
+      fetch(
+        `${BINANCE_VISION}/api/v3/ticker/24hr?symbols=${encodeURIComponent(JSON.stringify(symbols))}`,
+        { signal: AbortSignal.timeout(10_000) }
+      ),
+      fetch(
+        `${BINANCE_VISION}/api/v3/ticker/price?symbols=${encodeURIComponent(JSON.stringify(symbols))}`,
+        { signal: AbortSignal.timeout(10_000) }
+      ),
+    ]);
 
-    const tickers = Object.entries(GECKO_TO_SYMBOL).map(([geckoId, symbol]) => {
-      const info = data[geckoId];
-      if (!info) return null;
-      return {
-        symbol,
-        lastPrice: String(info.usd),
-        priceChangePercent: String((info.usd_24h_change ?? 0).toFixed(4)),
-        highPrice: String(info.usd),
-        lowPrice: String(info.usd),
-        volume: '0',
-        quoteVolume: String(Math.round(info.usd_24h_vol ?? 0)),
-      };
-    }).filter(Boolean) as any[];
+    if (!statsRes.ok) throw new Error(`Binance Vision stats ${statsRes.status}`);
+    if (!priceRes.ok) throw new Error(`Binance Vision price ${priceRes.status}`);
 
-    _tickerCache = { data: tickers, fetchedAt: Date.now() };
+    const statsData: any[] = await statsRes.json();
+    // statsData already has lastPrice, priceChangePercent etc — return as-is
+    // (matches the BinanceTicker24h interface on the frontend)
+
+    _tickerCache = { data: statsData, fetchedAt: Date.now() };
     setHttpCache(res, 15);
-    res.json(tickers);
+    res.json(statsData);
   } catch (err: any) {
-    // Return stale cache rather than error if available
     if (_tickerCache) { res.json(_tickerCache.data); return; }
     res.status(502).json({ error: 'Market data unavailable', message: err.message });
   }
@@ -99,21 +76,10 @@ router.get('/tickers', async (_req: Request, res: Response) => {
 
 router.get('/klines', async (req: Request, res: Response) => {
   try {
-    const { symbol, limit } = req.query;
+    const { symbol, interval = '1h', startTime, endTime, limit = '500' } = req.query;
     if (!symbol) { res.status(400).json({ error: 'symbol is required' }); return; }
 
-    const symStr = String(symbol);
-    const geckoId = SYMBOL_TO_GECKO[symStr];
-    if (!geckoId) { res.status(400).json({ error: `Unknown symbol: ${symbol}` }); return; }
-
-    const requestedLimit = parseInt(String(limit ?? '500'));
-    let days = 7;
-    if (requestedLimit <= 48) days = 1;
-    else if (requestedLimit <= 168) days = 7;
-    else if (requestedLimit <= 336) days = 14;
-    else days = 90;
-
-    const cacheKey = `${symStr}_${days}`;
+    const cacheKey = `${symbol}_${interval}_${startTime}_${endTime}_${limit}`;
     const cached = _klineCache.get(cacheKey);
     if (cached && Date.now() - cached.fetchedAt < KLINE_TTL) {
       setHttpCache(res, 60);
@@ -121,24 +87,27 @@ router.get('/klines', async (req: Request, res: Response) => {
       return;
     }
 
-    const url = `https://api.coingecko.com/api/v3/coins/${geckoId}/ohlc?vs_currency=usd&days=${days}`;
-    const response = await fetch(url, {
-      headers: { Accept: 'application/json' },
-      signal: AbortSignal.timeout(15_000),
+    const params = new URLSearchParams({
+      symbol: String(symbol),
+      interval: String(interval),
+      limit: String(limit),
     });
-    if (!response.ok) throw new Error(`CoinGecko OHLC ${response.status}`);
+    if (startTime) params.set('startTime', String(startTime));
+    if (endTime) params.set('endTime', String(endTime));
 
-    // CoinGecko: [[timestamp_ms, open, high, low, close], ...]
-    // Binance format: [[open_time, open, high, low, close, volume, ...]]
-    const ohlc: number[][] = await response.json();
-    const binanceFormat = ohlc.map(([t, o, h, l, c]) => [t, o, h, l, c, 0]);
+    const response = await fetch(
+      `${BINANCE_VISION}/api/v3/klines?${params.toString()}`,
+      { signal: AbortSignal.timeout(15_000) }
+    );
+    if (!response.ok) throw new Error(`Binance Vision klines ${response.status}`);
 
-    _klineCache.set(cacheKey, { data: binanceFormat, fetchedAt: Date.now() });
+    const data = await response.json();
+    _klineCache.set(cacheKey, { data, fetchedAt: Date.now() });
     setHttpCache(res, 60);
-    res.json(binanceFormat);
+    res.json(data);
   } catch (err: any) {
-    const cacheKey = `${String(req.query.symbol)}_7`;
-    const stale = _klineCache.get(cacheKey);
+    const staleKey = `${req.query.symbol}_${req.query.interval || '1h'}_${req.query.startTime}_${req.query.endTime}_${req.query.limit || '500'}`;
+    const stale = _klineCache.get(staleKey);
     if (stale) { res.json(stale.data); return; }
     res.status(502).json({ error: 'Klines unavailable', message: err.message });
   }
@@ -156,11 +125,11 @@ router.get('/calendar', async (_req: Request, res: Response) => {
 
     const response = await fetch(
       'https://nfs.faireconomy.media/ff_calendar_thisweek.json?version=eb5f46f2c7f42d78e90eda5ab41bc2ed',
-      { signal: AbortSignal.timeout(10_000) },
+      { signal: AbortSignal.timeout(10_000) }
     );
     if (!response.ok) throw new Error(`Calendar ${response.status}`);
     const data = await response.json();
-    (_calendarCache as any) = { data, fetchedAt: Date.now() };
+    _calendarCache = { data, fetchedAt: Date.now() };
     setHttpCache(res, 900);
     res.json(data);
   } catch (err: any) {
