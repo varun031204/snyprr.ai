@@ -13,6 +13,7 @@ import profilesRouter from './routes/profiles.routes.js';
 import subscriptionsRouter from './routes/subscriptions.routes.js';
 import adminRouter from './routes/admin.routes.js';
 import aiRouter from './routes/ai.routes.js';
+import marketRouter from './routes/market.routes.js';
 
 export const app = express();
 
@@ -20,7 +21,24 @@ export const app = express();
 app.use(helmet());
 app.use(
   cors({
-    origin: env.FRONTEND_URL || 'http://localhost:5173',
+    origin: (origin, callback) => {
+      // Allow requests with no origin (server-to-server, curl, health checks)
+      if (!origin) return callback(null, true);
+      // Allow the configured frontend URL
+      const allowed = [
+        env.FRONTEND_URL || 'http://localhost:5173',
+        'http://localhost:5173',
+        'http://localhost:3000',
+      ];
+      if (allowed.some(a => origin.startsWith(a.replace(/\/$/, '')))) {
+        return callback(null, true);
+      }
+      // Allow any vercel.app subdomain for preview deployments
+      if (origin.endsWith('.vercel.app')) return callback(null, true);
+      // Allow any onrender.com subdomain
+      if (origin.endsWith('.onrender.com')) return callback(null, true);
+      callback(new Error(`CORS: ${origin} not allowed`));
+    },
     credentials: true,
   })
 );
@@ -122,6 +140,7 @@ app.use('/api/profiles', profilesRouter);
 app.use('/api/subscriptions', subscriptionsRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/ai', aiRouter);
+app.use('/api/market', marketRouter);
 
 // 404 handler
 app.use((_req, res) => {

@@ -30,8 +30,9 @@ const generateCandles = (basePrice: number): CandleData[] => {
   return candles;
 };
 
-// ── Binance 24hr ticker — covers all crypto symbols in one request ─────────────
-const BINANCE_SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XRPUSDT'];
+// ── API base URL (backend proxy) ──────────────────────────────────────────────
+// Market data is proxied through the backend to avoid India geo-blocks on Binance
+const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:4000';
 
 interface BinanceTicker24h {
   symbol: string;
@@ -43,11 +44,10 @@ interface BinanceTicker24h {
   quoteVolume: string;
 }
 
+// ── Fetch crypto ticker prices via backend proxy ───────────────────────────────
 async function fetchBinanceTickers(): Promise<Partial<MarketTicker>[]> {
   try {
-    const symbolsParam = encodeURIComponent(JSON.stringify(BINANCE_SYMBOLS));
-    const url = `https://api.binance.com/api/v3/ticker/24hr?symbols=${symbolsParam}`;
-    const res = await fetch(url);
+    const res = await fetch(`${API_BASE}/api/market/tickers`);
     if (!res.ok) return [];
     const data: BinanceTicker24h[] = await res.json();
 

@@ -128,15 +128,24 @@ function toBinanceInterval(resolution: string | { type?: string; baseType?: stri
   return '1h';
 }
 
+// ── API proxy base URL ────────────────────────────────────────────────────────
+// All Binance calls go through the backend proxy to avoid India geo-blocks
+const API_BASE = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:4000';
+
 async function fetchBinanceBars(binanceSymbol: string, interval: string, fromMs: number, toMs: number): Promise<BarsResult> {
-  // Binance max 1000 candles per request
   const limit = 1000;
-  const url = `https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=${interval}&startTime=${fromMs}&endTime=${toMs}&limit=${limit}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Binance ${res.status}`);
+  const params = new URLSearchParams({
+    symbol: binanceSymbol,
+    interval,
+    startTime: String(fromMs),
+    endTime: String(toMs),
+    limit: String(limit),
+  });
+  const res = await fetch(`${API_BASE}/api/market/klines?${params.toString()}`);
+  if (!res.ok) throw new Error(`Klines proxy ${res.status}`);
   const raw: any[][] = await res.json();
   const bars = raw.map(k => ({
-    time: Number(k[0]),   // milliseconds — GoCharting BarsResult expects ms
+    time: Number(k[0]),
     open: parseFloat(k[1]),
     high: parseFloat(k[2]),
     low: parseFloat(k[3]),
@@ -294,7 +303,8 @@ export function createSnyprDatafeed(): Datafeed {
         pollTimer = setInterval(async () => {
           if (Date.now() - lastMsgTime < 8000) return; // WS is live
           try {
-            const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${binanceSym}&interval=${interval}&limit=1`);
+            const params = new URLSearchParams({ symbol: binanceSym, interval, limit: '1' });
+            const res = await fetch(`${API_BASE}/api/market/klines?${params.toString()}`);
             if (!res.ok) return;
             const raw: any[][] = await res.json();
             if (!raw.length) return;
