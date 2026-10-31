@@ -14,12 +14,69 @@
  *   - destroy()         – tears down all open connections
  */
 
-import type {
-  Datafeed,
-  SymbolInfo,
-  BarsResult,
-  PeriodParams,
-} from '@gocharting/chart-sdk';
+// Local type definitions — SDK types previously from @gocharting/chart-sdk
+// which is now loaded via CDN instead of npm.
+
+export interface SymbolInfo {
+  symbol: string;
+  full_name: string;
+  name?: string;
+  description: string;
+  exchange: string;
+  segment?: string;
+  type: string;
+  asset_type?: string;
+  ticker: string;
+  session: string;
+  timezone: string;
+  has_intraday: boolean;
+  has_daily?: boolean;
+  supported_resolutions: string[];
+  tick_size?: number;
+  display_tick_size?: number;
+  max_tick_precision?: number;
+  quote_currency: string;
+  delay_seconds?: number;
+  data_status?: string;
+  tradeable?: boolean;
+  exchange_info?: {
+    name: string;
+    code: string;
+    zone: string;
+    hours?: Array<{ open: boolean }>;
+    valid_intervals?: string[];
+  };
+}
+
+export interface Bar {
+  time: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
+export interface BarsResult {
+  bars: Bar[];
+  meta?: { noData?: boolean; nextTime?: number };
+}
+
+export interface PeriodParams {
+  from: Date | number;
+  to: Date | number;
+  firstDataRequest?: boolean;
+  countBack?: number;
+  rows?: number;
+}
+
+export interface Datafeed {
+  resolveSymbol(symbolName: string, onResolve: (si: SymbolInfo) => void, onError: (err: string) => void): void;
+  getBars(symbolInfo: SymbolInfo, resolution: string | any, periodParams: PeriodParams): Promise<BarsResult>;
+  subscribeTicks?(symbolInfo: SymbolInfo, resolution: string | any, onRealtimeCallback: (data: any) => void, subscriberUID: string): void;
+  unsubscribeTicks?(subscriberUID: string): void;
+  destroy?(): void;
+}
 
 // ── Instrument maps ────────────────────────────────────────────────────────────
 
