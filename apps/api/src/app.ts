@@ -17,6 +17,10 @@ import marketRouter from './routes/market.routes.js';
 
 export const app = express();
 
+// Trust the first proxy hop (Render, Railway, Heroku all use reverse proxies).
+// Required for express-rate-limit to read X-Forwarded-For correctly.
+app.set('trust proxy', 1);
+
 // Security and utility middleware
 app.use(helmet());
 app.use(
