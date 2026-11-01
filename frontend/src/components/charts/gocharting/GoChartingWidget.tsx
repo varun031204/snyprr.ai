@@ -70,11 +70,16 @@ function loadGoChartingSDK(): Promise<any> {
 
 // ── GoCharting interval strings (from SDK jh[] array) ─────────────────────────
 const TF_TO_GC: Record<string, string> = {
+  // Seconds (GoCharting supports 10s, 15s, 30s, 45s)
+  '10s': '10s', '15s': '15s', '30s': '30s', '45s': '45s',
+  // Minutes
   '1m': '1m', '2m': '2m', '3m': '3m', '5m': '5m',
-  '15m': '15m', '30m': '30m', '45m': '30m',
+  '10m': '5m', '15m': '15m', '30m': '30m', '45m': '30m',
+  // Hours
   '1h': '1h', '2h': '2h', '3h': '2h', '4h': '4h',
   '6h': '6h', '8h': '6h', '12h': '12h',
-  '1d': '1D', '1D': '1D', '3d': '1D',
+  // Days / weeks / months
+  '1d': '1D', '1D': '1D', '2d': '1D', '3d': '1D',
   '1w': '1W', '1W': '1W',
   '1M': '1M',
 };

@@ -11,7 +11,6 @@ interface MarketState {
   refreshTickers: () => Promise<void>;
 }
 
-// Generate sample candle data for visual chart rendering
 const generateCandles = (basePrice: number): CandleData[] => {
   const candles: CandleData[] = [];
   let current = basePrice * 0.95;
@@ -30,9 +29,86 @@ const generateCandles = (basePrice: number): CandleData[] => {
   return candles;
 };
 
-// ── API base URL (backend proxy) ──────────────────────────────────────────────
-// Market data is proxied through the backend to avoid India geo-blocks on Binance
+// ── Symbol maps ───────────────────────────────────────────────────────────────
+
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:4000';
+
+const BINANCE_TO_APP: Record<string, string> = {
+  BTCUSDT: 'BTC/USDT', ETHUSDT: 'ETH/USDT',
+  SOLUSDT: 'SOL/USDT', XRPUSDT: 'XRP/USDT',
+};
+const APP_SYMBOLS = Object.keys(BINANCE_TO_APP); // ['BTCUSDT', ...]
+
+// ── Real-time WebSocket (Binance Vision CDN — bypasses India geo-block) ───────
+// wss://data-api.binance.vision is Binance's Cloudflare CDN mirror.
+// When connected, it pushes a price update on every trade — true real-time.
+// Falls back to stream.binance.com, then to HTTP polling if both fail.
+
+function startRealtimePrices() {
+  const streams = APP_SYMBOLS.map(s => `${s.toLowerCase()}@miniTicker`).join('/');
+
+  const wsUrls = [
+    `wss://data-api.binance.vision/stream?streams=${streams}`,
+    `wss://stream.binance.com:9443/stream?streams=${streams}`,
+  ];
+
+  let wsConnected = false;
+
+  const tryWs = (idx: number) => {
+    if (idx >= wsUrls.length) {
+      // All WebSocket URLs failed — start HTTP polling fallback
+      startHttpPolling();
+      return;
+    }
+
+    const ws = new WebSocket(wsUrls[idx]);
+    let pingTimer: ReturnType<typeof setInterval>;
+
+    ws.onopen = () => {
+      wsConnected = true;
+      // Keep alive with ping every 20s (Binance WS closes after 24h inactivity)
+      pingTimer = setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ method: 'ping' }));
+      }, 20_000);
+    };
+
+    ws.onmessage = (ev) => {
+      try {
+        const msg = JSON.parse(ev.data);
+        // Combined stream wraps payload in { stream: "...", data: {...} }
+        const data = msg.data ?? msg;
+        if (data.e !== '24hrMiniTicker') return;
+        const appSymbol = BINANCE_TO_APP[data.s];
+        if (!appSymbol) return;
+        const price = parseFloat(data.c); // c = current close (last price)
+        if (isNaN(price) || price <= 0) return;
+        useMarketStore.getState().updateTickerPrice(appSymbol, price);
+      } catch { /* ignore malformed messages */ }
+    };
+
+    ws.onerror = () => {
+      clearInterval(pingTimer);
+      wsConnected = false;
+    };
+
+    ws.onclose = () => {
+      clearInterval(pingTimer);
+      if (wsConnected) {
+        // Was connected but dropped — reconnect after 3s
+        wsConnected = false;
+        setTimeout(() => tryWs(0), 3000);
+      } else {
+        // Never connected (geo-blocked) — try next URL
+        tryWs(idx + 1);
+      }
+    };
+  };
+
+  tryWs(0);
+}
+
+// ── HTTP polling fallback (via backend proxy) ─────────────────────────────────
+// Used when both WebSocket URLs fail (strict network environments).
 
 interface BinanceTicker24h {
   symbol: string;
@@ -44,84 +120,67 @@ interface BinanceTicker24h {
   quoteVolume: string;
 }
 
-// ── Fetch crypto ticker prices via backend proxy ───────────────────────────────
 async function fetchBinanceTickers(): Promise<Partial<MarketTicker>[]> {
   try {
     const res = await fetch(`${API_BASE}/api/market/tickers`);
     if (!res.ok) return [];
     const data: BinanceTicker24h[] = await res.json();
-
-    const symbolMap: Record<string, string> = {
-      BTCUSDT: 'BTC/USDT',
-      ETHUSDT: 'ETH/USDT',
-      SOLUSDT: 'SOL/USDT',
-      XRPUSDT: 'XRP/USDT',
-    };
-
     return data.map((t) => ({
-      symbol: symbolMap[t.symbol] ?? t.symbol,
+      symbol: BINANCE_TO_APP[t.symbol] ?? t.symbol,
       price: parseFloat(t.lastPrice),
       change24h: parseFloat(t.priceChangePercent),
       high24h: parseFloat(t.highPrice),
       low24h: parseFloat(t.lowPrice),
       volume24h: parseFloat(t.quoteVolume),
     }));
-  } catch {
-    return [];
-  }
+  } catch { return []; }
 }
 
-// ── Gold-api.com for commodity spot prices ─────────────────────────────────────
 async function fetchCommodityPrice(instrument: string): Promise<number | null> {
   try {
-    const sym = instrument === 'GOLD' ? 'XAU' : instrument === 'SILVER' ? 'XAG' : null;
-    if (!sym) return null;
+    const sym = instrument === 'GOLD' ? 'XAU' : 'XAG';
     const res = await fetch(`https://api.gold-api.com/price/${sym}`);
     if (!res.ok) return null;
     const data = await res.json();
     return typeof data.price === 'number' ? data.price : null;
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
-// ── Merge live updates into the tickers array ──────────────────────────────────
-async function refreshTickersFromAPI(current: MarketTicker[]): Promise<MarketTicker[]> {
-  const [cryptoUpdates, goldPrice, silverPrice] = await Promise.all([
-    fetchBinanceTickers(),
-    fetchCommodityPrice('GOLD'),
-    fetchCommodityPrice('SILVER'),
-  ]);
+function startHttpPolling() {
+  const poll = async () => {
+    const [cryptoUpdates, goldPrice, silverPrice] = await Promise.all([
+      fetchBinanceTickers(),
+      fetchCommodityPrice('GOLD'),
+      fetchCommodityPrice('SILVER'),
+    ]);
 
-  return current.map((ticker) => {
-    const cryptoUpdate = cryptoUpdates.find((c) => c.symbol === ticker.symbol);
-    if (cryptoUpdate?.price) {
-      return {
-        ...ticker,
-        price: cryptoUpdate.price,
-        change24h: cryptoUpdate.change24h ?? ticker.change24h,
-        high24h: cryptoUpdate.high24h ?? ticker.high24h,
-        low24h: cryptoUpdate.low24h ?? ticker.low24h,
-        volume24h: cryptoUpdate.volume24h ?? ticker.volume24h,
-      };
-    }
-    if (ticker.symbol === 'GOLD' && goldPrice != null) return { ...ticker, price: goldPrice };
-    if (ticker.symbol === 'SILVER' && silverPrice != null) return { ...ticker, price: silverPrice };
-    return ticker;
-  });
+    const current = useMarketStore.getState().tickers;
+    const updated = current.map((ticker) => {
+      const cu = cryptoUpdates.find((c) => c.symbol === ticker.symbol);
+      if (cu?.price) return { ...ticker, price: cu.price, change24h: cu.change24h ?? ticker.change24h };
+      if (ticker.symbol === 'GOLD' && goldPrice != null) return { ...ticker, price: goldPrice };
+      if (ticker.symbol === 'SILVER' && silverPrice != null) return { ...ticker, price: silverPrice };
+      return ticker;
+    });
+    useMarketStore.setState({ tickers: updated });
+  };
+
+  poll(); // immediate
+  setInterval(poll, 30_000); // every 30s
 }
 
-// ── Zustand store ──────────────────────────────────────────────────────────────
+// ── Zustand store ─────────────────────────────────────────────────────────────
+
 export const useMarketStore = create<MarketState>((set, get) => ({
   activeSymbol: 'BTC/USDT',
   tickers: MOCK_TICKERS,
   candleCache: {
-    'BTC/USDT': generateCandles(92500),
-    'ETH/USDT': generateCandles(3480),
-    'SOL/USDT': generateCandles(186.0),
-    'XRP/USDT': generateCandles(2.45),
-    'GOLD': generateCandles(2684.5),
-    'SILVER': generateCandles(31.85),
+    'BTC/USDT': generateCandles(77000),
+    'ETH/USDT': generateCandles(2400),
+    'SOL/USDT': generateCandles(180),
+    'XRP/USDT': generateCandles(1.30),
+    'GOLD': generateCandles(2700),
+    'SILVER': generateCandles(32),
   },
 
   setActiveSymbol: (symbol) => set({ activeSymbol: symbol }),
@@ -132,15 +191,28 @@ export const useMarketStore = create<MarketState>((set, get) => ({
     })),
 
   refreshTickers: async () => {
-    const updated = await refreshTickersFromAPI(get().tickers);
+    const [cryptoUpdates, goldPrice, silverPrice] = await Promise.all([
+      fetchBinanceTickers(),
+      fetchCommodityPrice('GOLD'),
+      fetchCommodityPrice('SILVER'),
+    ]);
+    const updated = get().tickers.map((ticker) => {
+      const cu = cryptoUpdates.find((c) => c.symbol === ticker.symbol);
+      if (cu?.price) return { ...ticker, price: cu.price, change24h: cu.change24h ?? ticker.change24h };
+      if (ticker.symbol === 'GOLD' && goldPrice != null) return { ...ticker, price: goldPrice };
+      if (ticker.symbol === 'SILVER' && silverPrice != null) return { ...ticker, price: silverPrice };
+      return ticker;
+    });
     set({ tickers: updated });
   },
 }));
 
-// ── Auto-refresh every 60 seconds on module load ──────────────────────────────
-// Prices update via the backend proxy (CoinGecko). 60s is enough for a dashboard.
-// The backend caches results for 30s so multiple users share one CoinGecko call.
-(function startPolling() {
-  useMarketStore.getState().refreshTickers(); // immediate first fetch
-  setInterval(() => useMarketStore.getState().refreshTickers(), 60_000);
-})();
+// ── Start real-time price feed on app load ─────────────────────────────────────
+// 1. Try Binance Vision WebSocket (CDN, bypasses India geo-block) — sub-second updates
+// 2. Try stream.binance.com — sub-second updates (may be blocked in India)
+// 3. Fall back to HTTP polling every 30s via backend proxy
+
+startRealtimePrices();
+
+// Also do one immediate HTTP fetch so prices are correct before WS connects
+useMarketStore.getState().refreshTickers();

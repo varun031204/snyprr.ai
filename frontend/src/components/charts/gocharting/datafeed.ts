@@ -79,11 +79,17 @@ const INSTRUMENT_TO_BINANCE: Record<string, string> = {
 };
 
 const RESOLUTION_MAP: Record<string, string> = {
+  // Sub-minute (GoCharting supports these; we map to 1m kline from Binance)
+  '10s': '1m', '15s': '1m', '30s': '1m', '45s': '1m',
+  // Minutes
   '1m': '1m', '2m': '1m', '3m': '3m', '5m': '5m',
   '15m': '15m', '30m': '30m',
+  // Hours
   '1h': '1h', '2h': '2h', '4h': '4h',
   '6h': '6h', '12h': '12h',
+  // Days / weeks / months
   '1D': '1d', '1W': '1w', '1M': '1M',
+  // Legacy TV-compat numeric format
   '1': '1m', '3': '3m', '5': '5m', '15': '15m', '30': '30m',
   '60': '1h', '120': '2h', '240': '4h', '360': '6h', '720': '12h',
 };
@@ -292,33 +298,47 @@ export function createSnyprDatafeed(): Datafeed {
       let lastMsgTime = 0;
       let pollTimer: ReturnType<typeof setInterval> | undefined;
 
+      const onKlineMsg = (ev: MessageEvent) => {
+        try {
+          const msg = JSON.parse(ev.data);
+          if (msg.e !== 'kline' || !msg.k) return;
+          lastMsgTime = Date.now();
+          if (pollTimer) { clearInterval(pollTimer); pollTimer = undefined; }
+          onRealtimeCallback({
+            time: Number(msg.k.t), open: parseFloat(msg.k.o),
+            high: parseFloat(msg.k.h), low: parseFloat(msg.k.l),
+            close: parseFloat(msg.k.c), volume: parseFloat(msg.k.v),
+          });
+        } catch { }
+      };
+
       const startPoll = () => {
         if (pollTimer) return;
         pollTimer = setInterval(async () => {
           if (Date.now() - lastMsgTime < 8000) return;
           const candle = await fetchLatestCandle(binanceSym, interval);
           if (candle) onRealtimeCallback(candle);
-        }, 30_000); // 30s — backend caches for 2min, CoinGecko rate limit friendly
+        }, 30_000);
       };
 
-      try {
-        ws = new WebSocket(`wss://stream.binance.com:9443/ws/${binanceSym.toLowerCase()}@kline_${interval}`);
-        ws.onopen = () => startPoll();
-        ws.onerror = () => startPoll();
-        ws.onmessage = (ev) => {
-          try {
-            const msg = JSON.parse(ev.data);
-            if (msg.e !== 'kline' || !msg.k) return;
-            lastMsgTime = Date.now();
-            if (pollTimer) { clearInterval(pollTimer); pollTimer = undefined; }
-            onRealtimeCallback({
-              time: Number(msg.k.t), open: parseFloat(msg.k.o),
-              high: parseFloat(msg.k.h), low: parseFloat(msg.k.l),
-              close: parseFloat(msg.k.c), volume: parseFloat(msg.k.v),
-            });
-          } catch { }
-        };
-      } catch { startPoll(); }
+      // Try Binance Vision CDN WebSocket first (bypasses India geo-block),
+      // then fall back to stream.binance.com, then fall back to polling
+      const wsUrls = [
+        `wss://data-api.binance.vision/ws/${binanceSym.toLowerCase()}@kline_${interval}`,
+        `wss://stream.binance.com:9443/ws/${binanceSym.toLowerCase()}@kline_${interval}`,
+      ];
+
+      const tryWs = (idx: number) => {
+        if (idx >= wsUrls.length) { startPoll(); return; }
+        try {
+          ws = new WebSocket(wsUrls[idx]);
+          ws.onopen = () => startPoll(); // watchdog alongside WS
+          ws.onerror = () => { ws = null; tryWs(idx + 1); };
+          ws.onmessage = onKlineMsg;
+        } catch { tryWs(idx + 1); }
+      };
+
+      tryWs(0);
 
       subs.set(subscriberUID, { ws, binanceSymbol: binanceSym, interval, pollTimer });
     } else {
