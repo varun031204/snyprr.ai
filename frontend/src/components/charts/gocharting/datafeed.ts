@@ -238,7 +238,7 @@ export function createSnyprDatafeed(): Datafeed {
       timezone: 'Etc/UTC',
       has_intraday: true,
       has_daily: true,
-      supported_resolutions: ['1', '5', '15', '30', '60', '240', '1D', '1W'],
+      supported_resolutions: ['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '12h', '1D', '1W', '1M'],
       tick_size: cfg.tickSize,
       display_tick_size: cfg.tickSize,
       max_tick_precision: cfg.prec,
@@ -249,7 +249,7 @@ export function createSnyprDatafeed(): Datafeed {
       exchange_info: {
         name: exchange.toLowerCase(), code: exchange, zone: 'Etc/UTC',
         hours: Array.from({ length: 7 }, () => ({ open: true })),
-        valid_intervals: ['1', '5', '15', '30', '60', '240', '1D', '1W'],
+        valid_intervals: ['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '12h', '1D', '1W', '1M'],
       },
     }), 0);
   }
