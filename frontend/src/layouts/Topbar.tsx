@@ -31,7 +31,6 @@ export const Topbar: React.FC = () => {
   const { balance } = usePaperTradingStore();
   const navigate = useNavigate();
   const [profileOpen, setProfileOpen] = useState(false);
-  const [roleMenuOpen, setRoleMenuOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
 
   // Close dropdowns on outside click or Escape key
@@ -39,13 +38,11 @@ export const Topbar: React.FC = () => {
     const handleClick = (e: MouseEvent) => {
       if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
         setProfileOpen(false);
-        setRoleMenuOpen(false);
       }
     };
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setProfileOpen(false);
-        setRoleMenuOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClick);
@@ -125,14 +122,14 @@ export const Topbar: React.FC = () => {
 
         {/* Paper Trading Balance — USER only */}
         {activeRole === 'USER' && (
-        <Link
-          to="/paper-trading"
-          className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--brand-primary)]/40 transition-all"
-          title="Paper Trading"
-        >
-          <Coins className="w-4 h-4 text-[var(--color-warning)] flex-shrink-0" />
-          <span className="text-xs font-bold font-mono-num text-[var(--color-warning)]">${balance.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
-        </Link>
+          <Link
+            to="/paper-trading"
+            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--brand-primary)]/40 transition-all"
+            title="Paper Trading"
+          >
+            <Coins className="w-4 h-4 text-[var(--color-warning)] flex-shrink-0" />
+            <span className="text-xs font-bold font-mono-num text-[var(--color-warning)]">${balance.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+          </Link>
         )}
 
         {/* Home */}
@@ -165,7 +162,7 @@ export const Topbar: React.FC = () => {
         {/* Profile Menu */}
         <div className="relative" ref={profileRef}>
           <button
-            onClick={() => { setProfileOpen(!profileOpen); setRoleMenuOpen(false); }}
+            onClick={() => { setProfileOpen(!profileOpen); }}
             className="flex items-center gap-2 pl-2 pr-1.5 py-1.5 rounded-xl hover:bg-[var(--bg-surface)] border border-transparent hover:border-[var(--border-subtle)] transition-all"
           >
             <div className="w-7 h-7 rounded-lg overflow-hidden ring-1 ring-[var(--brand-primary)]/40">
