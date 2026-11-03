@@ -7,7 +7,7 @@ import { useAuthStore } from '../../state/useAuthStore';
 import { useMarketStore } from '../../state/useMarketStore';
 import { useTrialStore } from '../../state/useTrialStore';
 import { useNewsStore } from '../../state/useNewsStore';
-import { GoChartingWidget as ZoneLinesChart } from '../../components/charts/gocharting/GoChartingWidget';
+import { ZoneLinesChart } from '../../components/charts/ZoneLinesChart';
 import { AIAnalysisPanel } from '../../components/ai/AIAnalysisPanel';
 import { CHART_ITEMS } from '../../constants';
 import { EconomicCalendarWidget } from '../../components/news/EconomicCalendar';

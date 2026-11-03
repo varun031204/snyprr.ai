@@ -88,7 +88,8 @@ interface Handle {
 
 // ─── Candle helpers ─────────────────────────────────────────────────────────────
 async function fetchCandles(sym: string, interval: string, limit = 300) {
-  const r = await fetch(`https://api.binance.com/api/v3/klines?symbol=${sym}&interval=${interval}&limit=${limit}`);
+  const API_BASE = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:4000';
+  const r = await fetch(`${API_BASE}/api/market/klines?symbol=${sym}&interval=${interval}&limit=${limit}`);
   if (!r.ok) throw new Error('fetch failed');
   const raw: any[][] = await r.json();
   return raw.map(k => ({ time: Math.floor(k[0] / 1000) as any, open: +k[1], high: +k[2], low: +k[3], close: +k[4] }));
@@ -101,8 +102,15 @@ function openKlineWS(
   onUpdate: (c: { time: number; open: number; high: number; low: number; close: number }) => void,
   onError: () => void,
 ): WebSocket | null {
-  try {
-    const ws = new WebSocket(`wss://stream.binance.com:9443/ws/${symbol.toLowerCase()}@kline_${interval}`);
+  // Try Binance Vision CDN first (bypasses India geo-block), then direct stream
+  const urls = [
+    `wss://data-api.binance.vision/ws/${symbol.toLowerCase()}@kline_${interval}`,
+    `wss://stream.binance.com:9443/ws/${symbol.toLowerCase()}@kline_${interval}`,
+  ];
+  let tried = 0;
+  const tryNext = (): WebSocket | null => {
+    if (tried >= urls.length) { onError(); return null; }
+    const ws = new WebSocket(urls[tried++]);
     ws.onmessage = (ev) => {
       try {
         const msg = JSON.parse(ev.data);
@@ -110,14 +118,16 @@ function openKlineWS(
         onUpdate({ time: Math.floor(msg.k.t / 1000), open: +msg.k.o, high: +msg.k.h, low: +msg.k.l, close: +msg.k.c });
       } catch { }
     };
-    ws.onerror = onError;
+    ws.onerror = () => tryNext();
     return ws;
-  } catch { onError(); return null; }
+  };
+  try { return tryNext(); } catch { onError(); return null; }
 }
 
 async function pollLatestCandle(sym: string, interval: string): Promise<{ time: number; open: number; high: number; low: number; close: number } | null> {
   try {
-    const r = await fetch(`https://api.binance.com/api/v3/klines?symbol=${sym}&interval=${interval}&limit=1`);
+    const API_BASE = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:4000';
+    const r = await fetch(`${API_BASE}/api/market/klines?symbol=${sym}&interval=${interval}&limit=1`);
     if (!r.ok) return null;
     const raw: any[][] = await r.json();
     if (!raw.length) return null;

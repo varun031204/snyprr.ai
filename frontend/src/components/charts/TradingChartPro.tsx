@@ -77,8 +77,9 @@ function getDeterministicCandles(instrument: string, count = 150) {
 }
 
 async function fetchBinanceCandles(symbol: string, interval: string, limit = 200) {
-  const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`);
-  if (!res.ok) throw new Error('Binance failed');
+  const API_BASE = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:4000';
+  const res = await fetch(`${API_BASE}/api/market/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`);
+  if (!res.ok) throw new Error('Binance proxy failed');
   const raw: any[][] = await res.json();
   return raw.map(k => ({ time: Math.floor(k[0] / 1000) as any, open: parseFloat(k[1]), high: parseFloat(k[2]), low: parseFloat(k[3]), close: parseFloat(k[4]) }));
 }
@@ -110,36 +111,29 @@ function openBinanceWebSocket(
   onUpdate: (candle: { time: number; open: number; high: number; low: number; close: number; isClosed: boolean }) => void,
   onError: () => void,
 ): WebSocket | null {
-  try {
-    const wsSymbol = symbol.toLowerCase();
-    const ws = new WebSocket(`wss://stream.binance.com:9443/ws/${wsSymbol}@kline_${interval}`);
-
-    ws.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data) as BinanceKlineMessage;
-        if (msg.e !== 'kline' || !msg.k) return;
-        onUpdate({
-          time: Math.floor(msg.k.t / 1000),
-          open: parseFloat(msg.k.o),
-          high: parseFloat(msg.k.h),
-          low: parseFloat(msg.k.l),
-          close: parseFloat(msg.k.c),
-          isClosed: msg.k.x,
-        });
-      } catch {
-        // ignore parse errors
-      }
-    };
-
-    ws.onerror = () => {
-      onError();
-    };
-
-    return ws;
-  } catch {
-    onError();
-    return null;
-  }
+  // Try Binance Vision CDN first (bypasses India geo-block), fall back to direct stream
+  const wsSymbol = symbol.toLowerCase();
+  const urls = [
+    `wss://data-api.binance.vision/ws/${wsSymbol}@kline_${interval}`,
+    `wss://stream.binance.com:9443/ws/${wsSymbol}@kline_${interval}`,
+  ];
+  let tried = 0;
+  const tryNext = (): WebSocket | null => {
+    if (tried >= urls.length) { onError(); return null; }
+    try {
+      const ws = new WebSocket(urls[tried++]);
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data) as BinanceKlineMessage;
+          if (msg.e !== 'kline' || !msg.k) return;
+          onUpdate({ time: Math.floor(msg.k.t / 1000), open: parseFloat(msg.k.o), high: parseFloat(msg.k.h), low: parseFloat(msg.k.l), close: parseFloat(msg.k.c), isClosed: msg.k.x });
+        } catch { /* ignore */ }
+      };
+      ws.onerror = () => { tryNext(); };
+      return ws;
+    } catch { return tryNext(); }
+  };
+  return tryNext();
 }
 
 // ── Polling fallback for when WebSocket is unavailable ─────────────────────────
@@ -147,7 +141,8 @@ function openBinanceWebSocket(
 
 async function pollBinanceLatest(symbol: string, interval: string): Promise<{ time: number; open: number; high: number; low: number; close: number } | null> {
   try {
-    const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=1`);
+    const API_BASE = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:4000';
+    const res = await fetch(`${API_BASE}/api/market/klines?symbol=${symbol}&interval=${interval}&limit=1`);
     if (!res.ok) return null;
     const raw: any[][] = await res.json();
     if (!raw.length) return null;

@@ -14,7 +14,7 @@ import { usePredictions, useCreatePrediction } from '../../hooks/usePredictionsQ
 import { useAuthStore } from '../../state/useAuthStore';
 import { useMarketStore } from '../../state/useMarketStore';
 import { useUIStore } from '../../state/useUIStore';
-import { GoChartingWidget as TradingChartPro } from '../../components/charts/gocharting/GoChartingWidget';
+import { TradingChartPro } from '../../components/charts/TradingChartPro';
 import { CHART_ITEMS } from '../../constants';
 import type { Prediction, PredictionDirection } from '../../types';
 

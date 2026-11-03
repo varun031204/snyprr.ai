@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { Button } from '../../components/ui/Button';
-import { GoChartingWidget as ZoneLinesChart } from '../../components/charts/gocharting/GoChartingWidget';
+import { ZoneLinesChart } from '../../components/charts/ZoneLinesChart';
 import { usePaperTradingStore, type PTDirection, type PaperPosition } from '../../state/usePaperTradingStore';
 import { CHART_ITEMS } from '../../constants';
 import type { Prediction } from '../../types';
