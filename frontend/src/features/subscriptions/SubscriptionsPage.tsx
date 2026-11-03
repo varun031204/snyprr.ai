@@ -158,7 +158,6 @@ export default function SubscriptionsPage() {
       ) : (
         <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
           {plans.map((plan) => {
-            const price = billingCycle === 'monthly' ? plan.priceMonthly : Math.round(plan.priceYearly / 12);
             return (
               <GlassCard
                 key={plan.id}
@@ -178,20 +177,29 @@ export default function SubscriptionsPage() {
                   </div>
 
                   <div>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-4xl font-extrabold font-mono-num text-[var(--text-primary)]">
-                        ₹{price.toLocaleString('en-IN')}
-                      </span>
-                      <span className="text-xs text-[var(--text-muted)]">/ month</span>
-                    </div>
-                    {billingCycle === 'yearly' && (
-                      <p className="text-xs text-[var(--text-muted)] mt-1">
-                        <span className="line-through">₹{plan.priceYearly > plan.priceMonthly * 12 ? (plan.priceMonthly * 12).toLocaleString('en-IN') : ''}</span>
-                        {' '}
-                        <span className="font-bold text-[var(--color-success)]">₹{plan.priceYearly.toLocaleString('en-IN')}/year</span>
-                        {' '}
-                        <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[var(--color-success-bg)] text-[var(--color-success)] border border-[var(--color-success)]/30">10% OFF</span>
-                      </p>
+                    {billingCycle === 'monthly' ? (
+                      <>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-4xl font-extrabold font-mono-num text-[var(--text-primary)]">
+                            ₹{plan.priceMonthly.toLocaleString('en-IN')}
+                          </span>
+                          <span className="text-xs text-[var(--text-muted)]">/ month</span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-4xl font-extrabold font-mono-num text-[var(--text-primary)]">
+                            ₹{plan.priceYearly.toLocaleString('en-IN')}
+                          </span>
+                          <span className="text-xs text-[var(--text-muted)]">/ year</span>
+                        </div>
+                        <p className="text-sm text-[var(--color-success)] font-semibold mt-1.5">
+                          ₹{Math.round(plan.priceYearly / 12).toLocaleString('en-IN')}/month
+                          {' '}
+                          <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[var(--color-success-bg)] text-[var(--color-success)] border border-[var(--color-success)]/30">10% OFF</span>
+                        </p>
+                      </>
                     )}
                     <p className="text-[11px] font-semibold text-[var(--color-success)] mt-1.5 flex items-center gap-1">
                       <ShieldCheck className="w-3.5 h-3.5" /> Includes 7-Day Free Trial (₹0 due today)
