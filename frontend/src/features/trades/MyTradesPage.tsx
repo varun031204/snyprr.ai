@@ -10,7 +10,7 @@
  * All financial operations go through the server-side paper trading engine.
  */
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   TrendingUp, TrendingDown, X, RotateCcw, AlertTriangle,
   ChevronDown, Clock, History, BookOpen, BarChart2, Info,
@@ -560,19 +560,6 @@ export default function MyTradesPage() {
   const [closingPos, setClosingPos] = useState<PaperPosition | null>(null);
   const [bottomTab, setBottomTab] = useState<'positions' | 'history' | 'ledger'>('positions');
   const [resetConfirm, setResetConfirm] = useState(false);
-  const [chartHeight, setChartHeight] = useState(460);
-  const chartContainerRef = useRef<HTMLDivElement>(null);
-
-  // Observe chart container height so the chart fills available space
-  useEffect(() => {
-    if (!chartContainerRef.current) return;
-    const ro = new ResizeObserver(entries => {
-      const h = entries[0]?.contentRect?.height;
-      if (h && h > 100) setChartHeight(Math.floor(h));
-    });
-    ro.observe(chartContainerRef.current);
-    return () => ro.disconnect();
-  }, []);
 
   const { tickers } = useMarketStore();
   const allPrices = useAllPrices();
@@ -639,71 +626,73 @@ export default function MyTradesPage() {
     closeMut.mutate({ positionId: closingPos.id, marketPrice: price }, { onSettled: () => setClosingPos(null) });
   };
 
-  // ── Layout: instrument selector bar → [chart | order panel] → bottom panel ──
+  // ── Full-bleed layout: breaks out of AppShell padding ──────────────────────
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)] overflow-hidden bg-[var(--bg-base)]">
+    // -m-5 lg:-m-6 cancels the AppShell's p-5 lg:p-6 padding so we reach edge-to-edge
+    <div className="-m-5 lg:-m-6">
 
-      {/* ── Instrument header strip ─────────────────────────────────────────── */}
-      <div className="flex items-center gap-4 px-4 py-2 bg-[var(--bg-surface)] border-b border-[var(--border-subtle)] overflow-x-auto shrink-0 scrollbar-thin">
+      {/* ── Instrument + stats header ─────────────────────────────────────────── */}
+      <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-2
+                      bg-[var(--bg-surface)] border-b border-[var(--border-subtle)]
+                      overflow-x-auto scrollbar-thin">
+
         {/* Symbol tabs */}
         <div className="flex gap-1 flex-shrink-0">
           {CHART_ITEMS.map(({ instrument, label }) => {
-            const ticker = tickers.find(t => t.symbol === instrument);
-            const chg = ticker?.change24h ?? 0;
             const hasOpen = openPositions.some(p => p.instrument === instrument);
             const isActive = activeInstrument === instrument;
             return (
-              <button key={instrument} type="button" onClick={() => setActiveInstrument(instrument)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border whitespace-nowrap transition-all cursor-pointer flex-shrink-0 ${isActive
-                  ? 'bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] border-[var(--brand-primary)]'
-                  : 'bg-transparent text-[var(--text-muted)] border-transparent hover:text-[var(--text-primary)] hover:border-[var(--border-subtle)]'
+              <button key={instrument} type="button"
+                onClick={() => setActiveInstrument(instrument)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold
+                            border whitespace-nowrap transition-all cursor-pointer flex-shrink-0
+                            ${isActive
+                    ? 'bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] border-[var(--brand-primary)]'
+                    : 'bg-transparent text-[var(--text-muted)] border-transparent hover:text-[var(--text-primary)] hover:border-[var(--border-subtle)]'
                   }`}>
                 {label}
-                {hasOpen && <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-[var(--brand-primary)]' : 'bg-[var(--color-success)]'}`} />}
+                {hasOpen && <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isActive ? 'bg-[var(--brand-primary)]' : 'bg-[var(--color-success)]'}`} />}
               </button>
             );
           })}
         </div>
 
-        {/* Divider */}
-        <div className="h-6 w-px bg-[var(--border-subtle)] flex-shrink-0" />
+        <div className="h-5 w-px bg-[var(--border-subtle)] flex-shrink-0" />
 
-        {/* Active instrument stats */}
+        {/* Live price + 24h stats */}
         <div className="flex items-center gap-5 flex-shrink-0">
           <div className="flex items-center gap-1.5">
             {livePrice > 0 && <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-success)] animate-pulse" />}
-            <span className={`text-lg font-extrabold font-mono-num ${activeTicker?.change24h && activeTicker.change24h >= 0 ? 'text-[var(--color-success)]' : 'text-[var(--color-danger)]'}`}>
+            <span className={`text-base font-extrabold font-mono-num ${(activeTicker?.change24h ?? 0) >= 0 ? 'text-[var(--color-success)]' : 'text-[var(--color-danger)]'
+              }`}>
               {livePrice > 0 ? `$${fP(livePrice, activeInstrument)}` : '—'}
             </span>
             {activeTicker?.change24h !== undefined && (
-              <span className={`text-xs font-bold font-mono-num ${activeTicker.change24h >= 0 ? 'text-[var(--color-success)]' : 'text-[var(--color-danger)]'}`}>
+              <span className={`text-xs font-bold ${activeTicker.change24h >= 0 ? 'text-[var(--color-success)]' : 'text-[var(--color-danger)]'}`}>
                 {activeTicker.change24h >= 0 ? '+' : ''}{activeTicker.change24h.toFixed(2)}%
               </span>
             )}
           </div>
-          {activeTicker && (
-            <>
-              <StatPill label="24h High" value={`$${fP(activeTicker.high24h, activeInstrument)}`} color="text-[var(--color-success)]" />
-              <StatPill label="24h Low" value={`$${fP(activeTicker.low24h, activeInstrument)}`} color="text-[var(--color-danger)]" />
-              <StatPill label="24h Vol" value={`$${(activeTicker.volume24h / 1_000_000).toFixed(1)}M`} />
-            </>
-          )}
+          {activeTicker && <>
+            <StatPill label="24h High" value={`$${fP(activeTicker.high24h, activeInstrument)}`} color="text-[var(--color-success)]" />
+            <StatPill label="24h Low" value={`$${fP(activeTicker.low24h, activeInstrument)}`} color="text-[var(--color-danger)]" />
+            <StatPill label="24h Vol" value={`$${(activeTicker.volume24h / 1_000_000).toFixed(1)}M`} />
+          </>}
         </div>
 
-        {/* Right side: account summary + reset */}
+        {/* Right: account stats + reset */}
         <div className="ml-auto flex items-center gap-4 flex-shrink-0">
-          {accountLoading ? <Skeleton className="w-48 h-4" /> : account && (
-            <>
-              <StatPill label="Balance" value={fUsd(balance)} color="text-[var(--text-primary)]" />
-              <StatPill label="Equity" value={fUsd(equity)} color="text-[var(--brand-primary)]" />
-              <StatPill label="P&L" value={`${totalRealised + totalUnrealised >= 0 ? '+' : ''}${fUsd(totalRealised + totalUnrealised)}`} color={pnlCls(totalRealised + totalUnrealised)} />
-              <StatPill label="Return" value={`${returnPct >= 0 ? '+' : ''}${returnPct.toFixed(2)}%`} color={pnlCls(returnPct)} />
-            </>
-          )}
+          {accountLoading ? <Skeleton className="w-40 h-4" /> : account && <>
+            <StatPill label="Balance" value={fUsd(balance)} color="text-[var(--text-primary)]" />
+            <StatPill label="Equity" value={fUsd(equity)} color="text-[var(--brand-primary)]" />
+            <StatPill label="Total P&L" value={`${totalRealised + totalUnrealised >= 0 ? '+' : ''}${fUsd(totalRealised + totalUnrealised)}`} color={pnlCls(totalRealised + totalUnrealised)} />
+            <StatPill label="Return" value={`${returnPct >= 0 ? '+' : ''}${returnPct.toFixed(2)}%`} color={pnlCls(returnPct)} />
+          </>}
           {resetConfirm ? (
             <div className="flex items-center gap-1.5 text-xs">
               <span className="text-[var(--color-danger)] font-semibold">Reset?</span>
-              <button onClick={() => { resetMut.mutate(); setResetConfirm(false); }} disabled={resetMut.isPending}
+              <button onClick={() => { resetMut.mutate(); setResetConfirm(false); }}
+                disabled={resetMut.isPending}
                 className="px-2 py-0.5 rounded bg-[var(--color-danger)] text-white text-[10px] font-bold cursor-pointer disabled:opacity-50">Yes</button>
               <button onClick={() => setResetConfirm(false)}
                 className="px-2 py-0.5 rounded bg-[var(--bg-secondary)] border border-[var(--border-subtle)] text-[10px] font-bold cursor-pointer text-[var(--text-muted)]">No</button>
@@ -714,28 +703,29 @@ export default function MyTradesPage() {
               <RotateCcw className="w-3.5 h-3.5" /> Reset
             </button>
           )}
-          <span className="flex items-center gap-1 text-[10px] font-bold text-[var(--brand-primary)] px-2 py-0.5 rounded-full bg-[var(--brand-primary)]/10 border border-[var(--brand-primary)]/20 flex-shrink-0">
+          <span className="flex items-center gap-1 text-[10px] font-bold text-[var(--brand-primary)] px-2 py-0.5
+                           rounded-full bg-[var(--brand-primary)]/10 border border-[var(--brand-primary)]/20">
             <ShieldCheck className="w-3 h-3" /> PAPER
           </span>
         </div>
       </div>
 
-      {/* ── Middle: chart + order panel ─────────────────────────────────────── */}
-      <div className="flex-1 flex min-h-0 overflow-hidden">
-        {/* Chart */}
-        <div ref={chartContainerRef} className="flex-1 min-w-0 overflow-hidden" id="chart-container">
+      {/* ── Chart + Order panel (tall, fixed 620px so chart is usable) ──────── */}
+      <div className="flex border-b border-[var(--border-subtle)]" style={{ height: '620px' }}>
+        {/* Chart — takes all remaining width */}
+        <div className="flex-1 min-w-0 overflow-hidden">
           <ZoneLinesChart
             tvSymbol={activeChartItem?.symbol}
             instrument={activeInstrument}
             prediction={chartOverlay}
-            height={chartHeight}
+            height={620}
             showTimeframeBar={true}
             allowDrawing={true}
           />
         </div>
 
-        {/* Order panel */}
-        <div className="w-[280px] flex-shrink-0 overflow-hidden">
+        {/* Order panel — fixed 285px */}
+        <div className="w-[285px] flex-shrink-0 overflow-y-auto border-l border-[var(--border-subtle)]">
           <OrderPanel
             instrument={activeInstrument}
             livePrice={livePrice}
@@ -746,93 +736,109 @@ export default function MyTradesPage() {
         </div>
       </div>
 
-      {/* ── Bottom panel: positions / history / ledger ───────────────────────── */}
-      <div className="h-[220px] flex-shrink-0 border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] flex flex-col">
-        {/* Tab bar */}
-        <div className="flex items-center gap-0 border-b border-[var(--border-subtle)] px-4 shrink-0">
+      {/* ── Bottom section: positions / history / ledger — scrollable ───────── */}
+      <div className="bg-[var(--bg-surface)]">
+        {/* Tab bar — sticky so it stays visible while scrolling inside the table */}
+        <div className="sticky top-[49px] z-20 flex items-center border-b border-[var(--border-subtle)]
+                        bg-[var(--bg-surface)] px-4">
           {[
             { key: 'positions' as const, label: `Positions (${openPositions.length})`, icon: <BarChart2 className="w-3 h-3" /> },
             { key: 'history' as const, label: `Trade History (${closedPositions.length})`, icon: <History className="w-3 h-3" /> },
             { key: 'ledger' as const, label: 'Account Ledger', icon: <BookOpen className="w-3 h-3" /> },
           ].map(({ key, label, icon }) => (
             <button key={key} type="button" onClick={() => setBottomTab(key)}
-              className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold border-b-2 transition-all cursor-pointer ${bottomTab === key
-                ? 'text-[var(--brand-primary)] border-[var(--brand-primary)]'
-                : 'text-[var(--text-muted)] border-transparent hover:text-[var(--text-primary)]'
+              className={`flex items-center gap-1.5 px-4 py-3 text-xs font-semibold border-b-2 transition-all cursor-pointer
+                          ${bottomTab === key
+                  ? 'text-[var(--brand-primary)] border-[var(--brand-primary)]'
+                  : 'text-[var(--text-muted)] border-transparent hover:text-[var(--text-primary)]'
                 }`}>
               {icon}{label}
             </button>
           ))}
         </div>
 
-        {/* Table area */}
-        <div className="flex-1 overflow-y-auto scrollbar-thin">
-          {/* Positions */}
+        {/* Table content — min height so empty states don't collapse */}
+        <div className="min-h-[200px]">
+
+          {/* ── Open Positions ── */}
           {bottomTab === 'positions' && (
             posLoading ? (
-              <div className="p-4 space-y-2">{[0, 1].map(i => <Skeleton key={i} className="h-8 rounded-lg" />)}</div>
+              <div className="p-4 space-y-2">{[0, 1].map(i => <Skeleton key={i} className="h-10 rounded-lg" />)}</div>
             ) : openPositions.length === 0 ? (
               <EmptyState text="No open positions. Place an order above." />
             ) : (
-              <table className="w-full">
-                <thead className="sticky top-0 bg-[var(--bg-surface)] z-10">
-                  <tr className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">
-                    {['Instrument', 'Size', 'Entry', 'Mark Price', 'Unreal. P&L', 'SL', 'TP', 'Liq. Price', ''].map(h => (
-                      <th key={h} className="px-3 py-2 text-left font-semibold">{h}</th>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[800px]">
+                  <thead className="bg-[var(--bg-secondary)]">
+                    <tr className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">
+                      {['Instrument', 'Size (USD)', 'Entry', 'Mark Price', 'Unrealized P&L', 'Stop Loss', 'Take Profit', 'Liq. Price', ''].map(h => (
+                        <th key={h} className="px-4 py-2.5 text-left font-semibold whitespace-nowrap">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {openPositions.map(pos => (
+                      <PositionRow key={pos.id} pos={pos}
+                        livePrice={allPrices[pos.instrument] ?? 0}
+                        onClose={() => setClosingPos(pos)} />
                     ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {openPositions.map(pos => (
-                    <PositionRow key={pos.id} pos={pos}
-                      livePrice={allPrices[pos.instrument] ?? 0}
-                      onClose={() => setClosingPos(pos)} />
-                  ))}
-                </tbody>
-              </table>
+                  </tbody>
+                </table>
+              </div>
             )
           )}
 
-          {/* History */}
+          {/* ── Trade History ── */}
           {bottomTab === 'history' && (
             closedPositions.length === 0 ? (
               <EmptyState text="No closed positions yet." />
             ) : (
-              <table className="w-full">
-                <thead className="sticky top-0 bg-[var(--bg-surface)] z-10">
-                  <tr className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">
-                    {['Instrument', 'Side', 'Entry', 'Close', 'P&L', 'Reason', 'Closed At'].map(h => (
-                      <th key={h} className="px-3 py-2 text-left font-semibold">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {closedPositions.map(pos => <HistoryRow key={pos.id} pos={pos} />)}
-                </tbody>
-              </table>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[700px]">
+                  <thead className="bg-[var(--bg-secondary)]">
+                    <tr className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">
+                      {['Instrument', 'Side', 'Entry', 'Close Price', 'Realized P&L', 'Reason', 'Closed At'].map(h => (
+                        <th key={h} className="px-4 py-2.5 text-left font-semibold whitespace-nowrap">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {closedPositions.map(pos => <HistoryRow key={pos.id} pos={pos} />)}
+                  </tbody>
+                </table>
+              </div>
             )
           )}
 
-          {/* Ledger */}
+          {/* ── Account Ledger ── */}
           {bottomTab === 'ledger' && (
             ledgerEntries.length === 0 ? (
               <EmptyState text="No ledger entries yet." />
             ) : (
-              <table className="w-full">
-                <thead className="sticky top-0 bg-[var(--bg-surface)] z-10">
-                  <tr className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">
-                    {['Type', 'Note', 'Amount', 'Balance After', 'Time'].map(h => (
-                      <th key={h} className="px-3 py-2 text-left font-semibold">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {ledgerEntries.map(e => <LedgerRow key={e.id} entry={e} />)}
-                </tbody>
-              </table>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[600px]">
+                  <thead className="bg-[var(--bg-secondary)]">
+                    <tr className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">
+                      {['Type', 'Note', 'Amount', 'Balance After', 'Time'].map(h => (
+                        <th key={h} className="px-4 py-2.5 text-left font-semibold whitespace-nowrap">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ledgerEntries.map(e => <LedgerRow key={e.id} entry={e} />)}
+                  </tbody>
+                </table>
+              </div>
             )
           )}
         </div>
+      </div>
+
+      {/* Disclaimer strip */}
+      <div className="flex items-center gap-2 px-4 py-2 bg-[var(--bg-base)]
+                      border-t border-[var(--border-subtle)] text-[10px] text-[var(--text-muted)]">
+        <Info className="w-3 h-3 text-[var(--brand-primary)] flex-shrink-0" />
+        Simulated only — 0.05% fee · 0.05% slippage · SL/TP/Liquidation evaluated server-side every 15 s
       </div>
 
       {/* Close modal */}
@@ -845,12 +851,6 @@ export default function MyTradesPage() {
           isPending={closeMut.isPending}
         />
       )}
-
-      {/* Info strip */}
-      <div className="flex items-center gap-2 px-4 py-1.5 bg-[var(--bg-base)] border-t border-[var(--border-subtle)] text-[10px] text-[var(--text-muted)] shrink-0">
-        <Info className="w-3 h-3 text-[var(--brand-primary)] flex-shrink-0" />
-        <span>Paper trading — simulated only · 0.05% fee · 0.05% slippage · SL/TP/Liquidation checked server-side every 15s · State persists across devices</span>
-      </div>
     </div>
   );
 }
