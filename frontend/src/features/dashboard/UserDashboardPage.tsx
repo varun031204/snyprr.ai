@@ -224,7 +224,7 @@ export default function UserDashboardPage() {
         <ZoneLinesChart
           tvSymbol={activeAsset.symbol}
           instrument={activeAsset.instrument}
-          prediction={activePrediction}
+          prediction={signalsRevealed ? activePrediction : null}
           height={580}
           allowDrawing={true}
         />
