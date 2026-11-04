@@ -600,16 +600,16 @@ export default function MyTradesPage() {
   const [closingPos, setClosingPos] = useState<PaperPosition | null>(null);
   const [bottomTab, setBottomTab] = useState<'positions' | 'history' | 'ledger'>('positions');
   const [resetConfirm, setResetConfirm] = useState(false);
-  const [chartHeight, setChartHeight] = useState(560);
+  const [chartHeight, setChartHeight] = useState(500);
   const chartRef = useRef<HTMLDivElement>(null);
 
-  // Sync chart height with container
+  // ResizeObserver keeps chart height in sync
   useEffect(() => {
     const el = chartRef.current;
     if (!el) return;
     const ro = new ResizeObserver(([e]) => {
-      const h = e.contentRect.height;
-      if (h > 200) setChartHeight(Math.floor(h));
+      const h = Math.floor(e.contentRect.height);
+      if (h > 200) setChartHeight(h);
     });
     ro.observe(el);
     if (el.clientHeight > 200) setChartHeight(el.clientHeight);
@@ -618,7 +618,35 @@ export default function MyTradesPage() {
 
   const { tickers } = useMarketStore();
   const allPrices = useAllPrices();
-  const livePrice = useLivePrice(activeInstrument);
+  const wsPrice = useLivePrice(activeInstrument);   // WebSocket-driven
+
+  // Direct REST poll from Binance Vision — same source as ZoneLinesChart
+  // Keeps mark price tightly in sync with the chart's last candle
+  const [directPrice, setDirectPrice] = useState(0);
+  const API_BASE = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:4000';
+  const binanceMap: Record<string, string> = {
+    'BTC/USDT': 'BTCUSDT', 'ETH/USDT': 'ETHUSDT',
+    'SOL/USDT': 'SOLUSDT', 'XRP/USDT': 'XRPUSDT',
+  };
+  useEffect(() => {
+    let cancelled = false;
+    const poll = async () => {
+      const sym = binanceMap[activeInstrument];
+      if (!sym) { setDirectPrice(0); return; }
+      try {
+        const r = await fetch(`${API_BASE}/api/market/klines?symbol=${sym}&interval=1m&limit=1`);
+        if (!r.ok) return;
+        const data: any[][] = await r.json();
+        if (data.length && !cancelled) setDirectPrice(parseFloat(data[0][4]));
+      } catch { /* ignore */ }
+    };
+    poll();
+    const id = setInterval(poll, 5_000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [activeInstrument, API_BASE]);
+
+  // Use directPrice if available (matches chart), fall back to WebSocket price
+  const livePrice = directPrice > 0 ? directPrice : wsPrice;
 
   const { data: account, isLoading: accountLoading } = usePaperAccount();
   const { data: openPositions = [], isLoading: posLoading, refetch: refetchPos } = usePaperPositions();
@@ -676,17 +704,13 @@ export default function MyTradesPage() {
   };
 
   // ── Render ──────────────────────────────────────────────────────────────────
-  // Strategy: fill AppShell's <main> exactly, no outer scroll
-  // -m-5 lg:-m-6 cancels AppShell padding; then we use flex-col + h-full
-  // to divide the space: sticky header → flex-1 chart row → auto bottom panel
   return (
-    // Height: 100dvh minus Topbar(64px). -m cancels AppShell padding.
-    // TrialBanner is variable so we accept slight over/under-sizing.
-    // flex-col distributes: header(auto) → chart+panel(flex-1) → bottom(220px)
-    <div className="-m-5 lg:-m-6 flex flex-col" style={{ height: 'calc(100dvh - 64px)' }}>
+    // Full-bleed: cancel AppShell padding, scrollable page
+    // Chart section fills the viewport; positions section below on scroll
+    <div className="-m-5 lg:-m-6">
 
-      {/* ── Instrument + stats header — fixed at top, no sticky needed ────── */}
-      <div className="flex-shrink-0 flex items-center gap-3 px-4 py-2
+      {/* ── Instrument header — sticky at top of scroll area ─────────────── */}
+      <div className="sticky top-0 z-20 flex items-center gap-3 px-4 py-2
                       bg-[var(--bg-surface)] border-b border-[var(--border-subtle)]
                       overflow-x-auto scrollbar-thin">
         {/* Symbol tabs */}
@@ -702,9 +726,7 @@ export default function MyTradesPage() {
                     : 'bg-transparent text-[var(--text-muted)] border-transparent hover:text-[var(--text-primary)] hover:border-[var(--border-subtle)]'
                   }`}>
                 {label}
-                {hasOpen && (
-                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isActive ? 'bg-[var(--brand-primary)]' : 'bg-[var(--color-success)]'}`} />
-                )}
+                {hasOpen && <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isActive ? 'bg-[var(--brand-primary)]' : 'bg-[var(--color-success)]'}`} />}
               </button>
             );
           })}
@@ -712,7 +734,7 @@ export default function MyTradesPage() {
 
         <div className="h-5 w-px bg-[var(--border-subtle)] flex-shrink-0" />
 
-        {/* Live price + 24h stats */}
+        {/* Live price */}
         <div className="flex items-center gap-5 flex-shrink-0">
           <div className="flex items-center gap-1.5">
             {livePrice > 0 && <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-success)] animate-pulse" />}
@@ -732,7 +754,7 @@ export default function MyTradesPage() {
           </>}
         </div>
 
-        {/* Right: account + reset */}
+        {/* Right: account stats + reset */}
         <div className="ml-auto flex items-center gap-4 flex-shrink-0">
           {accountLoading ? <Skeleton className="w-40 h-4" /> : account && <>
             <StatPill label="Balance" value={fUsd(balance)} color="text-[var(--text-primary)]" />
@@ -743,7 +765,8 @@ export default function MyTradesPage() {
           {resetConfirm ? (
             <div className="flex items-center gap-1.5 text-xs">
               <span className="text-[var(--color-danger)] font-semibold">Reset?</span>
-              <button onClick={() => { resetMut.mutate(); setResetConfirm(false); }} disabled={resetMut.isPending}
+              <button onClick={() => { resetMut.mutate(); setResetConfirm(false); }}
+                disabled={resetMut.isPending}
                 className="px-2 py-0.5 rounded bg-[var(--color-danger)] text-white text-[10px] font-bold cursor-pointer disabled:opacity-50">Yes</button>
               <button onClick={() => setResetConfirm(false)}
                 className="px-2 py-0.5 rounded bg-[var(--bg-secondary)] border border-[var(--border-subtle)] text-[10px] font-bold cursor-pointer text-[var(--text-muted)]">No</button>
@@ -761,22 +784,30 @@ export default function MyTradesPage() {
         </div>
       </div>
 
-      {/* ── Chart + Order panel ──────────────────────────────────────────────── */}
-      {/* ── Chart + Order panel — takes all remaining height ────────────────── */}
-      <div className="flex flex-1 min-h-0 border-b border-[var(--border-subtle)]">
-        {/* Chart */}
+      {/* ── Chart + Order panel — fills full viewport height below header ──── */}
+      {/*
+          height: 100vh minus Topbar(64px) minus our header(~49px).
+          On small screens this gives ~600px min-height ensures usability.
+          The page then scrolls — positions section appears below.
+      */}
+      <div className="flex border-b border-[var(--border-subtle)]"
+        style={{ height: 'calc(100vh - 113px)', minHeight: '540px' }}>
+
+        {/* Chart — fills all width left of order panel */}
         <div ref={chartRef} className="flex-1 min-w-0 overflow-hidden">
           <ZoneLinesChart
             tvSymbol={activeChartItem?.symbol}
             instrument={activeInstrument}
             prediction={chartOverlay}
             height={chartHeight}
+            currentPrice={livePrice}
             showTimeframeBar={true}
             allowDrawing={true}
           />
         </div>
-        {/* Order panel */}
-        <div className="w-[285px] flex-shrink-0 overflow-hidden border-l border-[var(--border-subtle)]">
+
+        {/* Order panel — 285px fixed, full height, internal scroll */}
+        <div className="w-[285px] flex-shrink-0 border-l border-[var(--border-subtle)] overflow-hidden">
           <OrderPanel
             instrument={activeInstrument}
             livePrice={livePrice}
@@ -787,10 +818,11 @@ export default function MyTradesPage() {
         </div>
       </div>
 
-      {/* ── Bottom: positions / history / ledger — fixed height, scrolls internally ── */}
-      <div className="flex-shrink-0 flex flex-col bg-[var(--bg-surface)]" style={{ height: '220px' }}>
-        {/* Tab bar */}
-        <div className="flex-shrink-0 flex items-center border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4">
+      {/* ── Positions / History / Ledger — visible on scroll ────────────────── */}
+      <div className="bg-[var(--bg-surface)]">
+
+        {/* Tab bar — sticky so it stays visible while scrolling the table */}
+        <div className="sticky top-[49px] z-10 flex items-center border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4">
           {[
             { key: 'positions' as const, label: `Positions (${openPositions.length})`, icon: <BarChart2 className="w-3 h-3" /> },
             { key: 'history' as const, label: `Trade History (${closedPositions.length})`, icon: <History className="w-3 h-3" /> },
@@ -798,16 +830,16 @@ export default function MyTradesPage() {
           ].map(({ key, label, icon }) => (
             <button key={key} type="button" onClick={() => setBottomTab(key)}
               className={`flex items-center gap-1.5 px-4 py-3 text-xs font-semibold border-b-2 transition-all cursor-pointer ${bottomTab === key
-                ? 'text-[var(--brand-primary)] border-[var(--brand-primary)]'
-                : 'text-[var(--text-muted)] border-transparent hover:text-[var(--text-primary)]'
+                  ? 'text-[var(--brand-primary)] border-[var(--brand-primary)]'
+                  : 'text-[var(--text-muted)] border-transparent hover:text-[var(--text-primary)]'
                 }`}>
               {icon}{label}
             </button>
           ))}
         </div>
 
-        <div className="flex-1 overflow-y-auto scrollbar-thin">
-          {/* Positions */}
+        <div className="min-h-[180px]">
+          {/* ── Open Positions ── */}
           {bottomTab === 'positions' && (
             posLoading ? (
               <div className="p-4 space-y-2">{[0, 1].map(i => <Skeleton key={i} className="h-10 rounded-lg" />)}</div>
@@ -825,7 +857,9 @@ export default function MyTradesPage() {
                   </thead>
                   <tbody>
                     {openPositions.map(pos => (
-                      <PositionRow key={pos.id} pos={pos} livePrice={allPrices[pos.instrument] ?? 0} onClose={() => setClosingPos(pos)} />
+                      <PositionRow key={pos.id} pos={pos}
+                        livePrice={directPrice > 0 && pos.instrument === activeInstrument ? directPrice : (allPrices[pos.instrument] ?? 0)}
+                        onClose={() => setClosingPos(pos)} />
                     ))}
                   </tbody>
                 </table>
@@ -833,7 +867,7 @@ export default function MyTradesPage() {
             )
           )}
 
-          {/* History */}
+          {/* ── Trade History ── */}
           {bottomTab === 'history' && (
             closedPositions.length === 0 ? (
               <EmptyState text="No closed positions yet." />
@@ -853,7 +887,7 @@ export default function MyTradesPage() {
             )
           )}
 
-          {/* Ledger */}
+          {/* ── Account Ledger ── */}
           {bottomTab === 'ledger' && (
             ledgerEntries.length === 0 ? (
               <EmptyState text="No ledger entries yet." />
@@ -873,15 +907,16 @@ export default function MyTradesPage() {
             )
           )}
         </div>
+
+        <div className="px-4 py-2 text-[9px] text-[var(--text-muted)] border-t border-[var(--border-subtle)]">
+          Simulated only · 0.05% fee · 0.05% slippage · SL/TP/Liquidation checked server-side every 15 s
+        </div>
       </div>
 
-      {/* Disclaimer (compact, in bottom panel) */}
-
-      {/* Close modal */}
       {closingPos && (
         <CloseModal
           pos={closingPos}
-          livePrice={allPrices[closingPos.instrument] ?? 0}
+          livePrice={directPrice > 0 && closingPos.instrument === activeInstrument ? directPrice : (allPrices[closingPos.instrument] ?? 0)}
           onCancel={() => setClosingPos(null)}
           onConfirm={handleCloseConfirm}
           isPending={closeMut.isPending}
