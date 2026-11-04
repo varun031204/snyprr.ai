@@ -10,8 +10,8 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
-  TrendingUp, TrendingDown, X, RotateCcw, AlertTriangle,
-  ChevronDown, Clock, History, BookOpen, BarChart2, Info,
+  X, RotateCcw, AlertTriangle,
+  ChevronDown, History, BookOpen, BarChart2,
   Plus, Minus, Wallet, ShieldCheck,
 } from 'lucide-react';
 import { Skeleton } from '../../components/ui/Skeleton';
@@ -676,12 +676,17 @@ export default function MyTradesPage() {
   };
 
   // ── Render ──────────────────────────────────────────────────────────────────
-  // -m-5 lg:-m-6 cancels AppShell padding for full-bleed layout
+  // Strategy: fill AppShell's <main> exactly, no outer scroll
+  // -m-5 lg:-m-6 cancels AppShell padding; then we use flex-col + h-full
+  // to divide the space: sticky header → flex-1 chart row → auto bottom panel
   return (
-    <div className="-m-5 lg:-m-6">
+    // Height: 100dvh minus Topbar(64px). -m cancels AppShell padding.
+    // TrialBanner is variable so we accept slight over/under-sizing.
+    // flex-col distributes: header(auto) → chart+panel(flex-1) → bottom(220px)
+    <div className="-m-5 lg:-m-6 flex flex-col" style={{ height: 'calc(100dvh - 64px)' }}>
 
-      {/* ── Sticky instrument + stats header ─────────────────────────────── */}
-      <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-2
+      {/* ── Instrument + stats header — fixed at top, no sticky needed ────── */}
+      <div className="flex-shrink-0 flex items-center gap-3 px-4 py-2
                       bg-[var(--bg-surface)] border-b border-[var(--border-subtle)]
                       overflow-x-auto scrollbar-thin">
         {/* Symbol tabs */}
@@ -757,8 +762,8 @@ export default function MyTradesPage() {
       </div>
 
       {/* ── Chart + Order panel ──────────────────────────────────────────────── */}
-      {/* Chart + Order panel — fixed 580px height, works on all screen sizes */}
-      <div className="flex border-b border-[var(--border-subtle)] border-t-0" style={{ height: '580px' }}>
+      {/* ── Chart + Order panel — takes all remaining height ────────────────── */}
+      <div className="flex flex-1 min-h-0 border-b border-[var(--border-subtle)]">
         {/* Chart */}
         <div ref={chartRef} className="flex-1 min-w-0 overflow-hidden">
           <ZoneLinesChart
@@ -782,10 +787,10 @@ export default function MyTradesPage() {
         </div>
       </div>
 
-      {/* ── Bottom: positions / history / ledger (scrolls naturally) ─────────── */}
-      <div className="bg-[var(--bg-surface)]">
-        {/* Tab bar — sticky below instrument header */}
-        <div className="sticky top-[49px] z-20 flex items-center border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4">
+      {/* ── Bottom: positions / history / ledger — fixed height, scrolls internally ── */}
+      <div className="flex-shrink-0 flex flex-col bg-[var(--bg-surface)]" style={{ height: '220px' }}>
+        {/* Tab bar */}
+        <div className="flex-shrink-0 flex items-center border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4">
           {[
             { key: 'positions' as const, label: `Positions (${openPositions.length})`, icon: <BarChart2 className="w-3 h-3" /> },
             { key: 'history' as const, label: `Trade History (${closedPositions.length})`, icon: <History className="w-3 h-3" /> },
@@ -801,7 +806,7 @@ export default function MyTradesPage() {
           ))}
         </div>
 
-        <div className="min-h-[180px]">
+        <div className="flex-1 overflow-y-auto scrollbar-thin">
           {/* Positions */}
           {bottomTab === 'positions' && (
             posLoading ? (
@@ -870,11 +875,7 @@ export default function MyTradesPage() {
         </div>
       </div>
 
-      {/* Disclaimer */}
-      <div className="flex items-center gap-2 px-4 py-2 bg-[var(--bg-base)] border-t border-[var(--border-subtle)] text-[10px] text-[var(--text-muted)]">
-        <Info className="w-3 h-3 text-[var(--brand-primary)] flex-shrink-0" />
-        Simulated only · 0.05% fee · 0.05% slippage · SL/TP/Liquidation evaluated server-side every 15 s · Balance persists across devices
-      </div>
+      {/* Disclaimer (compact, in bottom panel) */}
 
       {/* Close modal */}
       {closingPos && (
