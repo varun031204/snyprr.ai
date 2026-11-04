@@ -168,7 +168,7 @@ const CloseModal: React.FC<{
 
 // ─── Order Panel ────────────────────────────────────────────────────────────────
 interface OrderPanelProps {
-  instrument: string; livePrice: number; balance: number; isSubmitting: boolean;
+  instrument: string; livePrice: number; balance: number | null; isSubmitting: boolean;
   onSubmit: (p: {
     direction: PaperDirection; notionalUsd: number; leverage: number;
     stopLoss: number | null; takeProfit1: number | null;
@@ -179,6 +179,7 @@ interface OrderPanelProps {
 const OrderPanel: React.FC<OrderPanelProps> = ({ instrument, livePrice, balance, isSubmitting, onSubmit }) => {
   const base = instrument.split('/')[0];
   const prec = instrument.includes('XRP') ? 4 : instrument === 'SILVER' ? 3 : 2;
+  const balanceNum = balance ?? 0;   // treat null as 0 for calculations
 
   const [direction, setDirection] = useState<PaperDirection>('LONG');
   const [orderType, setOrderType] = useState<'market' | 'limit'>('market');
@@ -201,8 +202,8 @@ const OrderPanel: React.FC<OrderPanelProps> = ({ instrument, livePrice, balance,
   const notional = useMemo(() => {
     if (qtyMode === 'units') return execPrice > 0 ? (parseFloat(qtyUnits) || 0) * execPrice : 0;
     if (qtyMode === 'usd') return parseFloat(qtyUsd) || 0;
-    return balance * (parseFloat(qtyPct) || 0) / 100;
-  }, [qtyMode, qtyUnits, qtyUsd, qtyPct, execPrice, balance]);
+    return balanceNum * (parseFloat(qtyPct) || 0) / 100;
+  }, [qtyMode, qtyUnits, qtyUsd, qtyPct, execPrice, balanceNum]);
 
   const unitCount = execPrice > 0 ? notional / execPrice : 0;
   const fee = notional * FEE_RATE;
@@ -232,7 +233,8 @@ const OrderPanel: React.FC<OrderPanelProps> = ({ instrument, livePrice, balance,
     setError('');
     if (notional <= 0) return setError('Enter a quantity');
     if (execPrice <= 0) return setError('Waiting for live price…');
-    if (fundsReq > balance) return setError(`Need ${fUsd(fundsReq)}, have ${fUsd(balance)}`);
+    if (balance === null) return setError('Loading account balance…');
+    if (fundsReq > balanceNum) return setError(`Need ${fUsd(fundsReq)}, have ${fUsd(balanceNum)}`);
     onSubmit({
       direction, notionalUsd: notional, leverage: 1,
       stopLoss: sl ? parseFloat(sl) : null,
@@ -439,7 +441,9 @@ const OrderPanel: React.FC<OrderPanelProps> = ({ instrument, livePrice, balance,
           </div>
           <div className="flex justify-between text-[11px]">
             <span className="text-[var(--text-muted)] flex items-center gap-1"><Wallet className="w-3 h-3" /> Available</span>
-            <span className="font-bold font-mono-num text-[var(--text-primary)]">{fUsd(balance)}</span>
+            <span className={`font-bold font-mono-num ${balance === null ? 'text-[var(--text-muted)] animate-pulse' : 'text-[var(--text-primary)]'}`}>
+              {balance === null ? 'Loading…' : fUsd(balanceNum)}
+            </span>
           </div>
           <div className="flex justify-between text-[11px]">
             <span className="text-[var(--text-muted)]">Fee (0.05%)</span>
@@ -671,7 +675,7 @@ export default function MyTradesPage() {
     return () => clearInterval(id);
   }, [refetchPos]);
 
-  const balance = account ? parseFloat(account.balance) : 0;
+  const balance = account ? parseFloat(account.balance) : null;
 
   const handleOrderSubmit = (params: Parameters<typeof openMut.mutate>[0]) => {
     openMut.mutate({ ...params, marketPrice: livePrice });
@@ -687,7 +691,7 @@ export default function MyTradesPage() {
 
       {/* Chart + Order panel: full viewport height, no separate header bar */}
       <div className="flex border-b border-[var(--border-subtle)]"
-           style={{ height: 'calc(100vh - 64px)', minHeight: '560px' }}>
+        style={{ height: 'calc(100vh - 64px)', minHeight: '560px' }}>
 
         {/* Left column: instrument selector + chart stacked */}
         <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
@@ -697,16 +701,15 @@ export default function MyTradesPage() {
                           bg-[var(--bg-surface)] border-b border-[var(--border-subtle)]
                           overflow-x-auto scrollbar-thin">
             {CHART_ITEMS.map(({ instrument, label }) => {
-              const hasOpen  = openPositions.some(p => p.instrument === instrument);
+              const hasOpen = openPositions.some(p => p.instrument === instrument);
               const isActive = activeInstrument === instrument;
               return (
                 <button key={instrument} type="button" onClick={() => setActiveInstrument(instrument)}
                   className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold border
-                              whitespace-nowrap transition-all cursor-pointer flex-shrink-0 ${
-                    isActive
+                              whitespace-nowrap transition-all cursor-pointer flex-shrink-0 ${isActive
                       ? 'bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] border-[var(--brand-primary)]'
                       : 'bg-transparent text-[var(--text-muted)] border-transparent hover:text-[var(--text-primary)] hover:border-[var(--border-subtle)]'
-                  }`}>
+                    }`}>
                   {label}
                   {hasOpen && (
                     <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isActive ? 'bg-[var(--brand-primary)]' : 'bg-[var(--color-success)]'}`} />
@@ -747,7 +750,7 @@ export default function MyTradesPage() {
         </div>
       </div>
 
-            {/* ── Positions / History / Ledger — visible on scroll ────────────────── */}
+      {/* ── Positions / History / Ledger — visible on scroll ────────────────── */}
       <div className="bg-[var(--bg-surface)]">
 
         {/* Tab bar — sticky so it stays visible while scrolling the table */}

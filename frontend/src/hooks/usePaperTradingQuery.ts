@@ -8,6 +8,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../lib/apiClient';
 import { useUIStore } from '../state/useUIStore';
+import { useAuthStore } from '../state/useAuthStore';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 export interface PaperAccount {
@@ -82,55 +83,63 @@ export interface OpenOrderParams {
 
 // ── Query keys ────────────────────────────────────────────────────────────────
 export const paperKeys = {
-  account:   ['paper', 'account']   as const,
+  account: ['paper', 'account'] as const,
   positions: ['paper', 'positions'] as const,
-  history:   ['paper', 'history']   as const,
-  ledger:    ['paper', 'ledger']    as const,
+  history: ['paper', 'history'] as const,
+  ledger: ['paper', 'ledger'] as const,
 };
 
 // ── Queries ───────────────────────────────────────────────────────────────────
 export function usePaperAccount() {
+  const { currentUser } = useAuthStore();
   return useQuery<PaperAccount>({
     queryKey: paperKeys.account,
     queryFn: async () => {
       const res = await apiClient.get<{ data: PaperAccount }>('/api/paper/account');
       return res.data;
     },
+    enabled: !!currentUser,    // only fire when user is authenticated
     refetchInterval: 30_000,
     retry: 2,
   });
 }
 
 export function usePaperPositions() {
+  const { currentUser } = useAuthStore();
   return useQuery<PaperPosition[]>({
     queryKey: paperKeys.positions,
     queryFn: async () => {
       const res = await apiClient.get<{ data: PaperPosition[] }>('/api/paper/positions');
       return res.data;
     },
+    enabled: !!currentUser,
     refetchInterval: 10_000,
     retry: 2,
   });
 }
 
 export function usePaperHistory(limit = 50) {
+  const { currentUser } = useAuthStore();
   return useQuery<PaperPosition[]>({
     queryKey: [...paperKeys.history, limit],
     queryFn: async () => {
       const res = await apiClient.get<{ data: PaperPosition[] }>(`/api/paper/positions/history?limit=${limit}`);
       return res.data;
     },
+    enabled: !!currentUser,
     retry: 2,
   });
 }
 
 export function usePaperLedger(limit = 50) {
+  const { currentUser } = useAuthStore();
   return useQuery<PaperLedgerEntry[]>({
     queryKey: [...paperKeys.ledger, limit],
     queryFn: async () => {
       const res = await apiClient.get<{ data: PaperLedgerEntry[] }>(`/api/paper/account/ledger?limit=${limit}`);
       return res.data;
     },
+    enabled: !!currentUser,
     retry: 2,
   });
 }
@@ -143,16 +152,16 @@ export function useOpenPaperPosition() {
   return useMutation({
     mutationFn: async (params: OpenOrderParams) => {
       const res = await apiClient.post<{ data: PaperPosition; meta: any }>('/api/paper/orders', {
-        instrument:   params.instrument,
-        direction:    params.direction,
-        notionalUsd:  params.notionalUsd,
-        leverage:     params.leverage,
-        marketPrice:  params.marketPrice,
-        stopLoss:     params.stopLoss ?? null,
-        takeProfit1:  params.takeProfit1 ?? null,
-        takeProfit2:  params.takeProfit2 ?? null,
-        takeProfit3:  params.takeProfit3 ?? null,
-        note:         params.note ?? '',
+        instrument: params.instrument,
+        direction: params.direction,
+        notionalUsd: params.notionalUsd,
+        leverage: params.leverage,
+        marketPrice: params.marketPrice,
+        stopLoss: params.stopLoss ?? null,
+        takeProfit1: params.takeProfit1 ?? null,
+        takeProfit2: params.takeProfit2 ?? null,
+        takeProfit3: params.takeProfit3 ?? null,
+        note: params.note ?? '',
       });
       return res;
     },
