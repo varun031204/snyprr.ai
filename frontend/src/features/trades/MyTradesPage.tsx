@@ -681,60 +681,61 @@ export default function MyTradesPage() {
     closeMut.mutate({ positionId: closingPos.id, marketPrice: price }, { onSettled: () => setClosingPos(null) });
   };
 
-  // ── Render ──────────────────────────────────────────────────────────────────
+  // Render
   return (
-    // Full-bleed: cancel AppShell padding, scrollable page
-    // Chart section fills the viewport; positions section below on scroll
     <div className="-m-5 lg:-m-6">
 
-      {/* -- Symbol selector � compact bar above chart --------------------- */}
-      <div className="sticky top-0 z-20 flex items-center gap-1 px-3 py-1.5
-                      bg-[var(--bg-surface)] border-b border-[var(--border-subtle)]
-                      overflow-x-auto scrollbar-thin">
-        {CHART_ITEMS.map(({ instrument, label }) => {
-          const hasOpen = openPositions.some(p => p.instrument === instrument);
-          const isActive = activeInstrument === instrument;
-          return (
-            <button key={instrument} type="button" onClick={() => setActiveInstrument(instrument)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border whitespace-nowrap
-                          transition-all cursor-pointer flex-shrink-0 ${isActive
-                  ? 'bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] border-[var(--brand-primary)]'
-                  : 'bg-transparent text-[var(--text-muted)] border-transparent hover:text-[var(--text-primary)] hover:border-[var(--border-subtle)]'
-                }`}>
-              {label}
-              {hasOpen && <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isActive ? 'bg-[var(--brand-primary)]' : 'bg-[var(--color-success)]'}`} />}
-            </button>
-          );
-        })}
-        <span className="ml-auto flex-shrink-0 flex items-center gap-1 text-[10px] font-bold
-                         text-[var(--brand-primary)] px-2 py-0.5 rounded-full
-                         bg-[var(--brand-primary)]/10 border border-[var(--brand-primary)]/20">
-          <ShieldCheck className="w-3 h-3" /> PAPER
-        </span>
-      </div>
-      {/* ── Chart + Order panel — fills full viewport height below header ──── */}
-      {/*
-          height: 100vh minus Topbar(64px) minus our header(~49px).
-          On small screens this gives ~600px min-height ensures usability.
-          The page then scrolls — positions section appears below.
-      */}
+      {/* Chart + Order panel: full viewport height, no separate header bar */}
       <div className="flex border-b border-[var(--border-subtle)]"
-        style={{ height: 'calc(100vh - 101px)', minHeight: '540px' }}>
+           style={{ height: 'calc(100vh - 64px)', minHeight: '560px' }}>
 
-        {/* Chart — fills all width left of order panel */}
-        <div ref={chartRef} className="flex-1 min-w-0 overflow-hidden">
-          <ZoneLinesChart
-            tvSymbol={activeChartItem?.symbol}
-            instrument={activeInstrument}
-            prediction={chartOverlay}
-            height={chartHeight}
-            currentPrice={livePrice}
-            showTimeframeBar={true}
-            allowDrawing={true}
-          />
+        {/* Left column: instrument selector + chart stacked */}
+        <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
+
+          {/* Instrument selector — lives inside chart column, above the chart */}
+          <div className="flex items-center gap-1 px-3 py-1.5 flex-shrink-0
+                          bg-[var(--bg-surface)] border-b border-[var(--border-subtle)]
+                          overflow-x-auto scrollbar-thin">
+            {CHART_ITEMS.map(({ instrument, label }) => {
+              const hasOpen  = openPositions.some(p => p.instrument === instrument);
+              const isActive = activeInstrument === instrument;
+              return (
+                <button key={instrument} type="button" onClick={() => setActiveInstrument(instrument)}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold border
+                              whitespace-nowrap transition-all cursor-pointer flex-shrink-0 ${
+                    isActive
+                      ? 'bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] border-[var(--brand-primary)]'
+                      : 'bg-transparent text-[var(--text-muted)] border-transparent hover:text-[var(--text-primary)] hover:border-[var(--border-subtle)]'
+                  }`}>
+                  {label}
+                  {hasOpen && (
+                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isActive ? 'bg-[var(--brand-primary)]' : 'bg-[var(--color-success)]'}`} />
+                  )}
+                </button>
+              );
+            })}
+            <span className="ml-auto flex-shrink-0 flex items-center gap-1 text-[10px] font-bold
+                             text-[var(--brand-primary)] px-2 py-0.5 rounded-full
+                             bg-[var(--brand-primary)]/10 border border-[var(--brand-primary)]/20">
+              <ShieldCheck className="w-3 h-3" /> PAPER
+            </span>
+          </div>
+
+          {/* Chart fills all remaining height */}
+          <div ref={chartRef} className="flex-1 min-h-0 overflow-hidden">
+            <ZoneLinesChart
+              tvSymbol={activeChartItem?.symbol}
+              instrument={activeInstrument}
+              prediction={chartOverlay}
+              height={chartHeight}
+              currentPrice={livePrice}
+              showTimeframeBar={true}
+              allowDrawing={true}
+            />
+          </div>
         </div>
 
-        {/* Order panel — 285px fixed, full height, internal scroll */}
+        {/* Right column: order panel */}
         <div className="w-[285px] flex-shrink-0 border-l border-[var(--border-subtle)] overflow-hidden">
           <OrderPanel
             instrument={activeInstrument}
@@ -746,11 +747,11 @@ export default function MyTradesPage() {
         </div>
       </div>
 
-      {/* ── Positions / History / Ledger — visible on scroll ────────────────── */}
+            {/* ── Positions / History / Ledger — visible on scroll ────────────────── */}
       <div className="bg-[var(--bg-surface)]">
 
         {/* Tab bar — sticky so it stays visible while scrolling the table */}
-        <div className="sticky top-[37px] z-10 flex items-center border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4">
+        <div className="sticky top-0 z-10 flex items-center border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4">
           {[
             { key: 'positions' as const, label: `Positions (${openPositions.length})`, icon: <BarChart2 className="w-3 h-3" /> },
             { key: 'history' as const, label: `Trade History (${closedPositions.length})`, icon: <History className="w-3 h-3" /> },
