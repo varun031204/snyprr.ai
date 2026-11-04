@@ -164,6 +164,23 @@ function deterministicCandles(ins: string, count = 300) {
   }
   return out.reverse();
 }
+// ── RAF-batched repaint scheduler ─────────────────────────────────────────────
+// Replaces scheduleRepaint() on every cursor pixel.
+// All callers request a repaint; the RAF executes it at most once per frame.
+function useRafTick(): [number, () => void] {
+  const [tick, setTick] = React.useState(0);
+  const pendingRef = React.useRef(false);
+  const scheduleRepaint = React.useCallback(() => {
+    if (pendingRef.current) return; // already scheduled this frame
+    pendingRef.current = true;
+    requestAnimationFrame(() => {
+      pendingRef.current = false;
+      scheduleRepaint();
+    });
+  }, []);
+  return [tick, scheduleRepaint];
+}
+
 const fmt = (p: number, ins: string) => {
   const d = ins === 'XRP/USDT' ? 4 : ins === 'SILVER' ? 3 : 2;
   return p.toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -280,12 +297,18 @@ export const ZoneLinesChart: React.FC<Props> = ({
   const [activeTool, setActiveTool] = useState<DrawTool>('cursor');
   const [drawings, setDrawings] = useState<Map<string, Drawing[]>>(new Map());
   const [pendingPts, setPendingPts] = useState<PT[]>([]);
-  const [preview, setPreview] = useState<PT | null>(null);
+  // preview stored in a ref to avoid React state updates on every cursor pixel
+  const previewRef = useRef<PT | null>(null);
+  const [preview, _setPreview] = useState<PT | null>(null);
+  const setPreview = useCallback((pt: PT | null) => {
+    previewRef.current = pt;
+    scheduleRepaint();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scheduleRepaint]);
   const [colorIdx, setColorIdx] = useState(0);
   const [textPrompt, setTextPrompt] = useState<PT | null>(null);
   const [textVal, setTextVal] = useState('');
   const [svgSize, setSvgSize] = useState({ w: 0, h: 0 });
-  const [tick, setTick] = useState(0);
 
   // Selection & drag
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -318,21 +341,21 @@ export const ZoneLinesChart: React.FC<Props> = ({
       next.set(ins, (next.get(ins) ?? []).map(d => d.id === id ? { ...d, ...patch } as Drawing : d));
       return next;
     });
-    setTick(t => t + 1);
+    scheduleRepaint();
   }, []);
 
   const removeDrawing = useCallback((id: string) => {
     setDrawings(prev => { const n = new Map(prev); n.set(instrument, (n.get(instrument) ?? []).filter(d => d.id !== id)); return n; });
     setSelectedId(s => s === id ? null : s);
     setEditPanel(e => e?.drawingId === id ? null : e);
-    setTick(t => t + 1);
+    scheduleRepaint();
   }, [instrument]);
 
   const clearAll = useCallback(() => {
     setDrawings(prev => { const n = new Map(prev); n.set(instrument, []); return n; });
     setPendingPts([]); pendingPtsRef.current = [];
     setSelectedId(null); setEditPanel(null);
-    setTick(t => t + 1);
+    scheduleRepaint();
   }, [instrument]);
 
   // ── Theme ────────────────────────────────────────────────────────────────────
@@ -366,7 +389,7 @@ export const ZoneLinesChart: React.FC<Props> = ({
 
     const syncSize = () => { if (containerRef.current) { const { clientWidth, clientHeight } = containerRef.current; setSvgSize({ w: clientWidth, h: clientHeight }); chart.applyOptions({ width: clientWidth }); } };
     const ro = new ResizeObserver(syncSize); ro.observe(container); syncSize();
-    chart.timeScale().subscribeVisibleTimeRangeChange(() => setTick(t => t + 1));
+    chart.timeScale().subscribeVisibleTimeRangeChange(() => scheduleRepaint());
 
     // ── subscribeClick: place drawings ─────────────────────────────────────────
     chart.subscribeClick((p: MouseEventParams) => {
@@ -398,11 +421,11 @@ export const ZoneLinesChart: React.FC<Props> = ({
           }
           if (dist < minDist) { minDist = dist; nearest = d; }
         });
-        if (nearest) { setDrawings(prev => { const n = new Map(prev); n.set(ins, (n.get(ins) ?? []).filter(d => d.id !== (nearest as Drawing).id)); return n; }); setTick(t => t + 1); }
+        if (nearest) { setDrawings(prev => { const n = new Map(prev); n.set(ins, (n.get(ins) ?? []).filter(d => d.id !== (nearest as Drawing).id)); return n; }); scheduleRepaint(); }
         return;
       }
 
-      const add = (d: Drawing) => { setDrawings(prev => { const n = new Map(prev); n.set(ins, [...(n.get(ins) ?? []), d]); return n; }); setColorIdx(i => i + 1); setTick(t => t + 1); };
+      const add = (d: Drawing) => { setDrawings(prev => { const n = new Map(prev); n.set(ins, [...(n.get(ins) ?? []), d]); return n; }); setColorIdx(i => i + 1); scheduleRepaint(); };
 
       if (tool === 'hline') { add({ id, type: 'hline', price, color: col, label: fmt(price, ins) } as HLine); return; }
       if (tool === 'vline') { add({ id, type: 'vline', time, color: col } as VLine); return; }
@@ -459,7 +482,7 @@ export const ZoneLinesChart: React.FC<Props> = ({
       if (!p.point || !p.time) { setPreview(null); return; }
       const price = series.coordinateToPrice(p.point.y); if (price == null) { setPreview(null); return; }
       const time = typeof p.time === 'number' ? p.time : Math.floor(Date.now() / 1000);
-      setPreview({ time, price }); setTick(t => t + 1);
+      setPreview({ time, price }); scheduleRepaint();
     });
 
     const onWheel = (e: WheelEvent) => {
@@ -509,8 +532,12 @@ export const ZoneLinesChart: React.FC<Props> = ({
               lastWsMsgTime = Date.now();
               // WebSocket is live — stop polling backup
               if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
-              candleRef.current.update(c as any);
-              lastCandleRef.current = c;
+              // RAF-batch the chart update to stay in sync with browser paint
+              requestAnimationFrame(() => {
+                if (!candleRef.current) return;
+                candleRef.current.update(c as any);
+                lastCandleRef.current = c;
+              });
             },
             () => { /* WebSocket error — watchdog polling handles backup */ },
           );
@@ -609,48 +636,60 @@ export const ZoneLinesChart: React.FC<Props> = ({
   }, []);
 
   useEffect(() => {
+    let rafId: number | null = null;
     const onMove = (e: MouseEvent) => {
       const drag = draggingRef.current; if (!drag) return;
-      const chart = chartRef.current, series = candleRef.current; if (!chart || !series) return;
-      const container = containerRef.current; if (!container) return;
-      const rect = container.getBoundingClientRect();
-      const cx = e.clientX - rect.left, cy = e.clientY - rect.top;
-      const price = series.coordinateToPrice(cy);
-      const time = chart.timeScale().coordinateToTime(cx) as any;
-      if (price == null) return;
-      const ins = instrumentRef.current;
-      const { drawingId, handleKey } = drag;
+      // RAF-throttle drag updates — no React state on every pixel, max 60fps
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        const chart = chartRef.current, series = candleRef.current; if (!chart || !series) return;
+        const container = containerRef.current; if (!container) return;
+        const rect = container.getBoundingClientRect();
+        const cx = e.clientX - rect.left, cy = e.clientY - rect.top;
+        const price = series.coordinateToPrice(cy);
+        const time = chart.timeScale().coordinateToTime(cx) as any;
+        if (price == null) return;
+        const ins = instrumentRef.current;
+        const { drawingId, handleKey } = draggingRef.current ?? drag;
 
-      setDrawings(prev => {
-        const n = new Map(prev);
-        n.set(ins, (n.get(ins) ?? []).map(d => {
-          if (d.id !== drawingId) return d;
-          const dd = { ...d } as any;
-          if (handleKey === 'p1' && 'p1' in dd) dd.p1 = { time: time ?? dd.p1.time, price };
-          else if (handleKey === 'p2' && 'p2' in dd) dd.p2 = { time: time ?? dd.p2.time, price };
-          else if (handleKey === 'p3' && 'p3' in dd) dd.p3 = { time: time ?? dd.p3.time, price };
-          else if (handleKey === 'price') dd.price = price;
-          else if (handleKey === 'priceTop') dd.priceTop = price;
-          else if (handleKey === 'priceBot') dd.priceBot = price;
-          else if (handleKey === 'entry') dd.entry = price;
-          else if (handleKey === 'tp') dd.tp = price;
-          else if (handleKey === 'sl') dd.sl = price;
-          else if (handleKey === 'pos') { dd.price = price; dd.time = time ?? dd.time; }
-          else if (handleKey === 'time') dd.time = time ?? dd.time;
-          // Sync labels
-          if (dd.type === 'hline') dd.label = fmt(dd.price, ins);
-          if (dd.type === 'zone') dd.label = `${fmt(dd.priceBot, ins)}–${fmt(dd.priceTop, ins)}`;
-          return dd as Drawing;
-        }));
-        return n;
+        setDrawings(prev => {
+          const n = new Map(prev);
+          n.set(ins, (n.get(ins) ?? []).map(d => {
+            if (d.id !== drawingId) return d;
+            const dd = { ...d } as any;
+            if (handleKey === 'p1' && 'p1' in dd) dd.p1 = { time: time ?? dd.p1.time, price };
+            else if (handleKey === 'p2' && 'p2' in dd) dd.p2 = { time: time ?? dd.p2.time, price };
+            else if (handleKey === 'p3' && 'p3' in dd) dd.p3 = { time: time ?? dd.p3.time, price };
+            else if (handleKey === 'price') dd.price = price;
+            else if (handleKey === 'priceTop') dd.priceTop = price;
+            else if (handleKey === 'priceBot') dd.priceBot = price;
+            else if (handleKey === 'entry') dd.entry = price;
+            else if (handleKey === 'tp') dd.tp = price;
+            else if (handleKey === 'sl') dd.sl = price;
+            else if (handleKey === 'pos') { dd.price = price; dd.time = time ?? dd.time; }
+            else if (handleKey === 'time') dd.time = time ?? dd.time;
+            if (dd.type === 'hline') dd.label = fmt(dd.price, ins);
+            if (dd.type === 'zone') dd.label = `${fmt(dd.priceBot, ins)}–${fmt(dd.priceTop, ins)}`;
+            return dd as Drawing;
+          }));
+          return n;
+        });
+        scheduleRepaint();
       });
-      setTick(t => t + 1);
     };
-    const onUp = () => { setDragging(null); draggingRef.current = null; };
+    const onUp = () => {
+      if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
+      setDragging(null); draggingRef.current = null;
+    };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
-    return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
-  }, []);
+    return () => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [scheduleRepaint]);
 
   // ── SVG Renderer ─────────────────────────────────────────────────────────────
   const renderSVG = useCallback(() => {
@@ -662,6 +701,8 @@ export const ZoneLinesChart: React.FC<Props> = ({
     const tX = (t: number) => chart.timeScale().timeToCoordinate(t as any);
     const W = svgSize.w, H = svgSize.h;
     const FL = -200, FR = W + 200;
+    // Use the ref directly — avoids stale closure on preview state
+    const currentPreview = previewRef.current;
 
     const extLine = (x1: number, y1: number, x2: number, y2: number, mode: 'extend' | 'ray' | 'seg'): [number, number, number, number] => {
       if (mode === 'seg') return [x1, y1, x2, y2];
@@ -886,10 +927,10 @@ export const ZoneLinesChart: React.FC<Props> = ({
       }
     });
 
-    // Ghost preview
-    if (pendingPts.length > 0 && preview && activeTool !== 'cursor') {
+    // Ghost currentPreview
+    if (pendingPts.length > 0 && currentPreview && activeTool !== 'cursor') {
       const pt1 = pendingPts[pendingPts.length - 1];
-      const a = xy(pt1.time, pt1.price), b = xy(preview.time, preview.price);
+      const a = xy(pt1.time, pt1.price), b = xy(currentPreview.time, currentPreview.price);
       if (a && b) {
         elems.push(
           <g key="ghost" opacity={0.5}>
@@ -902,13 +943,13 @@ export const ZoneLinesChart: React.FC<Props> = ({
     }
 
     // Live price crosshair label
-    if (preview && activeTool !== 'cursor' && activeTool !== 'eraser') {
-      const y = pY(preview.price);
+    if (currentPreview && activeTool !== 'cursor' && activeTool !== 'eraser') {
+      const y = pY(currentPreview.price);
       if (y != null) {
         elems.push(
           <g key="clabel">
             <rect x={W - 95} y={y - 11} width={92} height={18} rx={3} fill="rgba(0,0,0,0.8)" />
-            <text x={W - 49} y={y + 4} textAnchor="middle" fill="#fbbf24" fontSize={9.5} fontFamily="monospace" fontWeight="700">${fmt(preview.price, ins)}</text>
+            <text x={W - 49} y={y + 4} textAnchor="middle" fill="#fbbf24" fontSize={9.5} fontFamily="monospace" fontWeight="700">${fmt(currentPreview.price, ins)}</text>
           </g>
         );
       }
@@ -919,7 +960,7 @@ export const ZoneLinesChart: React.FC<Props> = ({
     // in with `pointerEvents: all` so selection still works while drawing.
     return <g style={{ pointerEvents: allowDrawing ? 'all' : 'none' }}>{elems}</g>;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tick, svgSize, instrument, drawings, pendingPts, preview, activeTool, selectedId, buildHandles, onHandleMouseDown, allowDrawing]);
+  }, [tick, svgSize, instrument, drawings, pendingPts, activeTool, selectedId, buildHandles, onHandleMouseDown, allowDrawing]);
 
   // ── Nav helpers ───────────────────────────────────────────────────────────────
   const scrollL = useCallback(() => { const ts = chartRef.current?.timeScale(); if (!ts) return; const r = ts.getVisibleLogicalRange(); if (!r) return; ts.setVisibleLogicalRange({ from: r.from - Math.max(5, (r.to - r.from) * 0.25), to: r.to - Math.max(5, (r.to - r.from) * 0.25) }); }, []);
@@ -1203,7 +1244,7 @@ export const ZoneLinesChart: React.FC<Props> = ({
                   if (e.key === 'Enter' && textVal.trim()) {
                     const col = PALETTE[colorIdxRef.current % PALETTE.length];
                     setDrawings(prev => { const n = new Map(prev); const ins = instrumentRef.current; n.set(ins, [...(n.get(ins) ?? []), { id: `txt_${Date.now()}`, type: 'text', price: textPrompt.price, time: textPrompt.time, text: textVal.trim(), color: col } as TextLbl]); return n; });
-                    setColorIdx(i => i + 1); setTick(t => t + 1); setTextVal(''); setTextPrompt(null);
+                    setColorIdx(i => i + 1); scheduleRepaint(); setTextVal(''); setTextPrompt(null);
                   }
                   if (e.key === 'Escape') { setTextVal(''); setTextPrompt(null); }
                 }}
@@ -1211,7 +1252,7 @@ export const ZoneLinesChart: React.FC<Props> = ({
                 className="w-full bg-[var(--bg-secondary)] text-[var(--text-primary)] border border-[var(--border-subtle)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-primary)]" />
               <div className="flex gap-2">
                 <button type="button" onClick={() => { setTextVal(''); setTextPrompt(null); }} className="flex-1 px-3 py-1.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-subtle)] text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer">Cancel</button>
-                <button type="button" onClick={() => { if (!textVal.trim()) return; const col = PALETTE[colorIdxRef.current % PALETTE.length]; setDrawings(prev => { const n = new Map(prev); const ins = instrumentRef.current; n.set(ins, [...(n.get(ins) ?? []), { id: `txt_${Date.now()}`, type: 'text', price: textPrompt.price, time: textPrompt.time, text: textVal.trim(), color: col } as TextLbl]); return n; }); setColorIdx(i => i + 1); setTick(t => t + 1); setTextVal(''); setTextPrompt(null); }} className="flex-1 px-3 py-1.5 rounded-lg bg-[var(--brand-primary)] text-white text-xs font-semibold cursor-pointer">Add</button>
+                <button type="button" onClick={() => { if (!textVal.trim()) return; const col = PALETTE[colorIdxRef.current % PALETTE.length]; setDrawings(prev => { const n = new Map(prev); const ins = instrumentRef.current; n.set(ins, [...(n.get(ins) ?? []), { id: `txt_${Date.now()}`, type: 'text', price: textPrompt.price, time: textPrompt.time, text: textVal.trim(), color: col } as TextLbl]); return n; }); setColorIdx(i => i + 1); scheduleRepaint(); setTextVal(''); setTextPrompt(null); }} className="flex-1 px-3 py-1.5 rounded-lg bg-[var(--brand-primary)] text-white text-xs font-semibold cursor-pointer">Add</button>
               </div>
             </div>
           </div>

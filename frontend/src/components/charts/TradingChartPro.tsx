@@ -251,15 +251,23 @@ export const TradingChartPro: React.FC<TradingChartProProps> = ({
     });
     const series = chart.addSeries(CandlestickSeries, { upColor: '#22c55e', downColor: '#ef4444', borderUpColor: '#22c55e', borderDownColor: '#ef4444', wickUpColor: '#22c55e', wickDownColor: '#ef4444' } as any);
     chartRef.current = chart; seriesRef.current = series as ISeriesApi<'Candlestick'>;
-    const onLogicalRangeChange = () => setOverlayTick(t => t + 1);
+    // RAF-batched overlay repaints — max 60fps, no React state on every scroll frame
+    let rafPending = false;
+    const scheduleOverlayTick = () => {
+      if (rafPending) return;
+      rafPending = true;
+      requestAnimationFrame(() => { rafPending = false; setOverlayTick(t => t + 1); });
+    };
+    const onLogicalRangeChange = () => scheduleOverlayTick();
     chart.timeScale().subscribeVisibleLogicalRangeChange(onLogicalRangeChange);
     const ro = new ResizeObserver(() => {
       if (containerRef.current) {
-        chart.applyOptions({ width: containerRef.current.clientWidth });
-        setOverlayTick(t => t + 1);
+        const w = containerRef.current.clientWidth;
+        requestAnimationFrame(() => {
+          if (containerRef.current) { chart.applyOptions({ width: w }); scheduleOverlayTick(); }
+        });
       }
     });
-    ro.observe(containerRef.current);
     const onDbl = () => {
       chart.priceScale('right').applyOptions({ autoScale: true });
       chart.timeScale().fitContent();
@@ -321,14 +329,12 @@ export const TradingChartPro: React.FC<TradingChartProProps> = ({
             lastWsMsgTime = Date.now();
             // WebSocket is live — stop polling backup
             if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
-            seriesRef.current.update({
-              time: candle.time as any,
-              open: candle.open,
-              high: candle.high,
-              low: candle.low,
-              close: candle.close,
+            // RAF-batch chart updates to stay in sync with browser paint cycle
+            const snap = { time: candle.time, open: candle.open, high: candle.high, low: candle.low, close: candle.close };
+            lastCandleRef.current = snap;
+            requestAnimationFrame(() => {
+              if (seriesRef.current) seriesRef.current.update(snap as any);
             });
-            lastCandleRef.current = { time: candle.time, open: candle.open, high: candle.high, low: candle.low, close: candle.close };
           },
           () => { /* WebSocket error — watchdog polling handles backup */ },
         );
