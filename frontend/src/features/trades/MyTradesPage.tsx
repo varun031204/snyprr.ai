@@ -138,8 +138,8 @@ const CloseModal: React.FC<{
 
         {p > 0 && (
           <div className={`flex items-center justify-between px-3 py-2.5 rounded-xl border font-mono-num ${pnl >= 0
-              ? 'bg-[var(--color-success-bg)] border-[var(--color-success)]/30 text-[var(--color-success)]'
-              : 'bg-[var(--color-danger-bg)]  border-[var(--color-danger)]/30  text-[var(--color-danger)]'
+            ? 'bg-[var(--color-success-bg)] border-[var(--color-success)]/30 text-[var(--color-success)]'
+            : 'bg-[var(--color-danger-bg)]  border-[var(--color-danger)]/30  text-[var(--color-danger)]'
             }`}>
             <span className="text-xs font-semibold">Estimated P&L</span>
             <span className="text-sm font-bold">
@@ -251,10 +251,10 @@ const OrderPanel: React.FC<OrderPanelProps> = ({ instrument, livePrice, balance,
         {(['LONG', 'SHORT'] as PaperDirection[]).map(d => (
           <button key={d} type="button" onClick={() => setDirection(d)}
             className={`py-3 text-sm font-bold transition-all cursor-pointer ${direction === d
-                ? d === 'LONG'
-                  ? 'bg-[var(--color-success)]/10 text-[var(--color-success)] border-b-2 border-[var(--color-success)]'
-                  : 'bg-[var(--color-danger)]/10  text-[var(--color-danger)]  border-b-2 border-[var(--color-danger)]'
-                : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] border-b-2 border-transparent'
+              ? d === 'LONG'
+                ? 'bg-[var(--color-success)]/10 text-[var(--color-success)] border-b-2 border-[var(--color-success)]'
+                : 'bg-[var(--color-danger)]/10  text-[var(--color-danger)]  border-b-2 border-[var(--color-danger)]'
+              : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] border-b-2 border-transparent'
               }`}>
             {d === 'LONG' ? 'Long' : 'Short'}
           </button>
@@ -356,8 +356,8 @@ const OrderPanel: React.FC<OrderPanelProps> = ({ instrument, livePrice, balance,
                 {[10, 25, 50, 75, 100].map(p => (
                   <button key={p} type="button" onClick={() => setQtyPct(String(p))}
                     className={`flex-1 py-1 rounded text-[9px] font-bold transition-all cursor-pointer ${qtyPct === String(p)
-                        ? 'bg-[var(--brand-primary)] text-white'
-                        : 'bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--brand-primary)] hover:border-[var(--brand-primary)]'
+                      ? 'bg-[var(--brand-primary)] text-white'
+                      : 'bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--brand-primary)] hover:border-[var(--brand-primary)]'
                       }`}>
                     {p}%
                   </button>
@@ -458,8 +458,8 @@ const OrderPanel: React.FC<OrderPanelProps> = ({ instrument, livePrice, balance,
       <div className="p-3 border-t border-[var(--border-subtle)] bg-[var(--bg-surface)]">
         <button type="button" onClick={handleSubmit} disabled={execPrice <= 0 || isSubmitting}
           className={`w-full py-3 rounded-xl text-sm font-bold text-white transition-all cursor-pointer disabled:opacity-50 ${direction === 'LONG'
-              ? 'bg-[var(--color-success)] hover:opacity-90 shadow-lg shadow-[var(--color-success)]/20'
-              : 'bg-[var(--color-danger)]  hover:opacity-90 shadow-lg shadow-[var(--color-danger)]/20'
+            ? 'bg-[var(--color-success)] hover:opacity-90 shadow-lg shadow-[var(--color-success)]/20'
+            : 'bg-[var(--color-danger)]  hover:opacity-90 shadow-lg shadow-[var(--color-danger)]/20'
             }`}>
           {isSubmitting ? 'Placing…' : direction === 'LONG' ? `Buy / Long ${base}` : `Sell / Short ${base}`}
         </button>
@@ -565,9 +565,9 @@ const LedgerRow: React.FC<{ entry: { id: string; entry_type: string; note: strin
     <tr className="border-b border-[var(--border-subtle)] hover:bg-[var(--bg-secondary)] transition-colors text-xs">
       <td className="px-3 py-2">
         <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase ${entry.entry_type === 'REALISED_PNL' ? (amount >= 0 ? 'bg-[var(--color-success-bg)] text-[var(--color-success)]' : 'bg-[var(--color-danger-bg)] text-[var(--color-danger)]')
-            : entry.entry_type === 'FEE' ? 'bg-amber-500/10 text-amber-400'
-              : entry.entry_type === 'ACCOUNT_RESET' ? 'bg-[var(--brand-glow)] text-[var(--brand-primary)]'
-                : 'bg-[var(--bg-surface)] text-[var(--text-muted)]'
+          : entry.entry_type === 'FEE' ? 'bg-amber-500/10 text-amber-400'
+            : entry.entry_type === 'ACCOUNT_RESET' ? 'bg-[var(--brand-glow)] text-[var(--brand-primary)]'
+              : 'bg-[var(--bg-surface)] text-[var(--text-muted)]'
           }`}>{entry.entry_type.replace(/_/g, ' ')}</span>
       </td>
       <td className="px-3 py-2 text-[var(--text-muted)] max-w-[160px] truncate">{entry.note}</td>
@@ -757,9 +757,8 @@ export default function MyTradesPage() {
       </div>
 
       {/* ── Chart + Order panel ──────────────────────────────────────────────── */}
-      {/* calc: 100vh - topbar(64px) - our header(~49px) - bottom(~73px) */}
-      <div className="flex border-b border-[var(--border-subtle)]"
-        style={{ height: 'calc(100vh - 186px)', minHeight: '520px' }}>
+      {/* Chart + Order panel — fixed 580px height, works on all screen sizes */}
+      <div className="flex border-b border-[var(--border-subtle)] border-t-0" style={{ height: '580px' }}>
         {/* Chart */}
         <div ref={chartRef} className="flex-1 min-w-0 overflow-hidden">
           <ZoneLinesChart
@@ -772,7 +771,7 @@ export default function MyTradesPage() {
           />
         </div>
         {/* Order panel */}
-        <div className="w-[285px] flex-shrink-0 overflow-hidden">
+        <div className="w-[285px] flex-shrink-0 overflow-hidden border-l border-[var(--border-subtle)]">
           <OrderPanel
             instrument={activeInstrument}
             livePrice={livePrice}
@@ -794,8 +793,8 @@ export default function MyTradesPage() {
           ].map(({ key, label, icon }) => (
             <button key={key} type="button" onClick={() => setBottomTab(key)}
               className={`flex items-center gap-1.5 px-4 py-3 text-xs font-semibold border-b-2 transition-all cursor-pointer ${bottomTab === key
-                  ? 'text-[var(--brand-primary)] border-[var(--brand-primary)]'
-                  : 'text-[var(--text-muted)] border-transparent hover:text-[var(--text-primary)]'
+                ? 'text-[var(--brand-primary)] border-[var(--brand-primary)]'
+                : 'text-[var(--text-muted)] border-transparent hover:text-[var(--text-primary)]'
                 }`}>
               {icon}{label}
             </button>
