@@ -14,7 +14,11 @@ export async function getAccount(req: Request, res: Response, next: NextFunction
   try {
     const account = await pt.getAccountSummary(req.user!.id);
     res.json({ data: account });
-  } catch (err) { next(err); }
+  } catch (err: any) {
+    // Log DB errors for debugging
+    if (err?.code) console.error('[PaperTrading] getAccount DB error:', err.code, err.message, err.detail);
+    next(err);
+  }
 }
 
 export async function resetAccount(req: Request, res: Response, next: NextFunction) {
@@ -66,24 +70,24 @@ export async function openPosition(req: Request, res: Response, next: NextFuncti
 
     // Basic type coercions — service layer does full validation
     const result = await pt.openMarketOrder(req.user!.id, {
-      instrument:   String(instrument || ''),
-      direction:    String(direction || '') as 'LONG' | 'SHORT',
-      notionalUsd:  parseFloat(notionalUsd),
-      leverage:     parseInt(leverage) || 1,
-      marketPrice:  parseFloat(marketPrice),
-      stopLoss:     stopLoss   != null ? parseFloat(stopLoss)   : null,
-      takeProfit1:  takeProfit1 != null ? parseFloat(takeProfit1) : null,
-      takeProfit2:  takeProfit2 != null ? parseFloat(takeProfit2) : null,
-      takeProfit3:  takeProfit3 != null ? parseFloat(takeProfit3) : null,
-      note:         typeof note === 'string' ? note.slice(0, 280) : '',
+      instrument: String(instrument || ''),
+      direction: String(direction || '') as 'LONG' | 'SHORT',
+      notionalUsd: parseFloat(notionalUsd),
+      leverage: parseInt(leverage) || 1,
+      marketPrice: parseFloat(marketPrice),
+      stopLoss: stopLoss != null ? parseFloat(stopLoss) : null,
+      takeProfit1: takeProfit1 != null ? parseFloat(takeProfit1) : null,
+      takeProfit2: takeProfit2 != null ? parseFloat(takeProfit2) : null,
+      takeProfit3: takeProfit3 != null ? parseFloat(takeProfit3) : null,
+      note: typeof note === 'string' ? note.slice(0, 280) : '',
     });
 
     res.status(201).json({
       data: result.position,
       meta: {
         fillPrice: result.fillPrice,
-        fee:       result.fee,
-        slippage:  result.slippage,
+        fee: result.fee,
+        slippage: result.slippage,
         message: `${direction} position opened on ${instrument}`,
       },
     });

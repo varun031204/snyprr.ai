@@ -35,20 +35,32 @@ function applySlippage(price: number, direction: 'LONG' | 'SHORT'): number {
 
 // ── Account ───────────────────────────────────────────────────────────────────
 export async function getOrCreateAccount(userId: string) {
+  // Try to insert; if user already has an account, the ON CONFLICT skips the insert
+  await pool.query(
+    `INSERT INTO public.paper_accounts (user_id)
+     VALUES ($1)
+     ON CONFLICT (user_id) DO NOTHING`,
+    [userId]
+  );
+  // Record initial deposit in ledger only if this was genuinely new
+  await pool.query(
+    `INSERT INTO public.paper_ledger (user_id, entry_type, amount, balance_after, note)
+     SELECT $1, 'INITIAL_DEPOSIT', 10000.00, 10000.00, 'Virtual account created'
+     WHERE NOT EXISTS (
+       SELECT 1 FROM public.paper_ledger WHERE user_id = $1 AND entry_type = 'INITIAL_DEPOSIT'
+     )`,
+    [userId]
+  );
   const res = await pool.query(
-    'SELECT * FROM public.get_or_create_paper_account($1)',
+    'SELECT * FROM public.paper_accounts WHERE user_id = $1',
     [userId]
   );
   return res.rows[0];
 }
 
 export async function getAccount(userId: string) {
-  const res = await pool.query(
-    'SELECT * FROM public.paper_accounts WHERE user_id = $1',
-    [userId]
-  );
-  if (res.rows.length === 0) return getOrCreateAccount(userId);
-  return res.rows[0];
+  // Always use getOrCreateAccount so new users get their $10k balance on first visit
+  return getOrCreateAccount(userId);
 }
 
 // ── Positions ─────────────────────────────────────────────────────────────────
@@ -290,11 +302,31 @@ export async function evaluatePositionsForTriggers(updates: PriceUpdate[]): Prom
 
 // ── Reset account ─────────────────────────────────────────────────────────────
 export async function resetAccount(userId: string) {
-  const res = await pool.query(
-    'SELECT * FROM public.reset_paper_account($1)',
+  // Force-close all open positions
+  await pool.query(
+    `UPDATE public.paper_positions
+     SET status = 'CLOSED', close_reason = 'ACCOUNT_RESET',
+         closed_at = now(), close_price = entry_price, realised_pnl = 0, updated_at = now()
+     WHERE user_id = $1 AND status = 'OPEN'`,
     [userId]
   );
-  return res.rows[0];
+  // Reset balance
+  const res = await pool.query(
+    `UPDATE public.paper_accounts
+     SET balance = starting_balance, total_realised_pnl = 0, total_fees = 0,
+         reset_count = reset_count + 1, updated_at = now()
+     WHERE user_id = $1
+     RETURNING *`,
+    [userId]
+  );
+  const account = res.rows[0] ?? await getOrCreateAccount(userId);
+  // Ledger entry
+  await pool.query(
+    `INSERT INTO public.paper_ledger (user_id, entry_type, amount, balance_after, note)
+     VALUES ($1, 'ACCOUNT_RESET', $2, $2, 'Demo account reset by user')`,
+    [userId, account.starting_balance]
+  );
+  return account;
 }
 
 // ── Ledger ────────────────────────────────────────────────────────────────────
