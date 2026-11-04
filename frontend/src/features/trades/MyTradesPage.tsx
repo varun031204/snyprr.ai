@@ -10,7 +10,7 @@
  * All financial operations go through the server-side paper trading engine.
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   TrendingUp, TrendingDown, X, RotateCcw, AlertTriangle,
   ChevronDown, Clock, History, BookOpen, BarChart2, Info,
@@ -240,8 +240,8 @@ const OrderPanel: React.FC<OrderPanelProps> = ({ instrument, livePrice, balance,
   return (
     <div className="flex flex-col h-full bg-[var(--bg-surface)] border-l border-[var(--border-subtle)] select-none">
 
-      {/* Direction tabs */}
-      <div className="grid grid-cols-2 border-b border-[var(--border-subtle)]">
+      {/* Direction tabs — sticky so they never scroll away */}
+      <div className="sticky top-0 z-10 bg-[var(--bg-surface)] grid grid-cols-2 border-b border-[var(--border-subtle)]">
         {(['LONG', 'SHORT'] as PaperDirection[]).map(d => (
           <button key={d} type="button" onClick={() => setDirection(d)}
             className={`py-3 text-sm font-bold transition-all cursor-pointer ${direction === d
@@ -428,18 +428,21 @@ const OrderPanel: React.FC<OrderPanelProps> = ({ instrument, livePrice, balance,
             <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />{error}
           </div>
         )}
+      </div>
 
-        {/* Submit button */}
+      {/* Submit button — pinned outside scroll so it's always reachable */}
+      <div className="p-3 pt-0 border-t border-[var(--border-subtle)] bg-[var(--bg-surface)]">
         <button type="button" onClick={handleSubmit} disabled={execPrice <= 0 || isSubmitting}
           className={`w-full py-3 rounded-xl text-sm font-bold text-white transition-all cursor-pointer disabled:opacity-50 ${direction === 'LONG'
             ? 'bg-[var(--color-success)] hover:opacity-90 shadow-lg shadow-[var(--color-success)]/20'
             : 'bg-[var(--color-danger)] hover:opacity-90 shadow-lg shadow-[var(--color-danger)]/20'
             }`}>
-          {isSubmitting ? 'Placing…' : direction === 'LONG' ? `Buy / Long ${instrument.split('/')[0]}` : `Sell / Short ${instrument.split('/')[0]}`}
+          {isSubmitting ? 'Placing…' : direction === 'LONG'
+            ? `Buy / Long ${instrument.split('/')[0]}`
+            : `Sell / Short ${instrument.split('/')[0]}`}
           {leverage > 1 && <span className="ml-1.5 opacity-80 font-mono text-xs">{leverage}×</span>}
         </button>
-
-        <p className="text-[9px] text-[var(--text-muted)] text-center pb-1">Paper trading — no real funds at risk</p>
+        <p className="text-[9px] text-[var(--text-muted)] text-center mt-1.5">Paper trading — no real funds at risk</p>
       </div>
     </div>
   );
@@ -560,6 +563,22 @@ export default function MyTradesPage() {
   const [closingPos, setClosingPos] = useState<PaperPosition | null>(null);
   const [bottomTab, setBottomTab] = useState<'positions' | 'history' | 'ledger'>('positions');
   const [resetConfirm, setResetConfirm] = useState(false);
+  const [chartHeight, setChartHeight] = useState(560);
+  const chartRef = useRef<HTMLDivElement>(null);
+
+  // Keep chart height in sync with its container as the window resizes
+  useEffect(() => {
+    const el = chartRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      const h = entry.contentRect.height;
+      if (h > 200) setChartHeight(Math.floor(h));
+    });
+    ro.observe(el);
+    // Set initial height
+    if (el.clientHeight > 200) setChartHeight(el.clientHeight);
+    return () => ro.disconnect();
+  }, []);
 
   const { tickers } = useMarketStore();
   const allPrices = useAllPrices();
@@ -711,14 +730,14 @@ export default function MyTradesPage() {
       </div>
 
       {/* ── Chart + Order panel (tall, fixed 620px so chart is usable) ──────── */}
-      <div className="flex border-b border-[var(--border-subtle)]" style={{ height: '620px' }}>
+      <div className="flex border-b border-[var(--border-subtle)]" style={{ minHeight: '560px', height: 'calc(100vh - 180px)' }}>
         {/* Chart — takes all remaining width */}
-        <div className="flex-1 min-w-0 overflow-hidden">
+        <div ref={chartRef} className="flex-1 min-w-0 overflow-hidden">
           <ZoneLinesChart
             tvSymbol={activeChartItem?.symbol}
             instrument={activeInstrument}
             prediction={chartOverlay}
-            height={620}
+            height={chartHeight}
             showTimeframeBar={true}
             allowDrawing={true}
           />
