@@ -10,7 +10,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
-  X, RotateCcw, AlertTriangle,
+  X, AlertTriangle,
   ChevronDown, History, BookOpen, BarChart2,
   Plus, Minus, Wallet, ShieldCheck,
 } from 'lucide-react';
@@ -20,7 +20,7 @@ import { useMarketStore } from '../../state/useMarketStore';
 import { CHART_ITEMS } from '../../constants';
 import {
   usePaperAccount, usePaperPositions, usePaperHistory, usePaperLedger,
-  useOpenPaperPosition, useClosePaperPosition, useResetPaperAccount,
+  useOpenPaperPosition, useClosePaperPosition,
   triggerPriceEvaluation,
   type PaperPosition, type PaperDirection,
 } from '../../hooks/usePaperTradingQuery';
@@ -583,13 +583,6 @@ const LedgerRow: React.FC<{ entry: { id: string; entry_type: string; note: strin
 };
 
 // ─── Micro components ───────────────────────────────────────────────────────────
-const StatPill: React.FC<{ label: string; value: string; color?: string }> = ({ label, value, color = 'text-[var(--text-secondary)]' }) => (
-  <div className="flex flex-col">
-    <span className="text-[9px] text-[var(--text-muted)] uppercase tracking-wider leading-none">{label}</span>
-    <span className={`text-xs font-bold font-mono-num leading-tight mt-0.5 ${color}`}>{value}</span>
-  </div>
-);
-
 const EmptyState: React.FC<{ text: string }> = ({ text }) => (
   <div className="flex items-center justify-center py-8 text-xs text-[var(--text-muted)]">{text}</div>
 );
@@ -599,7 +592,6 @@ export default function MyTradesPage() {
   const [activeInstrument, setActiveInstrument] = useState('BTC/USDT');
   const [closingPos, setClosingPos] = useState<PaperPosition | null>(null);
   const [bottomTab, setBottomTab] = useState<'positions' | 'history' | 'ledger'>('positions');
-  const [resetConfirm, setResetConfirm] = useState(false);
   const [chartHeight, setChartHeight] = useState(500);
   const chartRef = useRef<HTMLDivElement>(null);
 
@@ -616,7 +608,6 @@ export default function MyTradesPage() {
     return () => ro.disconnect();
   }, []);
 
-  const { tickers } = useMarketStore();
   const allPrices = useAllPrices();
   const wsPrice = useLivePrice(activeInstrument);   // WebSocket-driven
 
@@ -648,16 +639,14 @@ export default function MyTradesPage() {
   // Use directPrice if available (matches chart), fall back to WebSocket price
   const livePrice = directPrice > 0 ? directPrice : wsPrice;
 
-  const { data: account, isLoading: accountLoading } = usePaperAccount();
+  const { data: account } = usePaperAccount();
   const { data: openPositions = [], isLoading: posLoading, refetch: refetchPos } = usePaperPositions();
   const { data: closedPositions = [] } = usePaperHistory();
   const { data: ledgerEntries = [] } = usePaperLedger(100);
 
   const openMut = useOpenPaperPosition();
   const closeMut = useClosePaperPosition();
-  const resetMut = useResetPaperAccount();
 
-  const activeTicker = useMemo(() => tickers.find(t => t.symbol === activeInstrument), [tickers, activeInstrument]);
   const activeChartItem = CHART_ITEMS.find(c => c.instrument === activeInstrument);
   const activeOpenPos = useMemo(() => openPositions.find(p => p.instrument === activeInstrument) ?? null, [openPositions, activeInstrument]);
   const chartOverlay = useMemo(() => activeOpenPos ? positionToChartOverlay(activeOpenPos) : null, [activeOpenPos]);
@@ -683,17 +672,6 @@ export default function MyTradesPage() {
   }, [refetchPos]);
 
   const balance = account ? parseFloat(account.balance) : 0;
-  const lockedMargin = account ? parseFloat(account.locked_margin) : 0;
-  const totalRealised = account ? parseFloat(account.total_realised_pnl) : 0;
-  const totalUnrealised = openPositions.reduce((s, p) => {
-    const lp = allPrices[p.instrument] ?? 0;
-    if (!lp) return s;
-    const sz = parseFloat(p.size), en = parseFloat(p.entry_price);
-    return s + (p.direction === 'LONG' ? (lp - en) * sz : (en - lp) * sz);
-  }, 0);
-  const equity = balance + lockedMargin + totalUnrealised;
-  const startBal = account ? parseFloat(account.starting_balance) : 10000;
-  const returnPct = startBal > 0 ? (equity - startBal) / startBal * 100 : 0;
 
   const handleOrderSubmit = (params: Parameters<typeof openMut.mutate>[0]) => {
     openMut.mutate({ ...params, marketPrice: livePrice });
@@ -709,81 +687,31 @@ export default function MyTradesPage() {
     // Chart section fills the viewport; positions section below on scroll
     <div className="-m-5 lg:-m-6">
 
-      {/* ── Instrument header — sticky at top of scroll area ─────────────── */}
-      <div className="sticky top-0 z-20 flex items-center gap-3 px-4 py-2
+      {/* -- Symbol selector � compact bar above chart --------------------- */}
+      <div className="sticky top-0 z-20 flex items-center gap-1 px-3 py-1.5
                       bg-[var(--bg-surface)] border-b border-[var(--border-subtle)]
                       overflow-x-auto scrollbar-thin">
-        {/* Symbol tabs */}
-        <div className="flex gap-1 flex-shrink-0">
-          {CHART_ITEMS.map(({ instrument, label }) => {
-            const hasOpen = openPositions.some(p => p.instrument === instrument);
-            const isActive = activeInstrument === instrument;
-            return (
-              <button key={instrument} type="button" onClick={() => setActiveInstrument(instrument)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border whitespace-nowrap
-                            transition-all cursor-pointer flex-shrink-0 ${isActive
-                    ? 'bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] border-[var(--brand-primary)]'
-                    : 'bg-transparent text-[var(--text-muted)] border-transparent hover:text-[var(--text-primary)] hover:border-[var(--border-subtle)]'
-                  }`}>
-                {label}
-                {hasOpen && <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isActive ? 'bg-[var(--brand-primary)]' : 'bg-[var(--color-success)]'}`} />}
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="h-5 w-px bg-[var(--border-subtle)] flex-shrink-0" />
-
-        {/* Live price */}
-        <div className="flex items-center gap-5 flex-shrink-0">
-          <div className="flex items-center gap-1.5">
-            {livePrice > 0 && <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-success)] animate-pulse" />}
-            <span className={`text-base font-extrabold font-mono-num ${(activeTicker?.change24h ?? 0) >= 0 ? 'text-[var(--color-success)]' : 'text-[var(--color-danger)]'}`}>
-              {livePrice > 0 ? `$${fP(livePrice, activeInstrument)}` : '—'}
-            </span>
-            {activeTicker?.change24h !== undefined && (
-              <span className={`text-xs font-bold ${activeTicker.change24h >= 0 ? 'text-[var(--color-success)]' : 'text-[var(--color-danger)]'}`}>
-                {activeTicker.change24h >= 0 ? '+' : ''}{activeTicker.change24h.toFixed(2)}%
-              </span>
-            )}
-          </div>
-          {activeTicker && <>
-            <StatPill label="24h High" value={`$${fP(activeTicker.high24h, activeInstrument)}`} color="text-[var(--color-success)]" />
-            <StatPill label="24h Low" value={`$${fP(activeTicker.low24h, activeInstrument)}`} color="text-[var(--color-danger)]" />
-            <StatPill label="24h Vol" value={`$${(activeTicker.volume24h / 1_000_000).toFixed(1)}M`} />
-          </>}
-        </div>
-
-        {/* Right: account stats + reset */}
-        <div className="ml-auto flex items-center gap-4 flex-shrink-0">
-          {accountLoading ? <Skeleton className="w-40 h-4" /> : account && <>
-            <StatPill label="Balance" value={fUsd(balance)} color="text-[var(--text-primary)]" />
-            <StatPill label="Equity" value={fUsd(equity)} color="text-[var(--brand-primary)]" />
-            <StatPill label="Total P&L" value={`${totalRealised + totalUnrealised >= 0 ? '+' : ''}${fUsd(totalRealised + totalUnrealised)}`} color={pnlCls(totalRealised + totalUnrealised)} />
-            <StatPill label="Return" value={`${returnPct >= 0 ? '+' : ''}${returnPct.toFixed(2)}%`} color={pnlCls(returnPct)} />
-          </>}
-          {resetConfirm ? (
-            <div className="flex items-center gap-1.5 text-xs">
-              <span className="text-[var(--color-danger)] font-semibold">Reset?</span>
-              <button onClick={() => { resetMut.mutate(); setResetConfirm(false); }}
-                disabled={resetMut.isPending}
-                className="px-2 py-0.5 rounded bg-[var(--color-danger)] text-white text-[10px] font-bold cursor-pointer disabled:opacity-50">Yes</button>
-              <button onClick={() => setResetConfirm(false)}
-                className="px-2 py-0.5 rounded bg-[var(--bg-secondary)] border border-[var(--border-subtle)] text-[10px] font-bold cursor-pointer text-[var(--text-muted)]">No</button>
-            </div>
-          ) : (
-            <button onClick={() => setResetConfirm(true)}
-              className="flex items-center gap-1 text-[11px] text-[var(--text-muted)] hover:text-[var(--color-danger)] transition-colors cursor-pointer">
-              <RotateCcw className="w-3.5 h-3.5" /> Reset
+        {CHART_ITEMS.map(({ instrument, label }) => {
+          const hasOpen = openPositions.some(p => p.instrument === instrument);
+          const isActive = activeInstrument === instrument;
+          return (
+            <button key={instrument} type="button" onClick={() => setActiveInstrument(instrument)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border whitespace-nowrap
+                          transition-all cursor-pointer flex-shrink-0 ${isActive
+                  ? 'bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] border-[var(--brand-primary)]'
+                  : 'bg-transparent text-[var(--text-muted)] border-transparent hover:text-[var(--text-primary)] hover:border-[var(--border-subtle)]'
+                }`}>
+              {label}
+              {hasOpen && <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isActive ? 'bg-[var(--brand-primary)]' : 'bg-[var(--color-success)]'}`} />}
             </button>
-          )}
-          <span className="flex items-center gap-1 text-[10px] font-bold text-[var(--brand-primary)] px-2 py-0.5
-                           rounded-full bg-[var(--brand-primary)]/10 border border-[var(--brand-primary)]/20">
-            <ShieldCheck className="w-3 h-3" /> PAPER
-          </span>
-        </div>
+          );
+        })}
+        <span className="ml-auto flex-shrink-0 flex items-center gap-1 text-[10px] font-bold
+                         text-[var(--brand-primary)] px-2 py-0.5 rounded-full
+                         bg-[var(--brand-primary)]/10 border border-[var(--brand-primary)]/20">
+          <ShieldCheck className="w-3 h-3" /> PAPER
+        </span>
       </div>
-
       {/* ── Chart + Order panel — fills full viewport height below header ──── */}
       {/*
           height: 100vh minus Topbar(64px) minus our header(~49px).
@@ -791,7 +719,7 @@ export default function MyTradesPage() {
           The page then scrolls — positions section appears below.
       */}
       <div className="flex border-b border-[var(--border-subtle)]"
-        style={{ height: 'calc(100vh - 113px)', minHeight: '540px' }}>
+        style={{ height: 'calc(100vh - 101px)', minHeight: '540px' }}>
 
         {/* Chart — fills all width left of order panel */}
         <div ref={chartRef} className="flex-1 min-w-0 overflow-hidden">
@@ -822,7 +750,7 @@ export default function MyTradesPage() {
       <div className="bg-[var(--bg-surface)]">
 
         {/* Tab bar — sticky so it stays visible while scrolling the table */}
-        <div className="sticky top-[49px] z-10 flex items-center border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4">
+        <div className="sticky top-[37px] z-10 flex items-center border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4">
           {[
             { key: 'positions' as const, label: `Positions (${openPositions.length})`, icon: <BarChart2 className="w-3 h-3" /> },
             { key: 'history' as const, label: `Trade History (${closedPositions.length})`, icon: <History className="w-3 h-3" /> },
@@ -830,8 +758,8 @@ export default function MyTradesPage() {
           ].map(({ key, label, icon }) => (
             <button key={key} type="button" onClick={() => setBottomTab(key)}
               className={`flex items-center gap-1.5 px-4 py-3 text-xs font-semibold border-b-2 transition-all cursor-pointer ${bottomTab === key
-                  ? 'text-[var(--brand-primary)] border-[var(--brand-primary)]'
-                  : 'text-[var(--text-muted)] border-transparent hover:text-[var(--text-primary)]'
+                ? 'text-[var(--brand-primary)] border-[var(--brand-primary)]'
+                : 'text-[var(--text-muted)] border-transparent hover:text-[var(--text-primary)]'
                 }`}>
               {icon}{label}
             </button>
