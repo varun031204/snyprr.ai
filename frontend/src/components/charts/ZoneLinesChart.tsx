@@ -170,14 +170,18 @@ function deterministicCandles(ins: string, count = 300) {
 function useRafTick(): [number, () => void] {
   const [tick, setTick] = React.useState(0);
   const pendingRef = React.useRef(false);
-  const scheduleRepaint = React.useCallback(() => {
-    if (pendingRef.current) return; // already scheduled this frame
+  // Use a stable ref so closures always get the latest function reference
+  const scheduleRef = React.useRef<() => void>(() => { });
+  scheduleRef.current = () => {
+    if (pendingRef.current) return;
     pendingRef.current = true;
     requestAnimationFrame(() => {
       pendingRef.current = false;
-      scheduleRepaint();
+      setTick(t => t + 1);
     });
-  }, []);
+  };
+  // Stable wrapper that always delegates to scheduleRef.current
+  const scheduleRepaint = React.useCallback(() => scheduleRef.current(), []);
   return [tick, scheduleRepaint];
 }
 
@@ -292,6 +296,9 @@ export const ZoneLinesChart: React.FC<Props> = ({
   const [activeTF, setActiveTF] = useState(tframeProp ?? prediction?.timeframe ?? '1h');
   const binanceSym = INSTRUMENT_TO_BINANCE[instrument];
   const interval = TIMEFRAME_TO_INTERVAL[activeTF] ?? '1h';
+
+  // RAF-batched repaint — max 60fps, no per-pixel React renders
+  const [tick, scheduleRepaint] = useRafTick();
 
   // Drawing state
   const [activeTool, setActiveTool] = useState<DrawTool>('cursor');
