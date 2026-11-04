@@ -1,13 +1,11 @@
 /**
  * MyTradesPage — Delta Exchange-style Paper Trading Terminal
  *
- * Layout matches Delta Exchange demo trading:
- * - Full-width instrument header with live 24h stats
- * - Large chart (ZoneLinesChart) taking ~65% width
- * - Right panel: Long/Short tabs → Limit/Market order type → Leverage → Qty → SL/TP → Submit
- * - Bottom panel: Positions / Orders / Trades / Account tabs in table form
- *
- * All financial operations go through the server-side paper trading engine.
+ * Changes vs previous version:
+ * - Leverage removed (no leverage on a $10k demo account)
+ * - 3-mode quantity input: Units (e.g. 1 ETH) | USD | % of wallet
+ * - Chart row uses calc(100vh - X) so it fills the viewport
+ * - Long/Short tabs sticky inside panel; submit button pinned at bottom
  */
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -16,7 +14,6 @@ import {
   ChevronDown, Clock, History, BookOpen, BarChart2, Info,
   Plus, Minus, Wallet, ShieldCheck,
 } from 'lucide-react';
-import { GlassCard } from '../../components/ui/GlassCard';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { ZoneLinesChart } from '../../components/charts/ZoneLinesChart';
 import { useMarketStore } from '../../state/useMarketStore';
@@ -29,15 +26,16 @@ import {
 } from '../../hooks/usePaperTradingQuery';
 import type { Prediction } from '../../types';
 
-// ─── Constants ──────────────────────────────────────────────────────────────────
-const FEE_RATE = 0.0005;   // 0.05% — matches backend
-const LEV_PRESETS = [1, 2, 5, 10, 25, 50, 100];
+// ─── Constants & types ─────────────────────────────────────────────────────────
+const FEE_RATE = 0.0005;
+type QtyMode = 'units' | 'usd' | 'pct';
 
 // ─── Formatters ─────────────────────────────────────────────────────────────────
 const f2 = (n: number | string) => {
   const v = typeof n === 'string' ? parseFloat(n) : n;
-  if (!Number.isFinite(v)) return '0.00';
-  return v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return Number.isFinite(v)
+    ? v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    : '0.00';
 };
 const fUsd = (n: number | string) => `$${f2(n)}`;
 const fP = (n: number | string, ins: string) => {
@@ -48,15 +46,11 @@ const fP = (n: number | string, ins: string) => {
 const pnlCls = (n: number) =>
   n > 0 ? 'text-[var(--color-success)]' : n < 0 ? 'text-[var(--color-danger)]' : 'text-[var(--text-muted)]';
 
-// ─── Live price from market store (fixes symbol mapping) ──────────────────────
+// ─── Live price hooks ───────────────────────────────────────────────────────────
 function useLivePrice(instrument: string) {
   const { tickers } = useMarketStore();
-  return useMemo(() => {
-    // tickers use app symbol like 'BTC/USDT' — direct match
-    return tickers.find(t => t.symbol === instrument)?.price ?? 0;
-  }, [tickers, instrument]);
+  return useMemo(() => tickers.find(t => t.symbol === instrument)?.price ?? 0, [tickers, instrument]);
 }
-
 function useAllPrices() {
   const { tickers } = useMarketStore();
   return useMemo(() => {
@@ -66,11 +60,10 @@ function useAllPrices() {
   }, [tickers]);
 }
 
-// ─── Build chart overlay from open position ───────────────────────────────────
+// ─── Chart overlay builder ──────────────────────────────────────────────────────
 function positionToChartOverlay(pos: PaperPosition): Prediction {
   return {
-    id: pos.id,
-    traderId: 'paper',
+    id: pos.id, traderId: 'paper',
     trader: { id: 'paper', displayName: 'Paper', handle: '@paper', avatar: '', verifiedBadge: false, winRate: 0 },
     title: '', instrument: pos.instrument, category: 'CRYPTO',
     direction: pos.direction as any,
@@ -88,7 +81,7 @@ function positionToChartOverlay(pos: PaperPosition): Prediction {
   };
 }
 
-// ─── Close modal ───────────────────────────────────────────────────────────────
+// ─── Close modal ────────────────────────────────────────────────────────────────
 const CloseModal: React.FC<{
   pos: PaperPosition; livePrice: number;
   onCancel: () => void; onConfirm: (p: number) => void; isPending: boolean;
@@ -111,21 +104,21 @@ const CloseModal: React.FC<{
               {pos.direction}
             </span>
             &nbsp;{pos.instrument}
-            {pos.leverage > 1 && <span className="ml-1.5 text-amber-400 text-xs">{pos.leverage}×</span>}
           </h3>
-          <button onClick={onCancel} disabled={isPending} className="p-1 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer"><X className="w-4 h-4" /></button>
+          <button onClick={onCancel} disabled={isPending}
+            className="p-1 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer">
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
         <div className="grid grid-cols-2 gap-2 text-xs">
           {[
             { l: 'Entry', v: `$${fP(pos.entry_price, pos.instrument)}` },
             { l: 'Notional', v: fUsd(parseFloat(pos.notional_usd)) },
-            { l: 'Margin', v: fUsd(parseFloat(pos.margin_usd)) },
-            { l: 'Liq.', v: `$${fP(pos.liquidation_price, pos.instrument)}`, danger: true },
-          ].map(({ l, v, danger }) => (
+          ].map(({ l, v }) => (
             <div key={l} className="px-3 py-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)]">
               <p className="text-[var(--text-muted)]">{l}</p>
-              <p className={`font-bold font-mono-num mt-0.5 ${danger ? 'text-[var(--color-danger)]' : 'text-[var(--text-primary)]'}`}>{v}</p>
+              <p className="font-bold font-mono-num mt-0.5 text-[var(--text-primary)]">{v}</p>
             </div>
           ))}
         </div>
@@ -133,7 +126,8 @@ const CloseModal: React.FC<{
         <div className="space-y-1">
           <label className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">Close Price ($)</label>
           <input type="number" step="any" value={price} onChange={e => setPrice(e.target.value)}
-            className="w-full px-3 py-2.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] text-sm text-[var(--text-primary)] font-mono focus:outline-none focus:border-[var(--brand-primary)]" />
+            className="w-full px-3 py-2.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)]
+                       text-sm text-[var(--text-primary)] font-mono focus:outline-none focus:border-[var(--brand-primary)]" />
           {livePrice > 0 && (
             <button type="button" onClick={() => setPrice(livePrice.toFixed(2))}
               className="text-[10px] text-[var(--brand-primary)] font-semibold hover:underline cursor-pointer">
@@ -143,20 +137,27 @@ const CloseModal: React.FC<{
         </div>
 
         {p > 0 && (
-          <div className={`flex items-center justify-between px-3 py-2.5 rounded-xl border font-mono-num ${pnl >= 0 ? 'bg-[var(--color-success-bg)] border-[var(--color-success)]/30 text-[var(--color-success)]' : 'bg-[var(--color-danger-bg)] border-[var(--color-danger)]/30 text-[var(--color-danger)]'}`}>
+          <div className={`flex items-center justify-between px-3 py-2.5 rounded-xl border font-mono-num ${pnl >= 0
+              ? 'bg-[var(--color-success-bg)] border-[var(--color-success)]/30 text-[var(--color-success)]'
+              : 'bg-[var(--color-danger-bg)]  border-[var(--color-danger)]/30  text-[var(--color-danger)]'
+            }`}>
             <span className="text-xs font-semibold">Estimated P&L</span>
-            <span className="text-sm font-bold">{pnl >= 0 ? '+' : ''}{fUsd(pnl)} ({pnlPct >= 0 ? '+' : ''}{pnlPct.toFixed(2)}%)</span>
+            <span className="text-sm font-bold">
+              {pnl >= 0 ? '+' : ''}{fUsd(pnl)} ({pnlPct >= 0 ? '+' : ''}{pnlPct.toFixed(2)}%)
+            </span>
           </div>
         )}
-        <p className="text-[10px] text-[var(--text-muted)] text-center">0.05% close fee · final P&L calculated server-side</p>
+        <p className="text-[10px] text-[var(--text-muted)] text-center">0.05% close fee · P&L calculated server-side</p>
 
         <div className="flex gap-2">
           <button onClick={onCancel} disabled={isPending}
-            className="flex-1 py-2 rounded-xl text-xs font-semibold bg-[var(--bg-secondary)] border border-[var(--border-subtle)] text-[var(--text-primary)] hover:border-[var(--brand-primary)] transition-all cursor-pointer disabled:opacity-50">
+            className="flex-1 py-2 rounded-xl text-xs font-semibold bg-[var(--bg-secondary)] border border-[var(--border-subtle)]
+                       text-[var(--text-primary)] hover:border-[var(--brand-primary)] transition-all cursor-pointer disabled:opacity-50">
             Cancel
           </button>
           <button onClick={() => onConfirm(p)} disabled={p <= 0 || isPending}
-            className={`flex-1 py-2 rounded-xl text-xs font-bold text-white transition-all cursor-pointer disabled:opacity-50 ${pnl >= 0 ? 'bg-[var(--brand-primary)] hover:opacity-90' : 'bg-[var(--color-danger)] hover:opacity-90'}`}>
+            className={`flex-1 py-2 rounded-xl text-xs font-bold text-white transition-all cursor-pointer disabled:opacity-50
+              ${pnl >= 0 ? 'bg-[var(--brand-primary)] hover:opacity-90' : 'bg-[var(--color-danger)] hover:opacity-90'}`}>
             {isPending ? 'Closing…' : 'Confirm Close'}
           </button>
         </div>
@@ -165,7 +166,7 @@ const CloseModal: React.FC<{
   );
 };
 
-// ─── Order panel (right side — Delta-style) ────────────────────────────────────
+// ─── Order Panel ────────────────────────────────────────────────────────────────
 interface OrderPanelProps {
   instrument: string; livePrice: number; balance: number; isSubmitting: boolean;
   onSubmit: (p: {
@@ -176,58 +177,64 @@ interface OrderPanelProps {
 }
 
 const OrderPanel: React.FC<OrderPanelProps> = ({ instrument, livePrice, balance, isSubmitting, onSubmit }) => {
+  const base = instrument.split('/')[0];
+  const prec = instrument.includes('XRP') ? 4 : instrument === 'SILVER' ? 3 : 2;
+
   const [direction, setDirection] = useState<PaperDirection>('LONG');
   const [orderType, setOrderType] = useState<'market' | 'limit'>('market');
-  const [leverage, setLeverage] = useState(1);
+  const [qtyMode, setQtyMode] = useState<QtyMode>('usd');
+  const [qtyUnits, setQtyUnits] = useState('');
   const [qtyUsd, setQtyUsd] = useState('100');
+  const [qtyPct, setQtyPct] = useState('10');
   const [limitPx, setLimitPx] = useState('');
   const [bracketOn, setBracketOn] = useState(false);
-  const [sl, setSl] = useState(''); const [tp1, setTp1] = useState('');
-  const [tp2, setTp2] = useState(''); const [tp3, setTp3] = useState('');
+  const [sl, setSl] = useState('');
+  const [tp1, setTp1] = useState('');
+  const [tp2, setTp2] = useState('');
+  const [tp3, setTp3] = useState('');
   const [showTp23, setShowTp23] = useState(false);
-  const [reduceOnly, setReduceOnly] = useState(false);
   const [error, setError] = useState('');
 
-  // Auto-fill SL/TP when price or direction changes
+  const execPrice = orderType === 'limit' && parseFloat(limitPx) > 0 ? parseFloat(limitPx) : livePrice;
+
+  // Notional USD derived from whichever mode is active
+  const notional = useMemo(() => {
+    if (qtyMode === 'units') return execPrice > 0 ? (parseFloat(qtyUnits) || 0) * execPrice : 0;
+    if (qtyMode === 'usd') return parseFloat(qtyUsd) || 0;
+    return balance * (parseFloat(qtyPct) || 0) / 100;
+  }, [qtyMode, qtyUnits, qtyUsd, qtyPct, execPrice, balance]);
+
+  const unitCount = execPrice > 0 ? notional / execPrice : 0;
+  const fee = notional * FEE_RATE;
+  const fundsReq = notional + fee;
+
+  // Auto-fill SL/TP
   useEffect(() => {
     if (livePrice <= 0) return;
-    const d = instrument.includes('XRP') ? 4 : 2;
-    setLimitPx(livePrice.toFixed(d));
+    setLimitPx(livePrice.toFixed(prec));
     if (direction === 'LONG') {
-      setSl((livePrice * 0.97).toFixed(d)); setTp1((livePrice * 1.05).toFixed(d));
+      setSl((livePrice * 0.97).toFixed(prec));
+      setTp1((livePrice * 1.05).toFixed(prec));
     } else {
-      setSl((livePrice * 1.03).toFixed(d)); setTp1((livePrice * 0.95).toFixed(d));
+      setSl((livePrice * 1.03).toFixed(prec));
+      setTp1((livePrice * 0.95).toFixed(prec));
     }
     setTp2(''); setTp3('');
   }, [instrument, direction, livePrice]);
 
-  const execPrice = orderType === 'limit' && parseFloat(limitPx) > 0 ? parseFloat(limitPx) : livePrice;
-  const notional = parseFloat(qtyUsd) || 0;
-  const margin = notional > 0 ? notional / leverage : 0;
-  const units = execPrice > 0 && notional > 0 ? notional / execPrice : 0;
-  const fee = notional * FEE_RATE;
-  const fundsReq = margin + fee;
-  const liqPrice = execPrice > 0 && leverage > 1
-    ? (direction === 'LONG' ? execPrice * (1 - 1 / leverage) : execPrice * (1 + 1 / leverage))
-    : null;
   const slNum = parseFloat(sl) || null;
   const tp1Num = parseFloat(tp1) || null;
   const potL = slNum && execPrice > 0 ? Math.abs(execPrice - slNum) / execPrice * notional : null;
   const potP = tp1Num && execPrice > 0 ? Math.abs(tp1Num - execPrice) / execPrice * notional : null;
   const rr = potL && potP ? (potP / potL).toFixed(2) : null;
 
-  const handleQtyPct = (pct: number) => {
-    const max = balance * leverage;
-    setQtyUsd((max * pct / 100).toFixed(2));
-  };
-
   const handleSubmit = () => {
     setError('');
-    if (notional <= 0) return setError('Enter order size');
-    if (execPrice <= 0) return setError('Waiting for price…');
+    if (notional <= 0) return setError('Enter a quantity');
+    if (execPrice <= 0) return setError('Waiting for live price…');
     if (fundsReq > balance) return setError(`Need ${fUsd(fundsReq)}, have ${fUsd(balance)}`);
     onSubmit({
-      direction, notionalUsd: notional, leverage,
+      direction, notionalUsd: notional, leverage: 1,
       stopLoss: sl ? parseFloat(sl) : null,
       takeProfit1: tp1 ? parseFloat(tp1) : null,
       takeProfit2: tp2 ? parseFloat(tp2) : null,
@@ -236,31 +243,33 @@ const OrderPanel: React.FC<OrderPanelProps> = ({ instrument, livePrice, balance,
     });
   };
 
-  // ── Long / Short top tab ────────────────────────────────────────────────────
   return (
     <div className="flex flex-col h-full bg-[var(--bg-surface)] border-l border-[var(--border-subtle)] select-none">
 
-      {/* Direction tabs — sticky so they never scroll away */}
-      <div className="sticky top-0 z-10 bg-[var(--bg-surface)] grid grid-cols-2 border-b border-[var(--border-subtle)]">
+      {/* Long / Short tabs — sticky */}
+      <div className="sticky top-0 z-10 grid grid-cols-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]">
         {(['LONG', 'SHORT'] as PaperDirection[]).map(d => (
           <button key={d} type="button" onClick={() => setDirection(d)}
             className={`py-3 text-sm font-bold transition-all cursor-pointer ${direction === d
-              ? d === 'LONG'
-                ? 'bg-[var(--color-success)]/10 text-[var(--color-success)] border-b-2 border-[var(--color-success)]'
-                : 'bg-[var(--color-danger)]/10 text-[var(--color-danger)] border-b-2 border-[var(--color-danger)]'
-              : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] border-b-2 border-transparent'
+                ? d === 'LONG'
+                  ? 'bg-[var(--color-success)]/10 text-[var(--color-success)] border-b-2 border-[var(--color-success)]'
+                  : 'bg-[var(--color-danger)]/10  text-[var(--color-danger)]  border-b-2 border-[var(--color-danger)]'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] border-b-2 border-transparent'
               }`}>
             {d === 'LONG' ? 'Long' : 'Short'}
           </button>
         ))}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3 space-y-3">
-        {/* Order type row */}
+      {/* Scrollable form body */}
+      <div className="flex-1 overflow-y-auto p-3 space-y-3 scrollbar-thin">
+
+        {/* Limit / Market */}
         <div className="flex gap-1 p-0.5 bg-[var(--bg-secondary)] rounded-lg">
           {(['limit', 'market'] as const).map(t => (
             <button key={t} type="button" onClick={() => setOrderType(t)}
-              className={`flex-1 py-1.5 rounded-md text-[11px] font-bold capitalize transition-all cursor-pointer ${orderType === t ? 'bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}>
+              className={`flex-1 py-1.5 rounded-md text-[11px] font-bold transition-all cursor-pointer ${orderType === t ? 'bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                }`}>
               {t === 'limit' ? 'Limit' : 'Market'}
             </button>
           ))}
@@ -277,121 +286,143 @@ const OrderPanel: React.FC<OrderPanelProps> = ({ instrument, livePrice, balance,
           </div>
         </div>
 
-        {/* Limit price input (shown when limit order selected) */}
+        {/* Limit price */}
         {orderType === 'limit' && (
           <div className="space-y-1">
             <label className="text-[11px] text-[var(--text-muted)] font-semibold">Limit Price (USD)</label>
             <div className="flex items-center gap-1 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-lg px-3 py-2">
-              <button type="button" onClick={() => setLimitPx(v => String((parseFloat(v) || livePrice) - 1))} className="text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer"><Minus className="w-3 h-3" /></button>
+              <button type="button"
+                onClick={() => setLimitPx(v => String(Math.max(0, (parseFloat(v) || livePrice) - 1)))}
+                className="text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer">
+                <Minus className="w-3 h-3" />
+              </button>
               <input type="number" step="any" value={limitPx} onChange={e => setLimitPx(e.target.value)}
                 className="flex-1 text-center bg-transparent text-sm font-mono-num font-semibold text-[var(--text-primary)] focus:outline-none" />
-              <button type="button" onClick={() => setLimitPx(v => String((parseFloat(v) || livePrice) + 1))} className="text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer"><Plus className="w-3 h-3" /></button>
+              <button type="button"
+                onClick={() => setLimitPx(v => String((parseFloat(v) || livePrice) + 1))}
+                className="text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer">
+                <Plus className="w-3 h-3" />
+              </button>
             </div>
           </div>
         )}
 
-        {/* Leverage */}
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between">
-            <label className="text-[11px] text-[var(--text-muted)] font-semibold">Leverage</label>
-            <span className={`text-xs font-extrabold px-2 py-0.5 rounded-full ${leverage >= 20 ? 'bg-[var(--color-danger-bg)] text-[var(--color-danger)]' : leverage >= 5 ? 'bg-amber-500/10 text-amber-400' : 'bg-[var(--brand-glow)] text-[var(--brand-primary)]'}`}>
-              {leverage}×
-            </span>
-          </div>
-          <input type="range" min={1} max={100} step={1} value={leverage} onChange={e => setLeverage(parseInt(e.target.value))}
-            className="w-full h-1 rounded-full appearance-none cursor-pointer accent-[var(--brand-primary)]"
-            style={{ background: `linear-gradient(to right, var(--brand-primary) 0%, var(--brand-primary) ${leverage}%, var(--bg-surface) ${leverage}%, var(--bg-surface) 100%)` }} />
-          <div className="flex gap-1">
-            {LEV_PRESETS.map(lv => (
-              <button key={lv} type="button" onClick={() => setLeverage(lv)}
-                className={`flex-1 py-0.5 rounded text-[9px] font-bold transition-all cursor-pointer ${leverage === lv ? (lv >= 20 ? 'bg-[var(--color-danger)] text-white' : lv >= 5 ? 'bg-amber-500 text-white' : 'bg-[var(--brand-primary)] text-white') : 'bg-[var(--bg-secondary)] border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}>
-                {lv}×
+        {/* ── Quantity — 3-mode selector ─────────────────────────────────────── */}
+        <div className="space-y-2">
+          <label className="text-[11px] text-[var(--text-muted)] font-semibold">Quantity</label>
+
+          {/* Mode tabs */}
+          <div className="flex p-0.5 bg-[var(--bg-secondary)] rounded-lg gap-0.5">
+            {([
+              { key: 'units' as QtyMode, label: base },
+              { key: 'usd' as QtyMode, label: 'USD' },
+              { key: 'pct' as QtyMode, label: '% Wallet' },
+            ]).map(({ key, label }) => (
+              <button key={key} type="button" onClick={() => setQtyMode(key)}
+                className={`flex-1 py-1.5 rounded-md text-[10px] font-bold transition-all cursor-pointer ${qtyMode === key ? 'bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                  }`}>
+                {label}
               </button>
             ))}
           </div>
-          {liqPrice != null && livePrice > 0 && (
-            <div className="flex items-center justify-between text-[10px] pt-1 border-t border-[var(--border-subtle)]">
-              <span className="text-[var(--color-danger)] font-semibold flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Est. Liq.</span>
-              <span className="font-extrabold font-mono-num text-[var(--color-danger)]">${fP(liqPrice, instrument)}</span>
+
+          {/* Input for each mode */}
+          {qtyMode === 'units' && (
+            <div className="flex items-center gap-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-lg px-3 py-2">
+              <input type="number" step="any" min="0" value={qtyUnits} onChange={e => setQtyUnits(e.target.value)}
+                placeholder={`e.g. 0.5`}
+                className="flex-1 bg-transparent text-sm font-mono-num font-semibold text-[var(--text-primary)] focus:outline-none" />
+              <span className="text-[11px] font-bold text-[var(--text-muted)]">{base}</span>
             </div>
           )}
-        </div>
+          {qtyMode === 'usd' && (
+            <div className="flex items-center gap-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-lg px-3 py-2">
+              <span className="text-[11px] font-semibold text-[var(--text-muted)]">$</span>
+              <input type="number" step="any" min="0" value={qtyUsd} onChange={e => setQtyUsd(e.target.value)}
+                placeholder="100"
+                className="flex-1 bg-transparent text-sm font-mono-num font-semibold text-[var(--text-primary)] focus:outline-none" />
+              <span className="text-[11px] font-bold text-[var(--text-muted)]">USD</span>
+            </div>
+          )}
+          {qtyMode === 'pct' && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-lg px-3 py-2">
+                <input type="number" step="1" min="1" max="100" value={qtyPct} onChange={e => setQtyPct(e.target.value)}
+                  placeholder="10"
+                  className="flex-1 bg-transparent text-sm font-mono-num font-semibold text-[var(--text-primary)] focus:outline-none" />
+                <span className="text-[11px] font-bold text-[var(--text-muted)]">%</span>
+              </div>
+              <div className="flex gap-1">
+                {[10, 25, 50, 75, 100].map(p => (
+                  <button key={p} type="button" onClick={() => setQtyPct(String(p))}
+                    className={`flex-1 py-1 rounded text-[9px] font-bold transition-all cursor-pointer ${qtyPct === String(p)
+                        ? 'bg-[var(--brand-primary)] text-white'
+                        : 'bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--brand-primary)] hover:border-[var(--brand-primary)]'
+                      }`}>
+                    {p}%
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
-        {/* Quantity */}
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between">
-            <label className="text-[11px] text-[var(--text-muted)] font-semibold">Quantity</label>
-            <span className="text-[10px] text-[var(--text-muted)]">{instrument.split('/')[0]}</span>
-          </div>
-          <div className="flex items-center gap-1 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-lg px-3 py-2">
-            <input type="number" step="any" min="1" value={qtyUsd} onChange={e => setQtyUsd(e.target.value)}
-              className="flex-1 bg-transparent text-sm font-mono-num font-semibold text-[var(--text-primary)] focus:outline-none" placeholder="USD" />
-            <span className="text-[10px] text-[var(--text-muted)] font-semibold">USD</span>
-          </div>
-          {execPrice > 0 && notional > 0 && (
+          {/* Summary */}
+          {notional > 0 && execPrice > 0 && (
             <p className="text-[10px] text-[var(--text-muted)]">
-              ≈ {units.toFixed(5)} {instrument.split('/')[0]}
-              {leverage > 1 && <span className="ml-1 text-amber-400"> · Margin {fUsd(margin)}</span>}
+              ≈ {unitCount.toFixed(5)} {base} · {fUsd(notional)} notional
             </p>
           )}
-          {/* % quick-fill */}
-          <div className="flex gap-1">
-            {[10, 25, 50, 75, 100].map(pct => (
-              <button key={pct} type="button" onClick={() => handleQtyPct(pct)}
-                className="flex-1 py-1 rounded text-[9px] font-bold bg-[var(--bg-secondary)] border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--brand-primary)] hover:border-[var(--brand-primary)] transition-all cursor-pointer">
-                {pct}%
-              </button>
-            ))}
-          </div>
         </div>
 
-        {/* Bracket Order (SL/TP) */}
+        {/* Bracket Order (SL / TP) */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-semibold text-[var(--text-muted)]">Bracket Order</span>
             <button type="button" onClick={() => setBracketOn(!bracketOn)}
-              className="flex items-center gap-1.5 text-[10px] text-[var(--brand-primary)] font-semibold cursor-pointer hover:opacity-80 transition-opacity">
+              className="flex items-center gap-1 text-[10px] text-[var(--brand-primary)] font-semibold cursor-pointer hover:opacity-80">
               <Plus className="w-3 h-3" />
               {bracketOn ? 'Hide' : 'Add'} TP/SL
             </button>
           </div>
-
           {bracketOn && (
             <div className="space-y-2">
               <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-0.5">
+                <div>
                   <label className="text-[10px] font-semibold text-orange-400">Stop Loss ($)</label>
                   <input type="number" step="any" value={sl} onChange={e => setSl(e.target.value)}
-                    className="w-full bg-[var(--bg-secondary)] border border-orange-400/30 rounded-lg px-2.5 py-1.5 text-xs font-mono-num text-orange-400 focus:outline-none focus:border-orange-400" />
+                    className="w-full mt-0.5 bg-[var(--bg-secondary)] border border-orange-400/30 rounded-lg px-2.5 py-1.5
+                               text-xs font-mono-num text-orange-400 focus:outline-none focus:border-orange-400" />
                 </div>
-                <div className="space-y-0.5">
+                <div>
                   <label className="text-[10px] font-semibold text-emerald-400">Take Profit 1 ($)</label>
                   <input type="number" step="any" value={tp1} onChange={e => setTp1(e.target.value)}
-                    className="w-full bg-[var(--bg-secondary)] border border-emerald-400/30 rounded-lg px-2.5 py-1.5 text-xs font-mono-num text-emerald-400 focus:outline-none focus:border-emerald-400" />
+                    className="w-full mt-0.5 bg-[var(--bg-secondary)] border border-emerald-400/30 rounded-lg px-2.5 py-1.5
+                               text-xs font-mono-num text-emerald-400 focus:outline-none focus:border-emerald-400" />
                 </div>
               </div>
               <button type="button" onClick={() => setShowTp23(!showTp23)}
-                className="text-[10px] text-[var(--brand-primary)] font-semibold cursor-pointer hover:opacity-80 flex items-center gap-1">
+                className="flex items-center gap-1 text-[10px] text-[var(--brand-primary)] font-semibold cursor-pointer hover:opacity-80">
                 <ChevronDown className={`w-3 h-3 transition-transform ${showTp23 ? 'rotate-180' : ''}`} />
                 {showTp23 ? 'Hide' : 'Add'} TP2 / TP3
               </button>
               {showTp23 && (
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-0.5">
-                    <label className="text-[10px] font-semibold text-teal-400">Take Profit 2 ($)</label>
+                  <div>
+                    <label className="text-[10px] font-semibold text-teal-400">TP2 ($)</label>
                     <input type="number" step="any" value={tp2} onChange={e => setTp2(e.target.value)}
-                      className="w-full bg-[var(--bg-secondary)] border border-teal-400/30 rounded-lg px-2.5 py-1.5 text-xs font-mono-num text-teal-400 focus:outline-none focus:border-teal-400" />
+                      className="w-full mt-0.5 bg-[var(--bg-secondary)] border border-teal-400/30 rounded-lg px-2.5 py-1.5
+                                 text-xs font-mono-num text-teal-400 focus:outline-none focus:border-teal-400" />
                   </div>
-                  <div className="space-y-0.5">
-                    <label className="text-[10px] font-semibold text-cyan-400">Take Profit 3 ($)</label>
+                  <div>
+                    <label className="text-[10px] font-semibold text-cyan-400">TP3 ($)</label>
                     <input type="number" step="any" value={tp3} onChange={e => setTp3(e.target.value)}
-                      className="w-full bg-[var(--bg-secondary)] border border-cyan-400/30 rounded-lg px-2.5 py-1.5 text-xs font-mono-num text-cyan-400 focus:outline-none focus:border-cyan-400" />
+                      className="w-full mt-0.5 bg-[var(--bg-secondary)] border border-cyan-400/30 rounded-lg px-2.5 py-1.5
+                                 text-xs font-mono-num text-cyan-400 focus:outline-none focus:border-cyan-400" />
                   </div>
                 </div>
               )}
-              {/* R:R */}
               {rr && (
-                <div className="flex justify-between items-center px-2.5 py-1.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-subtle)] text-[10px]">
+                <div className="flex justify-between px-2.5 py-1.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-subtle)] text-[10px]">
                   <span className="text-[var(--text-muted)]">Risk:Reward</span>
                   <span className="font-bold text-[var(--text-primary)]">1:{rr}</span>
                 </div>
@@ -400,26 +431,19 @@ const OrderPanel: React.FC<OrderPanelProps> = ({ instrument, livePrice, balance,
           )}
         </div>
 
-        {/* Reduce Only */}
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" checked={reduceOnly} onChange={e => setReduceOnly(e.target.checked)}
-            className="w-3.5 h-3.5 rounded accent-[var(--brand-primary)] cursor-pointer" />
-          <span className="text-[11px] text-[var(--text-muted)]">Reduce Only</span>
-        </label>
-
-        {/* Fees & funds required */}
-        <div className="space-y-1.5 py-2 border-t border-[var(--border-subtle)]">
+        {/* Funds summary */}
+        <div className="space-y-1.5 pt-2 border-t border-[var(--border-subtle)]">
           <div className="flex justify-between text-[11px]">
-            <span className="text-[var(--text-muted)] flex items-center gap-1">Funds req.</span>
+            <span className="text-[var(--text-muted)]">Funds required</span>
             <span className="font-semibold font-mono-num text-[var(--text-primary)]">{fUsd(fundsReq)}</span>
           </div>
           <div className="flex justify-between text-[11px]">
-            <span className="text-[var(--text-muted)] flex items-center gap-1"><Wallet className="w-3 h-3" /> Available Margin</span>
+            <span className="text-[var(--text-muted)] flex items-center gap-1"><Wallet className="w-3 h-3" /> Available</span>
             <span className="font-bold font-mono-num text-[var(--text-primary)]">{fUsd(balance)}</span>
           </div>
           <div className="flex justify-between text-[11px]">
-            <span className="text-[var(--text-muted)]">% Fees</span>
-            <span className="text-[var(--text-muted)] font-mono-num">0.05% · {fUsd(fee)}</span>
+            <span className="text-[var(--text-muted)]">Fee (0.05%)</span>
+            <span className="text-[var(--text-muted)] font-mono-num">{fUsd(fee)}</span>
           </div>
         </div>
 
@@ -430,25 +454,24 @@ const OrderPanel: React.FC<OrderPanelProps> = ({ instrument, livePrice, balance,
         )}
       </div>
 
-      {/* Submit button — pinned outside scroll so it's always reachable */}
-      <div className="p-3 pt-0 border-t border-[var(--border-subtle)] bg-[var(--bg-surface)]">
+      {/* Submit button — pinned at bottom, always reachable */}
+      <div className="p-3 border-t border-[var(--border-subtle)] bg-[var(--bg-surface)]">
         <button type="button" onClick={handleSubmit} disabled={execPrice <= 0 || isSubmitting}
           className={`w-full py-3 rounded-xl text-sm font-bold text-white transition-all cursor-pointer disabled:opacity-50 ${direction === 'LONG'
-            ? 'bg-[var(--color-success)] hover:opacity-90 shadow-lg shadow-[var(--color-success)]/20'
-            : 'bg-[var(--color-danger)] hover:opacity-90 shadow-lg shadow-[var(--color-danger)]/20'
+              ? 'bg-[var(--color-success)] hover:opacity-90 shadow-lg shadow-[var(--color-success)]/20'
+              : 'bg-[var(--color-danger)]  hover:opacity-90 shadow-lg shadow-[var(--color-danger)]/20'
             }`}>
-          {isSubmitting ? 'Placing…' : direction === 'LONG'
-            ? `Buy / Long ${instrument.split('/')[0]}`
-            : `Sell / Short ${instrument.split('/')[0]}`}
-          {leverage > 1 && <span className="ml-1.5 opacity-80 font-mono text-xs">{leverage}×</span>}
+          {isSubmitting ? 'Placing…' : direction === 'LONG' ? `Buy / Long ${base}` : `Sell / Short ${base}`}
         </button>
-        <p className="text-[9px] text-[var(--text-muted)] text-center mt-1.5">Paper trading — no real funds at risk</p>
+        <p className="text-[9px] text-[var(--text-muted)] text-center mt-1.5">
+          Paper trading — no real funds at risk
+        </p>
       </div>
     </div>
   );
 };
 
-// ─── Positions table row ───────────────────────────────────────────────────────
+// ─── Positions table row ────────────────────────────────────────────────────────
 const PositionRow: React.FC<{ pos: PaperPosition; livePrice: number; onClose: () => void }> = ({ pos, livePrice, onClose }) => {
   const size = parseFloat(pos.size);
   const entry = parseFloat(pos.entry_price);
@@ -463,10 +486,10 @@ const PositionRow: React.FC<{ pos: PaperPosition; livePrice: number; onClose: ()
       <td className="px-3 py-2 text-xs">
         <div className="flex items-center gap-1.5">
           <span className="font-bold text-[var(--text-primary)]">{pos.instrument}</span>
-          <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-full ${pos.direction === 'LONG' ? 'bg-[var(--color-success-bg)] text-[var(--color-success)]' : 'bg-[var(--color-danger-bg)] text-[var(--color-danger)]'}`}>
+          <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-full ${pos.direction === 'LONG' ? 'bg-[var(--color-success-bg)] text-[var(--color-success)]' : 'bg-[var(--color-danger-bg)] text-[var(--color-danger)]'
+            }`}>
             {pos.direction}
           </span>
-          {pos.leverage > 1 && <span className="text-[9px] font-bold text-amber-400">{pos.leverage}×</span>}
         </div>
       </td>
       <td className="px-3 py-2 text-xs font-mono-num text-[var(--text-secondary)]">{fUsd(parseFloat(pos.notional_usd))}</td>
@@ -476,9 +499,7 @@ const PositionRow: React.FC<{ pos: PaperPosition; livePrice: number; onClose: ()
       </td>
       <td className={`px-3 py-2 text-xs font-mono-num font-bold ${pnl != null ? pnlCls(pnl) : 'text-[var(--text-muted)]'}`}>
         {pnl != null ? `${pnl >= 0 ? '+' : ''}${fUsd(pnl)}` : '—'}
-        {pnlPct != null && (
-          <span className="ml-1 text-[10px] opacity-70">({pnlPct >= 0 ? '+' : ''}{pnlPct.toFixed(1)}%)</span>
-        )}
+        {pnlPct != null && <span className="ml-1 text-[10px] opacity-70">({pnlPct >= 0 ? '+' : ''}{pnlPct.toFixed(1)}%)</span>}
       </td>
       <td className="px-3 py-2 text-xs font-mono-num">
         <span className={pos.stop_loss ? 'text-orange-400' : 'text-[var(--text-muted)]'}>
@@ -491,17 +512,17 @@ const PositionRow: React.FC<{ pos: PaperPosition; livePrice: number; onClose: ()
         </span>
       </td>
       <td className="px-3 py-2 text-xs font-mono-num">
-        {liqDist != null && liqDist < 10 ? (
-          <span className="text-[var(--color-danger)] font-bold flex items-center gap-1">
+        {liqDist != null && liqDist < 10
+          ? <span className="text-[var(--color-danger)] font-bold flex items-center gap-1">
             <AlertTriangle className="w-3 h-3" />${fP(parseFloat(pos.liquidation_price), pos.instrument)}
           </span>
-        ) : (
-          <span className="text-[var(--text-muted)]">${fP(parseFloat(pos.liquidation_price), pos.instrument)}</span>
-        )}
+          : <span className="text-[var(--text-muted)]">${fP(parseFloat(pos.liquidation_price), pos.instrument)}</span>
+        }
       </td>
       <td className="px-3 py-2">
         <button type="button" onClick={onClose}
-          className="px-2.5 py-1 rounded-lg bg-[var(--color-danger-bg)] text-[var(--color-danger)] border border-[var(--color-danger)]/30 text-[10px] font-bold hover:bg-[var(--color-danger)] hover:text-white transition-all cursor-pointer">
+          className="px-2.5 py-1 rounded-lg bg-[var(--color-danger-bg)] text-[var(--color-danger)] border border-[var(--color-danger)]/30
+                     text-[10px] font-bold hover:bg-[var(--color-danger)] hover:text-white transition-all cursor-pointer">
           Close
         </button>
       </td>
@@ -509,10 +530,10 @@ const PositionRow: React.FC<{ pos: PaperPosition; livePrice: number; onClose: ()
   );
 };
 
-// ─── History table row ─────────────────────────────────────────────────────────
+// ─── History row ────────────────────────────────────────────────────────────────
 const HistoryRow: React.FC<{ pos: PaperPosition }> = ({ pos }) => {
   const pnl = parseFloat(pos.realised_pnl ?? '0');
-  const statusBadge: Record<string, string> = {
+  const badge: Record<string, string> = {
     CLOSED: 'text-[var(--text-muted)]', SL_HIT: 'text-orange-400',
     TP1_HIT: 'text-emerald-400', TP2_HIT: 'text-teal-400', TP3_HIT: 'text-cyan-400',
     LIQUIDATED: 'text-[var(--color-danger)]',
@@ -521,43 +542,59 @@ const HistoryRow: React.FC<{ pos: PaperPosition }> = ({ pos }) => {
     <tr className="border-b border-[var(--border-subtle)] hover:bg-[var(--bg-secondary)] transition-colors text-xs">
       <td className="px-3 py-2 font-bold text-[var(--text-primary)]">{pos.instrument}</td>
       <td className="px-3 py-2">
-        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${pos.direction === 'LONG' ? 'bg-[var(--color-success-bg)] text-[var(--color-success)]' : 'bg-[var(--color-danger-bg)] text-[var(--color-danger)]'}`}>
-          {pos.direction}{pos.leverage > 1 ? ` ${pos.leverage}×` : ''}
-        </span>
+        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${pos.direction === 'LONG' ? 'bg-[var(--color-success-bg)] text-[var(--color-success)]' : 'bg-[var(--color-danger-bg)] text-[var(--color-danger)]'
+          }`}>{pos.direction}</span>
       </td>
       <td className="px-3 py-2 font-mono-num text-[var(--text-secondary)]">${fP(parseFloat(pos.entry_price), pos.instrument)}</td>
-      <td className="px-3 py-2 font-mono-num text-[var(--text-secondary)]">{pos.close_price ? `$${fP(parseFloat(pos.close_price), pos.instrument)}` : '—'}</td>
+      <td className="px-3 py-2 font-mono-num text-[var(--text-secondary)]">
+        {pos.close_price ? `$${fP(parseFloat(pos.close_price), pos.instrument)}` : '—'}
+      </td>
       <td className={`px-3 py-2 font-mono-num font-bold ${pnlCls(pnl)}`}>{pnl >= 0 ? '+' : ''}{fUsd(pnl)}</td>
-      <td className={`px-3 py-2 text-[10px] font-bold ${statusBadge[pos.status] ?? ''}`}>{pos.close_reason ?? pos.status}</td>
-      <td className="px-3 py-2 text-[var(--text-muted)]">{pos.closed_at ? new Date(pos.closed_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+      <td className={`px-3 py-2 text-[10px] font-bold ${badge[pos.status] ?? ''}`}>{pos.close_reason ?? pos.status}</td>
+      <td className="px-3 py-2 text-[var(--text-muted)]">
+        {pos.closed_at ? new Date(pos.closed_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
+      </td>
     </tr>
   );
 };
 
-// ─── Ledger row ────────────────────────────────────────────────────────────────
-const LedgerRow: React.FC<{ entry: ReturnType<typeof usePaperLedger>['data'] extends (infer U)[] | undefined ? U : never }> = ({ entry }) => {
-  if (!entry) return null;
+// ─── Ledger row ─────────────────────────────────────────────────────────────────
+const LedgerRow: React.FC<{ entry: { id: string; entry_type: string; note: string; amount: string; balance_after: string; created_at: string } }> = ({ entry }) => {
   const amount = parseFloat(entry.amount);
   return (
     <tr className="border-b border-[var(--border-subtle)] hover:bg-[var(--bg-secondary)] transition-colors text-xs">
       <td className="px-3 py-2">
         <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase ${entry.entry_type === 'REALISED_PNL' ? (amount >= 0 ? 'bg-[var(--color-success-bg)] text-[var(--color-success)]' : 'bg-[var(--color-danger-bg)] text-[var(--color-danger)]')
-          : entry.entry_type === 'FEE' ? 'bg-amber-500/10 text-amber-400'
-            : entry.entry_type === 'ACCOUNT_RESET' ? 'bg-[var(--brand-glow)] text-[var(--brand-primary)]'
-              : 'bg-[var(--bg-surface)] text-[var(--text-muted)]'
+            : entry.entry_type === 'FEE' ? 'bg-amber-500/10 text-amber-400'
+              : entry.entry_type === 'ACCOUNT_RESET' ? 'bg-[var(--brand-glow)] text-[var(--brand-primary)]'
+                : 'bg-[var(--bg-surface)] text-[var(--text-muted)]'
           }`}>{entry.entry_type.replace(/_/g, ' ')}</span>
       </td>
-      <td className="px-3 py-2 text-[var(--text-muted)] max-w-[180px] truncate">{entry.note}</td>
+      <td className="px-3 py-2 text-[var(--text-muted)] max-w-[160px] truncate">{entry.note}</td>
       <td className={`px-3 py-2 font-mono-num font-bold ${amount >= 0 ? 'text-[var(--color-success)]' : 'text-[var(--color-danger)]'}`}>
         {amount >= 0 ? '+' : ''}{fUsd(amount)}
       </td>
       <td className="px-3 py-2 font-mono-num text-[var(--text-secondary)]">{fUsd(parseFloat(entry.balance_after))}</td>
-      <td className="px-3 py-2 text-[var(--text-muted)]">{new Date(entry.created_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
+      <td className="px-3 py-2 text-[var(--text-muted)]">
+        {new Date(entry.created_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+      </td>
     </tr>
   );
 };
 
-// ─── Main Page ─────────────────────────────────────────────────────────────────
+// ─── Micro components ───────────────────────────────────────────────────────────
+const StatPill: React.FC<{ label: string; value: string; color?: string }> = ({ label, value, color = 'text-[var(--text-secondary)]' }) => (
+  <div className="flex flex-col">
+    <span className="text-[9px] text-[var(--text-muted)] uppercase tracking-wider leading-none">{label}</span>
+    <span className={`text-xs font-bold font-mono-num leading-tight mt-0.5 ${color}`}>{value}</span>
+  </div>
+);
+
+const EmptyState: React.FC<{ text: string }> = ({ text }) => (
+  <div className="flex items-center justify-center py-8 text-xs text-[var(--text-muted)]">{text}</div>
+);
+
+// ─── Main Page ──────────────────────────────────────────────────────────────────
 export default function MyTradesPage() {
   const [activeInstrument, setActiveInstrument] = useState('BTC/USDT');
   const [closingPos, setClosingPos] = useState<PaperPosition | null>(null);
@@ -566,16 +603,15 @@ export default function MyTradesPage() {
   const [chartHeight, setChartHeight] = useState(560);
   const chartRef = useRef<HTMLDivElement>(null);
 
-  // Keep chart height in sync with its container as the window resizes
+  // Sync chart height with container
   useEffect(() => {
     const el = chartRef.current;
     if (!el) return;
-    const ro = new ResizeObserver(([entry]) => {
-      const h = entry.contentRect.height;
+    const ro = new ResizeObserver(([e]) => {
+      const h = e.contentRect.height;
       if (h > 200) setChartHeight(Math.floor(h));
     });
     ro.observe(el);
-    // Set initial height
     if (el.clientHeight > 200) setChartHeight(el.clientHeight);
     return () => ro.disconnect();
   }, []);
@@ -593,11 +629,10 @@ export default function MyTradesPage() {
   const closeMut = useClosePaperPosition();
   const resetMut = useResetPaperAccount();
 
-  // Derived ticker for the active instrument
-  const activeTicker = useMemo(() =>
-    tickers.find(t => t.symbol === activeInstrument),
-    [tickers, activeInstrument]
-  );
+  const activeTicker = useMemo(() => tickers.find(t => t.symbol === activeInstrument), [tickers, activeInstrument]);
+  const activeChartItem = CHART_ITEMS.find(c => c.instrument === activeInstrument);
+  const activeOpenPos = useMemo(() => openPositions.find(p => p.instrument === activeInstrument) ?? null, [openPositions, activeInstrument]);
+  const chartOverlay = useMemo(() => activeOpenPos ? positionToChartOverlay(activeOpenPos) : null, [activeOpenPos]);
 
   // SL/TP/Liquidation evaluation every 15s
   useEffect(() => {
@@ -613,15 +648,11 @@ export default function MyTradesPage() {
     return () => clearInterval(id);
   }, [openPositions.length, allPrices]);
 
-  // Also refetch positions after evaluation might have closed some
+  // Also refetch positions periodically
   useEffect(() => {
     const id = setInterval(refetchPos, 15_000);
     return () => clearInterval(id);
   }, [refetchPos]);
-
-  const activeChartItem = CHART_ITEMS.find(c => c.instrument === activeInstrument);
-  const activeOpenPos = useMemo(() => openPositions.find(p => p.instrument === activeInstrument) ?? null, [openPositions, activeInstrument]);
-  const chartOverlay = useMemo(() => activeOpenPos ? positionToChartOverlay(activeOpenPos) : null, [activeOpenPos]);
 
   const balance = account ? parseFloat(account.balance) : 0;
   const lockedMargin = account ? parseFloat(account.locked_margin) : 0;
@@ -639,38 +670,36 @@ export default function MyTradesPage() {
   const handleOrderSubmit = (params: Parameters<typeof openMut.mutate>[0]) => {
     openMut.mutate({ ...params, marketPrice: livePrice });
   };
-
   const handleCloseConfirm = (price: number) => {
     if (!closingPos) return;
     closeMut.mutate({ positionId: closingPos.id, marketPrice: price }, { onSettled: () => setClosingPos(null) });
   };
 
-  // ── Full-bleed layout: breaks out of AppShell padding ──────────────────────
+  // ── Render ──────────────────────────────────────────────────────────────────
+  // -m-5 lg:-m-6 cancels AppShell padding for full-bleed layout
   return (
-    // -m-5 lg:-m-6 cancels the AppShell's p-5 lg:p-6 padding so we reach edge-to-edge
     <div className="-m-5 lg:-m-6">
 
-      {/* ── Instrument + stats header ─────────────────────────────────────────── */}
+      {/* ── Sticky instrument + stats header ─────────────────────────────── */}
       <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-2
                       bg-[var(--bg-surface)] border-b border-[var(--border-subtle)]
                       overflow-x-auto scrollbar-thin">
-
         {/* Symbol tabs */}
         <div className="flex gap-1 flex-shrink-0">
           {CHART_ITEMS.map(({ instrument, label }) => {
             const hasOpen = openPositions.some(p => p.instrument === instrument);
             const isActive = activeInstrument === instrument;
             return (
-              <button key={instrument} type="button"
-                onClick={() => setActiveInstrument(instrument)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold
-                            border whitespace-nowrap transition-all cursor-pointer flex-shrink-0
-                            ${isActive
+              <button key={instrument} type="button" onClick={() => setActiveInstrument(instrument)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border whitespace-nowrap
+                            transition-all cursor-pointer flex-shrink-0 ${isActive
                     ? 'bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] border-[var(--brand-primary)]'
                     : 'bg-transparent text-[var(--text-muted)] border-transparent hover:text-[var(--text-primary)] hover:border-[var(--border-subtle)]'
                   }`}>
                 {label}
-                {hasOpen && <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isActive ? 'bg-[var(--brand-primary)]' : 'bg-[var(--color-success)]'}`} />}
+                {hasOpen && (
+                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isActive ? 'bg-[var(--brand-primary)]' : 'bg-[var(--color-success)]'}`} />
+                )}
               </button>
             );
           })}
@@ -682,8 +711,7 @@ export default function MyTradesPage() {
         <div className="flex items-center gap-5 flex-shrink-0">
           <div className="flex items-center gap-1.5">
             {livePrice > 0 && <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-success)] animate-pulse" />}
-            <span className={`text-base font-extrabold font-mono-num ${(activeTicker?.change24h ?? 0) >= 0 ? 'text-[var(--color-success)]' : 'text-[var(--color-danger)]'
-              }`}>
+            <span className={`text-base font-extrabold font-mono-num ${(activeTicker?.change24h ?? 0) >= 0 ? 'text-[var(--color-success)]' : 'text-[var(--color-danger)]'}`}>
               {livePrice > 0 ? `$${fP(livePrice, activeInstrument)}` : '—'}
             </span>
             {activeTicker?.change24h !== undefined && (
@@ -699,7 +727,7 @@ export default function MyTradesPage() {
           </>}
         </div>
 
-        {/* Right: account stats + reset */}
+        {/* Right: account + reset */}
         <div className="ml-auto flex items-center gap-4 flex-shrink-0">
           {accountLoading ? <Skeleton className="w-40 h-4" /> : account && <>
             <StatPill label="Balance" value={fUsd(balance)} color="text-[var(--text-primary)]" />
@@ -710,8 +738,7 @@ export default function MyTradesPage() {
           {resetConfirm ? (
             <div className="flex items-center gap-1.5 text-xs">
               <span className="text-[var(--color-danger)] font-semibold">Reset?</span>
-              <button onClick={() => { resetMut.mutate(); setResetConfirm(false); }}
-                disabled={resetMut.isPending}
+              <button onClick={() => { resetMut.mutate(); setResetConfirm(false); }} disabled={resetMut.isPending}
                 className="px-2 py-0.5 rounded bg-[var(--color-danger)] text-white text-[10px] font-bold cursor-pointer disabled:opacity-50">Yes</button>
               <button onClick={() => setResetConfirm(false)}
                 className="px-2 py-0.5 rounded bg-[var(--bg-secondary)] border border-[var(--border-subtle)] text-[10px] font-bold cursor-pointer text-[var(--text-muted)]">No</button>
@@ -729,9 +756,11 @@ export default function MyTradesPage() {
         </div>
       </div>
 
-      {/* ── Chart + Order panel (tall, fixed 620px so chart is usable) ──────── */}
-      <div className="flex border-b border-[var(--border-subtle)]" style={{ minHeight: '560px', height: 'calc(100vh - 180px)' }}>
-        {/* Chart — takes all remaining width */}
+      {/* ── Chart + Order panel ──────────────────────────────────────────────── */}
+      {/* calc: 100vh - topbar(64px) - our header(~49px) - bottom(~73px) */}
+      <div className="flex border-b border-[var(--border-subtle)]"
+        style={{ height: 'calc(100vh - 186px)', minHeight: '520px' }}>
+        {/* Chart */}
         <div ref={chartRef} className="flex-1 min-w-0 overflow-hidden">
           <ZoneLinesChart
             tvSymbol={activeChartItem?.symbol}
@@ -742,9 +771,8 @@ export default function MyTradesPage() {
             allowDrawing={true}
           />
         </div>
-
-        {/* Order panel — fixed 285px */}
-        <div className="w-[285px] flex-shrink-0 overflow-y-auto border-l border-[var(--border-subtle)]">
+        {/* Order panel */}
+        <div className="w-[285px] flex-shrink-0 overflow-hidden">
           <OrderPanel
             instrument={activeInstrument}
             livePrice={livePrice}
@@ -755,19 +783,17 @@ export default function MyTradesPage() {
         </div>
       </div>
 
-      {/* ── Bottom section: positions / history / ledger — scrollable ───────── */}
+      {/* ── Bottom: positions / history / ledger (scrolls naturally) ─────────── */}
       <div className="bg-[var(--bg-surface)]">
-        {/* Tab bar — sticky so it stays visible while scrolling inside the table */}
-        <div className="sticky top-[49px] z-20 flex items-center border-b border-[var(--border-subtle)]
-                        bg-[var(--bg-surface)] px-4">
+        {/* Tab bar — sticky below instrument header */}
+        <div className="sticky top-[49px] z-20 flex items-center border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4">
           {[
             { key: 'positions' as const, label: `Positions (${openPositions.length})`, icon: <BarChart2 className="w-3 h-3" /> },
             { key: 'history' as const, label: `Trade History (${closedPositions.length})`, icon: <History className="w-3 h-3" /> },
             { key: 'ledger' as const, label: 'Account Ledger', icon: <BookOpen className="w-3 h-3" /> },
           ].map(({ key, label, icon }) => (
             <button key={key} type="button" onClick={() => setBottomTab(key)}
-              className={`flex items-center gap-1.5 px-4 py-3 text-xs font-semibold border-b-2 transition-all cursor-pointer
-                          ${bottomTab === key
+              className={`flex items-center gap-1.5 px-4 py-3 text-xs font-semibold border-b-2 transition-all cursor-pointer ${bottomTab === key
                   ? 'text-[var(--brand-primary)] border-[var(--brand-primary)]'
                   : 'text-[var(--text-muted)] border-transparent hover:text-[var(--text-primary)]'
                 }`}>
@@ -776,10 +802,8 @@ export default function MyTradesPage() {
           ))}
         </div>
 
-        {/* Table content — min height so empty states don't collapse */}
-        <div className="min-h-[200px]">
-
-          {/* ── Open Positions ── */}
+        <div className="min-h-[180px]">
+          {/* Positions */}
           {bottomTab === 'positions' && (
             posLoading ? (
               <div className="p-4 space-y-2">{[0, 1].map(i => <Skeleton key={i} className="h-10 rounded-lg" />)}</div>
@@ -787,19 +811,17 @@ export default function MyTradesPage() {
               <EmptyState text="No open positions. Place an order above." />
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[800px]">
+                <table className="w-full min-w-[760px]">
                   <thead className="bg-[var(--bg-secondary)]">
                     <tr className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">
                       {['Instrument', 'Size (USD)', 'Entry', 'Mark Price', 'Unrealized P&L', 'Stop Loss', 'Take Profit', 'Liq. Price', ''].map(h => (
-                        <th key={h} className="px-4 py-2.5 text-left font-semibold whitespace-nowrap">{h}</th>
+                        <th key={h} className="px-3 py-2.5 text-left font-semibold whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {openPositions.map(pos => (
-                      <PositionRow key={pos.id} pos={pos}
-                        livePrice={allPrices[pos.instrument] ?? 0}
-                        onClose={() => setClosingPos(pos)} />
+                      <PositionRow key={pos.id} pos={pos} livePrice={allPrices[pos.instrument] ?? 0} onClose={() => setClosingPos(pos)} />
                     ))}
                   </tbody>
                 </table>
@@ -807,45 +829,41 @@ export default function MyTradesPage() {
             )
           )}
 
-          {/* ── Trade History ── */}
+          {/* History */}
           {bottomTab === 'history' && (
             closedPositions.length === 0 ? (
               <EmptyState text="No closed positions yet." />
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[700px]">
+                <table className="w-full min-w-[640px]">
                   <thead className="bg-[var(--bg-secondary)]">
                     <tr className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">
                       {['Instrument', 'Side', 'Entry', 'Close Price', 'Realized P&L', 'Reason', 'Closed At'].map(h => (
-                        <th key={h} className="px-4 py-2.5 text-left font-semibold whitespace-nowrap">{h}</th>
+                        <th key={h} className="px-3 py-2.5 text-left font-semibold whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
                   </thead>
-                  <tbody>
-                    {closedPositions.map(pos => <HistoryRow key={pos.id} pos={pos} />)}
-                  </tbody>
+                  <tbody>{closedPositions.map(pos => <HistoryRow key={pos.id} pos={pos} />)}</tbody>
                 </table>
               </div>
             )
           )}
 
-          {/* ── Account Ledger ── */}
+          {/* Ledger */}
           {bottomTab === 'ledger' && (
             ledgerEntries.length === 0 ? (
               <EmptyState text="No ledger entries yet." />
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[600px]">
+                <table className="w-full min-w-[560px]">
                   <thead className="bg-[var(--bg-secondary)]">
                     <tr className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">
                       {['Type', 'Note', 'Amount', 'Balance After', 'Time'].map(h => (
-                        <th key={h} className="px-4 py-2.5 text-left font-semibold whitespace-nowrap">{h}</th>
+                        <th key={h} className="px-3 py-2.5 text-left font-semibold whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
                   </thead>
-                  <tbody>
-                    {ledgerEntries.map(e => <LedgerRow key={e.id} entry={e} />)}
-                  </tbody>
+                  <tbody>{ledgerEntries.map(e => <LedgerRow key={e.id} entry={e} />)}</tbody>
                 </table>
               </div>
             )
@@ -853,11 +871,10 @@ export default function MyTradesPage() {
         </div>
       </div>
 
-      {/* Disclaimer strip */}
-      <div className="flex items-center gap-2 px-4 py-2 bg-[var(--bg-base)]
-                      border-t border-[var(--border-subtle)] text-[10px] text-[var(--text-muted)]">
+      {/* Disclaimer */}
+      <div className="flex items-center gap-2 px-4 py-2 bg-[var(--bg-base)] border-t border-[var(--border-subtle)] text-[10px] text-[var(--text-muted)]">
         <Info className="w-3 h-3 text-[var(--brand-primary)] flex-shrink-0" />
-        Simulated only — 0.05% fee · 0.05% slippage · SL/TP/Liquidation evaluated server-side every 15 s
+        Simulated only · 0.05% fee · 0.05% slippage · SL/TP/Liquidation evaluated server-side every 15 s · Balance persists across devices
       </div>
 
       {/* Close modal */}
@@ -873,15 +890,3 @@ export default function MyTradesPage() {
     </div>
   );
 }
-
-// ─── Micro components ──────────────────────────────────────────────────────────
-const StatPill: React.FC<{ label: string; value: string; color?: string }> = ({ label, value, color = 'text-[var(--text-secondary)]' }) => (
-  <div className="flex flex-col">
-    <span className="text-[9px] text-[var(--text-muted)] uppercase tracking-wider leading-none">{label}</span>
-    <span className={`text-xs font-bold font-mono-num leading-tight mt-0.5 ${color}`}>{value}</span>
-  </div>
-);
-
-const EmptyState: React.FC<{ text: string }> = ({ text }) => (
-  <div className="flex items-center justify-center py-8 text-xs text-[var(--text-muted)]">{text}</div>
-);
