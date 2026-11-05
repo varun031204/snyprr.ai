@@ -307,13 +307,14 @@ const TVDropdown: React.FC<{
   const [open, setOpen] = useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
 
+  // Capture-phase click listener with setTimeout so menu-item clicks register first
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    const tid = window.setTimeout(() => document.addEventListener('click', handler, true), 0);
+    return () => { window.clearTimeout(tid); document.removeEventListener('click', handler, true); };
   }, [open]);
 
   const INDICATORS = [
@@ -329,7 +330,7 @@ const TVDropdown: React.FC<{
 
   return (
     <div className="relative" ref={ref}>
-      <button type="button" onClick={() => setOpen(!open)}
+      <button type="button" onClick={() => setOpen(o => !o)}
         className={`flex items-center gap-1 px-2 h-7 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${active || (isIndicators && activeIndicators.length > 0)
           ? 'bg-[var(--brand-primary)] text-white'
           : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]'
@@ -340,7 +341,11 @@ const TVDropdown: React.FC<{
         </svg>
       </button>
       {open && (
-        <div className="absolute top-full left-0 mt-1 z-[999] bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl shadow-2xl py-1 min-w-[180px]">
+        <div
+          className="absolute top-full left-0 mt-1 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl shadow-2xl py-1 min-w-[180px]"
+          style={{ zIndex: 99999 }}
+          onMouseDown={e => e.stopPropagation()}
+        >
           {isIndicators ? (
             INDICATORS.map(ind => (
               <button key={ind.id} type="button"
@@ -742,7 +747,7 @@ export const ZoneLinesChart: React.FC<Props> = ({
     if (!rawData.length) return;
 
     const closes = rawData.map(c => c.close);
-    const times  = rawData.map(c => c.time);
+    const times = rawData.map(c => c.time);
 
     const sma = (period: number) => closes.map((_, i) => {
       if (i < period - 1) return null;
@@ -764,9 +769,9 @@ export const ZoneLinesChart: React.FC<Props> = ({
     };
 
     const CALCS: Record<string, () => (number | null)[]> = {
-      ma9:   () => sma(9),   ma20: () => sma(20),
-      ma50:  () => sma(50),  ma200: () => sma(200),
-      ema9:  () => emaCalc(9),   ema20: () => emaCalc(20),
+      ma9: () => sma(9), ma20: () => sma(20),
+      ma50: () => sma(50), ma200: () => sma(200),
+      ema9: () => emaCalc(9), ema20: () => emaCalc(20),
       ema50: () => emaCalc(50),
     };
 
@@ -1208,7 +1213,7 @@ export const ZoneLinesChart: React.FC<Props> = ({
 
       {/* ── Top toolbar: timeframe + drawing tools + indicators (TradingView style) */}
       {showTimeframeBar && (
-        <div className="flex items-center gap-0.5 px-2 py-1 bg-[var(--bg-surface)] border border-[var(--border-subtle)] border-b-0 rounded-t-2xl flex-shrink-0 overflow-x-auto scrollbar-none">
+        <div className="flex items-center gap-0.5 px-2 py-1 bg-[var(--bg-surface)] border border-[var(--border-subtle)] border-b-0 rounded-t-2xl flex-shrink-0" style={{ overflowX: 'auto', overflowY: 'visible' }}>
 
           {/* Timeframes */}
           <div className="flex items-center gap-0.5 flex-shrink-0">
