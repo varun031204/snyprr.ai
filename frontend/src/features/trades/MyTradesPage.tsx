@@ -701,8 +701,16 @@ export default function MyTradesPage() {
 
   const balance = account ? parseFloat(account.balance) : null;
 
-  const handleOrderSubmit = (params: Parameters<typeof openMut.mutate>[0]) => {
-    openMut.mutate({ ...params, marketPrice: livePrice });
+  const handleOrderSubmit = (params: {
+    direction: PaperDirection; notionalUsd: number; leverage: number;
+    stopLoss: number | null; takeProfit1: number | null;
+    takeProfit2: number | null; takeProfit3: number | null; note: string;
+  }) => {
+    openMut.mutate({
+      ...params,
+      instrument: activeInstrument,
+      marketPrice: livePrice,
+    });
   };
   const handleCloseConfirm = (price: number) => {
     if (!closingPos) return;
