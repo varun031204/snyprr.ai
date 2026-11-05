@@ -14,6 +14,7 @@
 import React, {
   useEffect, useRef, useCallback, useState, useMemo,
 } from 'react';
+import { createPortal } from 'react-dom';
 import {
   createChart, CandlestickSeries, CrosshairMode, LineStyle,
   LineSeries as LWLineSeries,
@@ -305,80 +306,121 @@ const TVDropdown: React.FC<{
   onToggleIndicator?: (ind: string) => void;
 }> = ({ label, active, items, activeTool, onSelect, isIndicators, activeIndicators = [], onToggleIndicator }) => {
   const [open, setOpen] = useState(false);
-  const ref = React.useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const btnRef = React.useRef<HTMLButtonElement>(null);
 
-  // Capture-phase click listener with setTimeout so menu-item clicks register first
+  // Compute dropdown position from button bounding box
+  const openDropdown = () => {
+    if (btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      setPos({ top: r.bottom + 4, left: r.left });
+    }
+    if (closeTimerRef.current) { clearTimeout(closeTimerRef.current); closeTimerRef.current = null; }
+    setOpen(true);
+  };
+  const closeTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scheduleClose = () => {
+    closeTimerRef.current = setTimeout(() => setOpen(false), 150);
+  };
+  const cancelClose = () => {
+    if (closeTimerRef.current) { clearTimeout(closeTimerRef.current); closeTimerRef.current = null; }
+  };
+
+  // Close on outside click (capture phase, delayed)
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (btnRef.current && !btnRef.current.contains(e.target as Node)) {
+        // Check if click is inside the portal panel (by data-dropdown-portal)
+        const panel = document.querySelector('[data-dropdown-portal]');
+        if (panel && panel.contains(e.target as Node)) return;
+        setOpen(false);
+      }
     };
     const tid = window.setTimeout(() => document.addEventListener('click', handler, true), 0);
     return () => { window.clearTimeout(tid); document.removeEventListener('click', handler, true); };
   }, [open]);
 
   const INDICATORS = [
-    { id: 'ma9', label: 'MA 9', color: '#60a5fa' },
-    { id: 'ma20', label: 'MA 20', color: '#f97316' },
-    { id: 'ma50', label: 'MA 50', color: '#a78bfa' },
-    { id: 'ma200', label: 'MA 200', color: '#fbbf24' },
-    { id: 'ema9', label: 'EMA 9', color: '#34d399' },
-    { id: 'ema20', label: 'EMA 20', color: '#fb7185' },
-    { id: 'ema50', label: 'EMA 50', color: '#38bdf8' },
+    { id: 'ma9',    label: 'MA 9',   color: '#60a5fa' },
+    { id: 'ma20',   label: 'MA 20',  color: '#f97316' },
+    { id: 'ma50',   label: 'MA 50',  color: '#a78bfa' },
+    { id: 'ma200',  label: 'MA 200', color: '#fbbf24' },
+    { id: 'ema9',   label: 'EMA 9',  color: '#34d399' },
+    { id: 'ema20',  label: 'EMA 20', color: '#fb7185' },
+    { id: 'ema50',  label: 'EMA 50', color: '#38bdf8' },
     { id: 'volume', label: 'Volume', color: '#94a3b8' },
   ];
 
+  const panel = open ? createPortal(
+    <div
+      data-dropdown-portal
+      onMouseEnter={cancelClose}
+      onMouseLeave={scheduleClose}
+      className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl shadow-2xl py-1"
+      style={{
+        position: 'fixed',
+        top: pos.top,
+        left: pos.left,
+        minWidth: 180,
+        zIndex: 999999,
+      }}
+    >
+      {isIndicators ? (
+        INDICATORS.map(ind => (
+          <button key={ind.id} type="button"
+            onClick={() => { onToggleIndicator?.(ind.id); }}
+            className="w-full flex items-center justify-between gap-2 px-3 py-2 text-xs hover:bg-[var(--bg-secondary)] transition-colors cursor-pointer">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: ind.color }} />
+              <span className="text-[var(--text-primary)] font-semibold">{ind.label}</span>
+            </div>
+            {activeIndicators.includes(ind.id) && (
+              <svg className="w-3.5 h-3.5 text-[var(--brand-primary)]" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+            )}
+          </button>
+        ))
+      ) : (
+        items.map(it => (
+          <button key={it.tool} type="button"
+            onClick={() => { onSelect(it.tool); setOpen(false); }}
+            className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs transition-colors cursor-pointer ${
+              activeTool === it.tool
+                ? 'bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]'
+                : 'text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]'
+            }`}>
+            <span className={
+              it.variant === 'green' ? 'text-[var(--color-success)]'
+              : it.variant === 'red'   ? 'text-[var(--color-danger)]'
+              : 'text-[var(--text-muted)]'
+            }>{it.icon}</span>
+            <span className="font-semibold">{it.label}</span>
+          </button>
+        ))
+      )}
+    </div>,
+    document.body
+  ) : null;
+
   return (
-    <div className="relative" ref={ref}>
-      <button type="button" onClick={() => setOpen(o => !o)}
-        className={`flex items-center gap-1 px-2 h-7 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${active || (isIndicators && activeIndicators.length > 0)
-          ? 'bg-[var(--brand-primary)] text-white'
-          : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]'
-          }`}>
+    <div className="relative">
+      <button ref={btnRef} type="button"
+        onClick={open ? () => setOpen(false) : openDropdown}
+        onMouseEnter={openDropdown}
+        onMouseLeave={scheduleClose}
+        className={`flex items-center gap-1 px-2 h-7 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
+          active || (isIndicators && activeIndicators.length > 0)
+            ? 'bg-[var(--brand-primary)] text-white'
+            : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]'
+        }`}>
         {label}
         <svg className="w-2.5 h-2.5 opacity-60" viewBox="0 0 10 6" fill="currentColor">
-          <path d="M0 0l5 6 5-6z" />
+          <path d="M0 0l5 6 5-6z"/>
         </svg>
       </button>
-      {open && (
-        <div
-          className="absolute top-full left-0 mt-1 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl shadow-2xl py-1 min-w-[180px]"
-          style={{ zIndex: 99999 }}
-          onMouseDown={e => e.stopPropagation()}
-        >
-          {isIndicators ? (
-            INDICATORS.map(ind => (
-              <button key={ind.id} type="button"
-                onClick={() => { onToggleIndicator?.(ind.id); }}
-                className="w-full flex items-center justify-between gap-2 px-3 py-2 text-xs hover:bg-[var(--bg-secondary)] transition-colors cursor-pointer">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: ind.color }} />
-                  <span className="text-[var(--text-primary)] font-semibold">{ind.label}</span>
-                </div>
-                {activeIndicators.includes(ind.id) && (
-                  <svg className="w-3.5 h-3.5 text-[var(--brand-primary)]" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                )}
-              </button>
-            ))
-          ) : (
-            items.map(it => (
-              <button key={it.tool} type="button"
-                onClick={() => { onSelect(it.tool); setOpen(false); }}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs transition-colors cursor-pointer ${activeTool === it.tool
-                  ? 'bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]'
-                  : 'text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]'
-                  }`}>
-                <span className={it.variant === 'green' ? 'text-[var(--color-success)]' : it.variant === 'red' ? 'text-[var(--color-danger)]' : 'text-[var(--text-muted)]'}>
-                  {it.icon}
-                </span>
-                <span className="font-semibold">{it.label}</span>
-              </button>
-            ))
-          )}
-        </div>
-      )}
+      {panel}
     </div>
   );
 };

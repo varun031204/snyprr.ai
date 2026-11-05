@@ -47,13 +47,25 @@ export function errorHandler(
     });
   }
 
-  // Handle Supabase / PostgREST errors
-  if (err?.code && (err?.message || err?.details)) {
-    return res.status(400).json({
+  // Handle PostgreSQL / Supabase errors — map by pg error code class
+  if (err?.code && typeof err.code === 'string') {
+    console.error('[DB Error]:', err.code, err.message, err.detail ?? err.hint ?? '');
+    const codeClass = err.code.slice(0, 2);
+    // 23xxx = constraint violation (client error → 422)
+    // 42xxx = syntax/schema error (server config issue → 500)
+    // others → 500
+    if (codeClass === '23') {
+      return res.status(422).json({
+        error: 'Database Constraint Error',
+        code: err.code,
+        message: err.message,
+        detail: err.detail || err.hint,
+      });
+    }
+    return res.status(500).json({
       error: 'Database Error',
       code: err.code,
-      message: err.message,
-      details: err.details || err.hint,
+      message: process.env.NODE_ENV === 'development' ? err.message : 'An internal database error occurred',
     });
   }
 

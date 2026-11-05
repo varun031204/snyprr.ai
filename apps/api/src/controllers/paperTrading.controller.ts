@@ -15,8 +15,14 @@ export async function getAccount(req: Request, res: Response, next: NextFunction
     const account = await pt.getAccountSummary(req.user!.id);
     res.json({ data: account });
   } catch (err: any) {
-    // Log DB errors for debugging
-    if (err?.code) console.error('[PaperTrading] getAccount DB error:', err.code, err.message, err.detail);
+    // Log full error for debugging
+    console.error('[PaperTrading] getAccount error:', {
+      code: err.code,
+      message: err.message,
+      detail: err.detail,
+      hint: err.hint,
+      userId: req.user?.id,
+    });
     next(err);
   }
 }
