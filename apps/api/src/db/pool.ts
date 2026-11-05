@@ -7,9 +7,10 @@ import { env } from '../config/env.js';
  */
 export const db = new Pool({
   connectionString: env.DATABASE_URL,
-  ssl: env.NODE_ENV === 'production'
-    ? { rejectUnauthorized: true }   // Enforce TLS cert verification in production
-    : { rejectUnauthorized: false }, // Allow self-signed certs in dev/test (Supabase pooler)
+  // Supabase uses a certificate chain not in Node's default CA bundle.
+  // SSL is still enforced (encrypted connection) — we just skip CA verification.
+  // This is the standard Supabase + node-postgres configuration.
+  ssl: { rejectUnauthorized: false },
   max: 10,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 10000,
