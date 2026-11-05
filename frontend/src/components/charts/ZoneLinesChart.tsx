@@ -304,14 +304,14 @@ export const ZoneLinesChart: React.FC<Props> = ({
   const [activeTool, setActiveTool] = useState<DrawTool>('cursor');
   const [drawings, setDrawings] = useState<Map<string, Drawing[]>>(new Map());
   const [pendingPts, setPendingPts] = useState<PT[]>([]);
-  // preview stored in a ref to avoid React state updates on every cursor pixel
+  // preview: keeps the crosshair position for ghost-line drawing
+  // Still goes through scheduleRepaint so it's capped at 60fps
   const previewRef = useRef<PT | null>(null);
-  const [preview, _setPreview] = useState<PT | null>(null);
+  const [preview, setPreviewState] = useState<PT | null>(null);
   const setPreview = useCallback((pt: PT | null) => {
     previewRef.current = pt;
-    scheduleRepaint();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scheduleRepaint]);
+    setPreviewState(pt);   // direct state update — drives re-render for ghost lines
+  }, []);
   const [colorIdx, setColorIdx] = useState(0);
   const [textPrompt, setTextPrompt] = useState<PT | null>(null);
   const [textVal, setTextVal] = useState('');
@@ -489,7 +489,7 @@ export const ZoneLinesChart: React.FC<Props> = ({
       if (!p.point || !p.time) { setPreview(null); return; }
       const price = series.coordinateToPrice(p.point.y); if (price == null) { setPreview(null); return; }
       const time = typeof p.time === 'number' ? p.time : Math.floor(Date.now() / 1000);
-      setPreview({ time, price }); scheduleRepaint();
+      setPreview({ time, price });
     });
 
     const onWheel = (e: WheelEvent) => {
@@ -708,8 +708,8 @@ export const ZoneLinesChart: React.FC<Props> = ({
     const tX = (t: number) => chart.timeScale().timeToCoordinate(t as any);
     const W = svgSize.w, H = svgSize.h;
     const FL = -200, FR = W + 200;
-    // Use the ref directly — avoids stale closure on preview state
-    const currentPreview = previewRef.current;
+    // Live preview from React state — drives ghost line during drawing
+    const currentPreview = preview;
 
     const extLine = (x1: number, y1: number, x2: number, y2: number, mode: 'extend' | 'ray' | 'seg'): [number, number, number, number] => {
       if (mode === 'seg') return [x1, y1, x2, y2];
@@ -967,7 +967,7 @@ export const ZoneLinesChart: React.FC<Props> = ({
     // in with `pointerEvents: all` so selection still works while drawing.
     return <g style={{ pointerEvents: allowDrawing ? 'all' : 'none' }}>{elems}</g>;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tick, svgSize, instrument, drawings, pendingPts, activeTool, selectedId, buildHandles, onHandleMouseDown, allowDrawing]);
+  }, [tick, svgSize, instrument, drawings, pendingPts, preview, activeTool, selectedId, buildHandles, onHandleMouseDown, allowDrawing]);
 
   // ── Nav helpers ───────────────────────────────────────────────────────────────
   const scrollL = useCallback(() => { const ts = chartRef.current?.timeScale(); if (!ts) return; const r = ts.getVisibleLogicalRange(); if (!r) return; ts.setVisibleLogicalRange({ from: r.from - Math.max(5, (r.to - r.from) * 0.25), to: r.to - Math.max(5, (r.to - r.from) * 0.25) }); }, []);
