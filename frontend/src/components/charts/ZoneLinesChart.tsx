@@ -205,6 +205,11 @@ interface Props {
   tvSymbol?: string; instrument: string; prediction?: Prediction | null;
   timeframe?: string; height?: number; showTimeframeBar?: boolean;
   allowDrawing?: boolean; currentPrice?: number | null;
+  /** Draggable SL/TP lines for the order panel */
+  slPrice?: number | null;
+  tpPrice?: number | null;
+  onSlChange?: (price: number) => void;
+  onTpChange?: (price: number) => void;
 }
 
 // ─── Tooltip toolbar button ─────────────────────────────────────────────────────
@@ -342,13 +347,13 @@ const TVDropdown: React.FC<{
   }, [open]);
 
   const INDICATORS = [
-    { id: 'ma9',    label: 'MA 9',   color: '#60a5fa' },
-    { id: 'ma20',   label: 'MA 20',  color: '#f97316' },
-    { id: 'ma50',   label: 'MA 50',  color: '#a78bfa' },
-    { id: 'ma200',  label: 'MA 200', color: '#fbbf24' },
-    { id: 'ema9',   label: 'EMA 9',  color: '#34d399' },
-    { id: 'ema20',  label: 'EMA 20', color: '#fb7185' },
-    { id: 'ema50',  label: 'EMA 50', color: '#38bdf8' },
+    { id: 'ma9', label: 'MA 9', color: '#60a5fa' },
+    { id: 'ma20', label: 'MA 20', color: '#f97316' },
+    { id: 'ma50', label: 'MA 50', color: '#a78bfa' },
+    { id: 'ma200', label: 'MA 200', color: '#fbbf24' },
+    { id: 'ema9', label: 'EMA 9', color: '#34d399' },
+    { id: 'ema20', label: 'EMA 20', color: '#fb7185' },
+    { id: 'ema50', label: 'EMA 50', color: '#38bdf8' },
     { id: 'volume', label: 'Volume', color: '#94a3b8' },
   ];
 
@@ -386,15 +391,14 @@ const TVDropdown: React.FC<{
         items.map(it => (
           <button key={it.tool} type="button"
             onClick={() => { onSelect(it.tool); setOpen(false); }}
-            className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs transition-colors cursor-pointer ${
-              activeTool === it.tool
-                ? 'bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]'
-                : 'text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]'
-            }`}>
+            className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs transition-colors cursor-pointer ${activeTool === it.tool
+              ? 'bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]'
+              : 'text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]'
+              }`}>
             <span className={
               it.variant === 'green' ? 'text-[var(--color-success)]'
-              : it.variant === 'red'   ? 'text-[var(--color-danger)]'
-              : 'text-[var(--text-muted)]'
+                : it.variant === 'red' ? 'text-[var(--color-danger)]'
+                  : 'text-[var(--text-muted)]'
             }>{it.icon}</span>
             <span className="font-semibold">{it.label}</span>
           </button>
@@ -410,14 +414,13 @@ const TVDropdown: React.FC<{
         onClick={open ? () => setOpen(false) : openDropdown}
         onMouseEnter={openDropdown}
         onMouseLeave={scheduleClose}
-        className={`flex items-center gap-1 px-2 h-7 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
-          active || (isIndicators && activeIndicators.length > 0)
-            ? 'bg-[var(--brand-primary)] text-white'
-            : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]'
-        }`}>
+        className={`flex items-center gap-1 px-2 h-7 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${active || (isIndicators && activeIndicators.length > 0)
+          ? 'bg-[var(--brand-primary)] text-white'
+          : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]'
+          }`}>
         {label}
         <svg className="w-2.5 h-2.5 opacity-60" viewBox="0 0 10 6" fill="currentColor">
-          <path d="M0 0l5 6 5-6z"/>
+          <path d="M0 0l5 6 5-6z" />
         </svg>
       </button>
       {panel}
@@ -430,6 +433,7 @@ export const ZoneLinesChart: React.FC<Props> = ({
   instrument, prediction, timeframe: tframeProp,
   height = 460, showTimeframeBar = true,
   allowDrawing = false, currentPrice = null,
+  slPrice = null, tpPrice = null, onSlChange, onTpChange,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -766,7 +770,142 @@ export const ZoneLinesChart: React.FC<Props> = ({
     return () => { try { s.removePriceLine(line); } catch { } };
   }, [currentPrice, prediction, instrument]);
 
-  // ── Indicators — added/removed when activeIndicators changes ────────────────
+  // ── Draggable SL/TP price lines ──────────────────────────────────────────────
+  // Renders SL (orange dashed) and TP (green dashed) lines.
+  // User can grab them and drag to change price — calls onSlChange/onTpChange.
+  const slLineRef = useRef<any>(null);
+  const tpLineRef = useRef<any>(null);
+  const draggingLineRef = useRef<'sl' | 'tp' | null>(null);
+
+  // Create/update the price lines whenever slPrice or tpPrice changes
+  useEffect(() => {
+    const s = candleRef.current;
+    if (!s) return;
+
+    // SL line
+    if (slPrice != null && slPrice > 0) {
+      if (slLineRef.current) {
+        try { slLineRef.current.applyOptions({ price: slPrice, title: `SL  $${fmt(slPrice, instrument)}` }); } catch { }
+      } else {
+        slLineRef.current = s.createPriceLine({
+          price: slPrice, color: '#f97316', lineWidth: 2,
+          lineStyle: LineStyle.Dashed, axisLabelVisible: true,
+          title: `SL  $${fmt(slPrice, instrument)}`,
+        });
+      }
+    } else if (slLineRef.current) {
+      try { s.removePriceLine(slLineRef.current); } catch { }
+      slLineRef.current = null;
+    }
+
+    // TP line
+    if (tpPrice != null && tpPrice > 0) {
+      if (tpLineRef.current) {
+        try { tpLineRef.current.applyOptions({ price: tpPrice, title: `TP  $${fmt(tpPrice, instrument)}` }); } catch { }
+      } else {
+        tpLineRef.current = s.createPriceLine({
+          price: tpPrice, color: '#22c55e', lineWidth: 2,
+          lineStyle: LineStyle.Dashed, axisLabelVisible: true,
+          title: `TP  $${fmt(tpPrice, instrument)}`,
+        });
+      }
+    } else if (tpLineRef.current) {
+      try { s.removePriceLine(tpLineRef.current); } catch { }
+      tpLineRef.current = null;
+    }
+  }, [slPrice, tpPrice, instrument]);
+
+  // Drag handler: mousedown near SL/TP → drag → mouseup to commit
+  useEffect(() => {
+    if (!onSlChange && !onTpChange) return;
+    const container = containerRef.current;
+    if (!container) return;
+
+    const GRAB_PX = 8; // pixels within which to start a drag
+
+    const onMouseDown = (e: MouseEvent) => {
+      const s = candleRef.current;
+      if (!s) return;
+      const rect = container.getBoundingClientRect();
+      const cy = e.clientY - rect.top;
+
+      // Check if click is near SL or TP line
+      if (slPrice != null && onSlChange) {
+        const slY = s.priceToCoordinate(slPrice);
+        if (slY != null && Math.abs(cy - slY) <= GRAB_PX) {
+          draggingLineRef.current = 'sl';
+          e.preventDefault();
+          container.style.cursor = 'ns-resize';
+          return;
+        }
+      }
+      if (tpPrice != null && onTpChange) {
+        const tpY = s.priceToCoordinate(tpPrice);
+        if (tpY != null && Math.abs(cy - tpY) <= GRAB_PX) {
+          draggingLineRef.current = 'tp';
+          e.preventDefault();
+          container.style.cursor = 'ns-resize';
+          return;
+        }
+      }
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+      const dragging = draggingLineRef.current;
+      if (!dragging) {
+        // Show grab cursor when hovering near a line
+        const s = candleRef.current;
+        if (!s) return;
+        const rect = container.getBoundingClientRect();
+        const cy = e.clientY - rect.top;
+        const near = [slPrice, tpPrice].some(p => {
+          if (p == null) return false;
+          const y = s.priceToCoordinate(p);
+          return y != null && Math.abs(cy - y) <= GRAB_PX;
+        });
+        if (near) container.style.cursor = 'ns-resize';
+        else if (container.style.cursor === 'ns-resize') container.style.cursor = '';
+        return;
+      }
+
+      const s = candleRef.current;
+      if (!s) return;
+      const rect = container.getBoundingClientRect();
+      const cy = e.clientY - rect.top;
+      const price = s.coordinateToPrice(cy);
+      if (price == null) return;
+
+      if (dragging === 'sl') {
+        onSlChange?.(parseFloat(price.toFixed(instrument.includes('XRP') ? 4 : instrument === 'SILVER' ? 3 : 2)));
+      } else {
+        onTpChange?.(parseFloat(price.toFixed(instrument.includes('XRP') ? 4 : instrument === 'SILVER' ? 3 : 2)));
+      }
+    };
+
+    const onMouseUp = () => {
+      draggingLineRef.current = null;
+      container.style.cursor = '';
+    };
+
+    container.addEventListener('mousedown', onMouseDown);
+    container.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    return () => {
+      container.removeEventListener('mousedown', onMouseDown);
+      container.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, [slPrice, tpPrice, instrument, onSlChange, onTpChange]);
+
+  // Cleanup SL/TP lines on unmount
+  useEffect(() => {
+    return () => {
+      const s = candleRef.current;
+      if (!s) return;
+      if (slLineRef.current) { try { s.removePriceLine(slLineRef.current); } catch { } slLineRef.current = null; }
+      if (tpLineRef.current) { try { s.removePriceLine(tpLineRef.current); } catch { } tpLineRef.current = null; }
+    };
+  }, []);
   useEffect(() => {
     const chart = chartRef.current;
     if (!chart) return;

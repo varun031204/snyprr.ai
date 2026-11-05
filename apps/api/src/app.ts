@@ -15,6 +15,7 @@ import adminRouter from './routes/admin.routes.js';
 import aiRouter from './routes/ai.routes.js';
 import marketRouter from './routes/market.routes.js';
 import paperTradingRouter from './routes/paperTrading.routes.js';
+import authRouter from './routes/auth.routes.js';
 
 export const app = express();
 
@@ -140,6 +141,7 @@ app.get('/health/db', async (_req, res) => {
 });
 
 // Mount domain routes
+app.use('/api/auth', authRouter);
 app.use('/api/signals', signalsRouter);
 app.use('/api/profiles', profilesRouter);
 app.use('/api/subscriptions', subscriptionsRouter);

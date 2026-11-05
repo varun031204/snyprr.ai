@@ -171,6 +171,9 @@ const CloseModal: React.FC<{
 interface OrderPanelProps {
   instrument: string; livePrice: number; balance: number | null; isSubmitting: boolean;
   preset?: { direction: PaperDirection; sl?: number; tp1?: number; tp2?: number; tp3?: number } | null;
+  /** Called whenever SL/TP changes so parent can show on chart */
+  onSlChange?: (v: number | null) => void;
+  onTp1Change?: (v: number | null) => void;
   onSubmit: (p: {
     direction: PaperDirection; notionalUsd: number; leverage: number;
     stopLoss: number | null; takeProfit1: number | null;
@@ -178,7 +181,7 @@ interface OrderPanelProps {
   }) => void;
 }
 
-const OrderPanel: React.FC<OrderPanelProps> = ({ instrument, livePrice, balance, isSubmitting, preset, onSubmit }) => {
+const OrderPanel: React.FC<OrderPanelProps> = ({ instrument, livePrice, balance, isSubmitting, preset, onSlChange, onTp1Change, onSubmit }) => {
   const base = instrument.split('/')[0];
   const prec = instrument.includes('XRP') ? 4 : instrument === 'SILVER' ? 3 : 2;
   const balanceNum = balance ?? 0;

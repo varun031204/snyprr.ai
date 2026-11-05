@@ -7,7 +7,7 @@ import { InlineSearch } from '../components/search/InlineSearch';
 import { useAuthStore } from '../state/useAuthStore';
 import { useUIStore } from '../state/useUIStore';
 import { useNotifications, useMarkAllNotificationsAsRead } from '../hooks/useNotificationsQuery';
-import { usePaperTradingStore } from '../state/usePaperTradingStore';
+import { usePaperAccount } from '../hooks/usePaperTradingQuery';
 import { UserRole } from '../types';
 
 const ROLE_LABELS: Record<UserRole, string> = {
@@ -28,7 +28,8 @@ export const Topbar: React.FC = () => {
   const { data: notificationsData } = useNotifications();
   const markAllAsRead = useMarkAllNotificationsAsRead();
   const unreadCount = notificationsData?.data?.filter((n) => !n.read).length || 0;
-  const { balance } = usePaperTradingStore();
+  const { data: paperAccount } = usePaperAccount();
+  const balance = paperAccount ? parseFloat(paperAccount.balance) : null;
   const navigate = useNavigate();
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -128,7 +129,9 @@ export const Topbar: React.FC = () => {
             title="Paper Trading"
           >
             <Coins className="w-4 h-4 text-[var(--color-warning)] flex-shrink-0" />
-            <span className="text-xs font-bold font-mono-num text-[var(--color-warning)]">${balance.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+            <span className="text-xs font-bold font-mono-num text-[var(--color-warning)]">
+              {balance === null ? '…' : `$${balance.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+            </span>
           </Link>
         )}
 

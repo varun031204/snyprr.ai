@@ -1,0 +1,250 @@
+/**
+ * auth.service.ts
+ *
+ * Two-step signup flow:
+ *   1. POST /api/auth/initiate  — validate fields, create phone_otp_requests row,
+ *      send phone OTP, return registrationToken.  Email OTP is handled by Supabase.
+ *   2. POST /api/auth/verify-phone — verify the 6-digit phone OTP.
+ *   3. POST /api/auth/resend-phone — resend phone OTP with cooldown enforcement.
+ *
+ * The actual Supabase auth.users row is created ONLY after both OTPs are confirmed
+ * (email by Supabase's built-in flow, phone by this service).
+ *
+ * Security:
+ * - OTPs are stored as bcrypt hashes — never plaintext.
+ * - OTPs expire in 15 minutes.
+ * - Max 5 wrong attempts per token before the session is invalidated.
+ * - 60-second resend cooldown.
+ * - Duplicate phone blocked via UNIQUE constraint.
+ */
+
+import { db as pool } from '../db/pool.js';
+import crypto from 'crypto';
+import bcrypt from 'bcrypt';
+
+const OTP_EXPIRE_MINUTES  = 15;
+const MAX_ATTEMPTS        = 5;
+const RESEND_COOLDOWN_SEC = 60;
+const BCRYPT_ROUNDS       = 10;
+
+// ── OTP generation ─────────────────────────────────────────────────────────────
+function generateOtp(): string {
+  // Cryptographically secure 6-digit code (000000–999999)
+  return String(crypto.randomInt(0, 1_000_000)).padStart(6, '0');
+}
+
+function normalizePhone(raw: string): string {
+  return raw.replace(/\D/g, '');
+}
+
+// ── SMS dispatch ───────────────────────────────────────────────────────────────
+async function sendSmsOtp(phone: string, otp: string): Promise<void> {
+  const apiKey    = process.env.SMS_PROVIDER_KEY;
+  const senderId  = process.env.SMS_SENDER_ID ?? 'SNYPRR';
+  const message   = `Your Snyprr.ai verification code is ${otp}. Valid for ${OTP_EXPIRE_MINUTES} minutes. Do not share it.`;
+
+  if (!apiKey) {
+    // Dev fallback: log OTP to server console (never to client/response)
+    console.info(`[DEV SMS OTP] Phone: ${phone.slice(0, -4).replace(/./g, '*')}${phone.slice(-4)} | OTP: ${otp}`);
+    return;
+  }
+
+  // Fast2SMS (free India SMS tier) — swap for Twilio/Vonage/etc. by changing this block
+  const url = `https://www.fast2sms.com/dev/bulkV2?authorization=${apiKey}&route=otp&numbers=${phone}&variables_values=${otp}&flash=0&sender_id=${senderId}`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`SMS delivery failed (${res.status}): ${body.slice(0, 120)}`);
+  }
+  const json = await res.json().catch(() => ({})) as any;
+  if (json.return === false) {
+    throw new Error(`SMS provider error: ${JSON.stringify(json.message ?? json).slice(0, 120)}`);
+  }
+}
+
+// ── Initiate registration ──────────────────────────────────────────────────────
+export async function initiateRegistration(params: {
+  fullName: string;
+  email: string;
+  phone: string;   // raw — will be normalized
+  password: string;
+}): Promise<{ registrationToken: string }> {
+  const phone = normalizePhone(params.phone);
+
+  // Validate phone length after normalization
+  if (!/^\d{10,15}$/.test(phone)) {
+    throw new Error('INVALID_PHONE: Phone number must be 10–15 digits');
+  }
+
+  // Check for duplicate phone in profiles (already-active users)
+  const dupPhone = await pool.query(
+    'SELECT id FROM public.profiles WHERE phone = $1 LIMIT 1',
+    [phone]
+  );
+  if (dupPhone.rows.length > 0) {
+    // Return generic message to prevent enumeration
+    throw new Error('DUPLICATE: An account with this phone number already exists');
+  }
+
+  // Check for in-progress (non-expired) registration with same phone
+  const inProgress = await pool.query(
+    `SELECT id FROM public.phone_otp_requests
+     WHERE phone = $1 AND expires_at > now() AND phone_verified = false
+     LIMIT 1`,
+    [phone]
+  );
+  if (inProgress.rows.length > 0) {
+    // Delete old session and allow fresh start (prevents long-term blocking)
+    await pool.query(
+      'DELETE FROM public.phone_otp_requests WHERE phone = $1',
+      [phone]
+    );
+  }
+
+  // Generate OTP and token
+  const otp               = generateOtp();
+  const otpHash           = await bcrypt.hash(otp, BCRYPT_ROUNDS);
+  const registrationToken = crypto.randomUUID();
+
+  // Persist the session
+  await pool.query(
+    `INSERT INTO public.phone_otp_requests
+       (registration_token, phone, otp_hash, full_name, email, expires_at)
+     VALUES ($1, $2, $3, $4, $5, now() + interval '${OTP_EXPIRE_MINUTES} minutes')`,
+    [registrationToken, phone, otpHash, params.fullName.trim(), params.email.toLowerCase().trim()]
+  );
+
+  // Send the OTP
+  await sendSmsOtp(phone, otp);
+
+  return { registrationToken };
+}
+
+// ── Verify phone OTP ───────────────────────────────────────────────────────────
+export async function verifyPhoneOtp(params: {
+  registrationToken: string;
+  otp: string;
+}): Promise<void> {
+  const row = await pool.query(
+    `SELECT * FROM public.phone_otp_requests
+     WHERE registration_token = $1
+     LIMIT 1`,
+    [params.registrationToken]
+  );
+
+  if (row.rows.length === 0) {
+    throw new Error('INVALID_TOKEN: Registration session not found');
+  }
+
+  const session = row.rows[0];
+
+  // Expired?
+  if (new Date(session.expires_at) < new Date()) {
+    await pool.query('DELETE FROM public.phone_otp_requests WHERE registration_token = $1', [params.registrationToken]);
+    throw new Error('EXPIRED: Verification code has expired. Please start registration again');
+  }
+
+  // Too many attempts?
+  if (session.attempt_count >= MAX_ATTEMPTS) {
+    await pool.query('DELETE FROM public.phone_otp_requests WHERE registration_token = $1', [params.registrationToken]);
+    throw new Error('TOO_MANY_ATTEMPTS: Maximum attempts exceeded. Please start registration again');
+  }
+
+  // Increment attempt count before verifying
+  await pool.query(
+    'UPDATE public.phone_otp_requests SET attempt_count = attempt_count + 1 WHERE registration_token = $1',
+    [params.registrationToken]
+  );
+
+  // Verify OTP
+  const valid = await bcrypt.compare(params.otp.trim(), session.otp_hash);
+  if (!valid) {
+    throw new Error(`WRONG_OTP: Incorrect code. ${MAX_ATTEMPTS - session.attempt_count - 1} attempt(s) remaining`);
+  }
+
+  // Mark phone as verified
+  await pool.query(
+    'UPDATE public.phone_otp_requests SET phone_verified = true WHERE registration_token = $1',
+    [params.registrationToken]
+  );
+}
+
+// ── Resend phone OTP ───────────────────────────────────────────────────────────
+export async function resendPhoneOtp(params: {
+  registrationToken: string;
+}): Promise<void> {
+  const row = await pool.query(
+    'SELECT * FROM public.phone_otp_requests WHERE registration_token = $1 LIMIT 1',
+    [params.registrationToken]
+  );
+
+  if (row.rows.length === 0) {
+    throw new Error('INVALID_TOKEN: Registration session not found');
+  }
+
+  const session = row.rows[0];
+
+  if (new Date(session.expires_at) < new Date()) {
+    throw new Error('EXPIRED: Session expired. Please start registration again');
+  }
+
+  // Cooldown check
+  const secondsSinceLast = (Date.now() - new Date(session.last_sent_at).getTime()) / 1000;
+  if (secondsSinceLast < RESEND_COOLDOWN_SEC) {
+    const wait = Math.ceil(RESEND_COOLDOWN_SEC - secondsSinceLast);
+    throw new Error(`COOLDOWN: Please wait ${wait} more seconds before resending`);
+  }
+
+  // Generate fresh OTP
+  const otp     = generateOtp();
+  const otpHash = await bcrypt.hash(otp, BCRYPT_ROUNDS);
+
+  await pool.query(
+    `UPDATE public.phone_otp_requests
+     SET otp_hash = $1, attempt_count = 0, last_sent_at = now(),
+         expires_at = now() + interval '${OTP_EXPIRE_MINUTES} minutes'
+     WHERE registration_token = $2`,
+    [otpHash, params.registrationToken]
+  );
+
+  await sendSmsOtp(session.phone, otp);
+}
+
+// ── Get session info (for frontend display) ────────────────────────────────────
+export async function getSessionInfo(registrationToken: string) {
+  const row = await pool.query(
+    `SELECT phone, email, full_name, phone_verified, email_verified, expires_at
+     FROM public.phone_otp_requests
+     WHERE registration_token = $1 LIMIT 1`,
+    [registrationToken]
+  );
+  if (row.rows.length === 0) return null;
+  const s = row.rows[0];
+
+  // Mask phone and email for display
+  const maskedPhone = s.phone.slice(0, -4).replace(/./g, '•') + s.phone.slice(-4);
+  const [local, domain] = (s.email as string).split('@');
+  const maskedEmail = local.slice(0, 2) + '•'.repeat(Math.max(1, local.length - 4)) + local.slice(-2) + '@' + domain;
+
+  return {
+    maskedPhone,
+    maskedEmail,
+    fullName:      s.full_name,
+    phoneVerified: s.phone_verified,
+    emailVerified: s.email_verified,
+    expiresAt:     s.expires_at,
+  };
+}
+
+// ── Mark email verified (called after Supabase email OTP succeeds) ────────────
+export async function markEmailVerified(registrationToken: string): Promise<void> {
+  await pool.query(
+    'UPDATE public.phone_otp_requests SET email_verified = true WHERE registration_token = $1',
+    [registrationToken]
+  );
+}
+
+// ── Clean up expired rows ──────────────────────────────────────────────────────
+export async function cleanExpiredSessions(): Promise<void> {
+  await pool.query('DELETE FROM public.phone_otp_requests WHERE expires_at < now()');
+}

@@ -27,6 +27,9 @@ const envSchema = z.object({
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
   DIRECT_URL: z.string().optional(),
   GEMINI_API_KEY: z.string().min(1, 'GEMINI_API_KEY is required'),
+  // Optional SMS — if not set, OTPs are logged to console (dev mode)
+  SMS_PROVIDER_KEY: z.string().optional(),
+  SMS_SENDER_ID: z.string().default('SNYPRR'),
 });
 
 export const env = envSchema.parse(process.env);
