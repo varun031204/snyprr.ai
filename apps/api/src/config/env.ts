@@ -28,8 +28,13 @@ const envSchema = z.object({
   DIRECT_URL: z.string().optional(),
   GEMINI_API_KEY: z.string().min(1, 'GEMINI_API_KEY is required'),
   // Optional SMS — if not set, OTPs are logged to console (dev mode)
+  // Fast2SMS (India): set SMS_PROVIDER_KEY
+  // Twilio (global):  set TWILIO_ACCOUNT_SID + TWILIO_AUTH_TOKEN + TWILIO_PHONE_NUMBER
   SMS_PROVIDER_KEY: z.string().optional(),
   SMS_SENDER_ID: z.string().default('SNYPRR'),
+  TWILIO_ACCOUNT_SID: z.string().optional(),
+  TWILIO_AUTH_TOKEN: z.string().optional(),
+  TWILIO_PHONE_NUMBER: z.string().optional(),
 });
 
 export const env = envSchema.parse(process.env);

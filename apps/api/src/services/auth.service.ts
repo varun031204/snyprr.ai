@@ -22,10 +22,10 @@ import { db as pool } from '../db/pool.js';
 import crypto from 'crypto';
 import bcrypt from 'bcrypt';
 
-const OTP_EXPIRE_MINUTES  = 15;
-const MAX_ATTEMPTS        = 5;
+const OTP_EXPIRE_MINUTES = 15;
+const MAX_ATTEMPTS = 5;
 const RESEND_COOLDOWN_SEC = 60;
-const BCRYPT_ROUNDS       = 10;
+const BCRYPT_ROUNDS = 10;
 
 // ── OTP generation ─────────────────────────────────────────────────────────────
 function generateOtp(): string {
@@ -38,30 +38,59 @@ function normalizePhone(raw: string): string {
 }
 
 // ── SMS dispatch ───────────────────────────────────────────────────────────────
+// Supports Fast2SMS (India) and Twilio (global) via env vars.
+// If neither is configured, OTP is logged to server console (dev/test only).
 async function sendSmsOtp(phone: string, otp: string): Promise<void> {
-  const apiKey    = process.env.SMS_PROVIDER_KEY;
-  const senderId  = process.env.SMS_SENDER_ID ?? 'SNYPRR';
-  const message   = `Your Snyprr.ai verification code is ${otp}. Valid for ${OTP_EXPIRE_MINUTES} minutes. Do not share it.`;
+  const message = `Your Snyprr.ai verification code is ${otp}. Valid for ${OTP_EXPIRE_MINUTES} minutes. Do not share it.`;
 
-  if (!apiKey) {
-    // Dev fallback: log OTP to server console (never to client/response)
-    console.info(`[DEV SMS OTP] Phone: ${phone.slice(0, -4).replace(/./g, '*')}${phone.slice(-4)} | OTP: ${otp}`);
+  // ── Twilio ──────────────────────────────────────────────────────────────────
+  if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
+    const sid = process.env.TWILIO_ACCOUNT_SID;
+    const token = process.env.TWILIO_AUTH_TOKEN;
+    const from = process.env.TWILIO_PHONE_NUMBER;  // e.g. +1XXXXXXXXXX
+    if (!from) throw new Error('TWILIO_PHONE_NUMBER env var is required');
+
+    const formData = new URLSearchParams({
+      To: phone.startsWith('+') ? phone : `+${phone}`,
+      From: from,
+      Body: message,
+    });
+    const creds = Buffer.from(`${sid}:${token}`).toString('base64');
+    const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
+      method: 'POST',
+      headers: { 'Authorization': `Basic ${creds}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: formData.toString(),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({})) as any;
+      throw new Error(`Twilio SMS failed (${res.status}): ${body.message ?? 'unknown error'}`);
+    }
     return;
   }
 
-  // Fast2SMS (free India SMS tier) — swap for Twilio/Vonage/etc. by changing this block
-  const url = `https://www.fast2sms.com/dev/bulkV2?authorization=${apiKey}&route=otp&numbers=${phone}&variables_values=${otp}&flash=0&sender_id=${senderId}`;
-  const res = await fetch(url);
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`SMS delivery failed (${res.status}): ${body.slice(0, 120)}`);
+  // ── Fast2SMS (India) ────────────────────────────────────────────────────────
+  if (process.env.SMS_PROVIDER_KEY) {
+    const apiKey = process.env.SMS_PROVIDER_KEY;
+    const senderId = process.env.SMS_SENDER_ID ?? 'SNYPRR';
+    // Fast2SMS OTP route — strips country code for Indian numbers
+    const localPhone = phone.startsWith('91') && phone.length === 12 ? phone.slice(2) : phone;
+    const url = `https://www.fast2sms.com/dev/bulkV2?authorization=${apiKey}&route=otp&numbers=${localPhone}&variables_values=${otp}&flash=0&sender_id=${senderId}`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new Error(`Fast2SMS delivery failed (${res.status}): ${body.slice(0, 120)}`);
+    }
+    const json = await res.json().catch(() => ({})) as any;
+    if (json.return === false) {
+      throw new Error(`Fast2SMS error: ${JSON.stringify(json.message ?? json).slice(0, 120)}`);
+    }
+    return;
   }
-  const json = await res.json().catch(() => ({})) as any;
-  if (json.return === false) {
-    throw new Error(`SMS provider error: ${JSON.stringify(json.message ?? json).slice(0, 120)}`);
-  }
-}
 
+  // ── Dev fallback: print to server console ───────────────────────────────────
+  // OTP is NEVER returned to the client or logged in a way that reaches the browser
+  console.info(`[DEV SMS OTP] Phone: +${phone.slice(0, -4).replace(/\d/g, '*')}${phone.slice(-4)} | Code: ${otp}`);
+}
 // ── Initiate registration ──────────────────────────────────────────────────────
 export async function initiateRegistration(params: {
   fullName: string;
@@ -102,8 +131,8 @@ export async function initiateRegistration(params: {
   }
 
   // Generate OTP and token
-  const otp               = generateOtp();
-  const otpHash           = await bcrypt.hash(otp, BCRYPT_ROUNDS);
+  const otp = generateOtp();
+  const otpHash = await bcrypt.hash(otp, BCRYPT_ROUNDS);
   const registrationToken = crypto.randomUUID();
 
   // Persist the session
@@ -196,7 +225,7 @@ export async function resendPhoneOtp(params: {
   }
 
   // Generate fresh OTP
-  const otp     = generateOtp();
+  const otp = generateOtp();
   const otpHash = await bcrypt.hash(otp, BCRYPT_ROUNDS);
 
   await pool.query(
@@ -229,10 +258,10 @@ export async function getSessionInfo(registrationToken: string) {
   return {
     maskedPhone,
     maskedEmail,
-    fullName:      s.full_name,
+    fullName: s.full_name,
     phoneVerified: s.phone_verified,
     emailVerified: s.email_verified,
-    expiresAt:     s.expires_at,
+    expiresAt: s.expires_at,
   };
 }
 
