@@ -24,6 +24,7 @@ import {
   triggerPriceEvaluation,
   type PaperPosition, type PaperDirection,
 } from '../../hooks/usePaperTradingQuery';
+import { usePaperSignalStore } from '../../state/usePaperSignalStore';
 import type { Prediction } from '../../types';
 
 // ─── Constants & types ─────────────────────────────────────────────────────────
@@ -169,6 +170,7 @@ const CloseModal: React.FC<{
 // ─── Order Panel ────────────────────────────────────────────────────────────────
 interface OrderPanelProps {
   instrument: string; livePrice: number; balance: number | null; isSubmitting: boolean;
+  preset?: { direction: PaperDirection; sl?: number; tp1?: number; tp2?: number; tp3?: number } | null;
   onSubmit: (p: {
     direction: PaperDirection; notionalUsd: number; leverage: number;
     stopLoss: number | null; takeProfit1: number | null;
@@ -176,24 +178,24 @@ interface OrderPanelProps {
   }) => void;
 }
 
-const OrderPanel: React.FC<OrderPanelProps> = ({ instrument, livePrice, balance, isSubmitting, onSubmit }) => {
+const OrderPanel: React.FC<OrderPanelProps> = ({ instrument, livePrice, balance, isSubmitting, preset, onSubmit }) => {
   const base = instrument.split('/')[0];
   const prec = instrument.includes('XRP') ? 4 : instrument === 'SILVER' ? 3 : 2;
-  const balanceNum = balance ?? 0;   // treat null as 0 for calculations
+  const balanceNum = balance ?? 0;
 
-  const [direction, setDirection] = useState<PaperDirection>('LONG');
+  const [direction, setDirection] = useState<PaperDirection>(preset?.direction ?? 'LONG');
   const [orderType, setOrderType] = useState<'market' | 'limit'>('market');
   const [qtyMode, setQtyMode] = useState<QtyMode>('usd');
   const [qtyUnits, setQtyUnits] = useState('');
   const [qtyUsd, setQtyUsd] = useState('100');
   const [qtyPct, setQtyPct] = useState('10');
   const [limitPx, setLimitPx] = useState('');
-  const [bracketOn, setBracketOn] = useState(false);
-  const [sl, setSl] = useState('');
-  const [tp1, setTp1] = useState('');
-  const [tp2, setTp2] = useState('');
-  const [tp3, setTp3] = useState('');
-  const [showTp23, setShowTp23] = useState(false);
+  const [bracketOn, setBracketOn] = useState(!!preset?.sl);
+  const [sl, setSl] = useState(preset?.sl ? String(preset.sl) : '');
+  const [tp1, setTp1] = useState(preset?.tp1 ? String(preset.tp1) : '');
+  const [tp2, setTp2] = useState(preset?.tp2 ? String(preset.tp2) : '');
+  const [tp3, setTp3] = useState(preset?.tp3 ? String(preset.tp3) : '');
+  const [showTp23, setShowTp23] = useState(!!(preset?.tp2 || preset?.tp3));
   const [error, setError] = useState('');
 
   const execPrice = orderType === 'limit' && parseFloat(limitPx) > 0 ? parseFloat(limitPx) : livePrice;
@@ -209,9 +211,10 @@ const OrderPanel: React.FC<OrderPanelProps> = ({ instrument, livePrice, balance,
   const fee = notional * FEE_RATE;
   const fundsReq = notional + fee;
 
-  // Auto-fill SL/TP
+  // Auto-fill SL/TP — only if no preset was provided
   useEffect(() => {
     if (livePrice <= 0) return;
+    if (preset?.sl || preset?.tp1) return; // don't override signal preset
     setLimitPx(livePrice.toFixed(prec));
     if (direction === 'LONG') {
       setSl((livePrice * 0.97).toFixed(prec));
@@ -599,6 +602,27 @@ export default function MyTradesPage() {
   const [chartHeight, setChartHeight] = useState(500);
   const chartRef = useRef<HTMLDivElement>(null);
 
+  // Read signal from the store (set by AI analysis panel "Test on Paper Trading")
+  const { signal, clearSignal } = usePaperSignalStore();
+  const [orderPreset, setOrderPreset] = useState<{
+    direction: PaperDirection; sl?: number; tp1?: number; tp2?: number; tp3?: number;
+  } | null>(null);
+
+  // On mount: if a signal was set, apply it and switch to the correct instrument
+  useEffect(() => {
+    if (!signal) return;
+    setActiveInstrument(signal.instrument);
+    setOrderPreset({
+      direction: signal.direction as PaperDirection,
+      sl: signal.stopLoss ?? undefined,
+      tp1: signal.takeProfit ?? undefined,
+      tp2: signal.takeProfit2 ?? undefined,
+      tp3: signal.takeProfit3 ?? undefined,
+    });
+    clearSignal(); // consume so it doesn't re-apply on re-render
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // ResizeObserver keeps chart height in sync
   useEffect(() => {
     const el = chartRef.current;
@@ -745,6 +769,7 @@ export default function MyTradesPage() {
             livePrice={livePrice}
             balance={balance}
             isSubmitting={openMut.isPending}
+            preset={orderPreset}
             onSubmit={handleOrderSubmit}
           />
         </div>

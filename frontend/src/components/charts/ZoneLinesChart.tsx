@@ -16,6 +16,7 @@ import React, {
 } from 'react';
 import {
   createChart, CandlestickSeries, CrosshairMode, LineStyle,
+  LineSeries as LWLineSeries,
   type IChartApi, type ISeriesApi, type MouseEventParams,
 } from 'lightweight-charts';
 import {
@@ -277,6 +278,106 @@ const TOOL_GROUPS: { name: string; tools: ToolEntry[] }[] = [
   },
 ];
 
+// ─── TV-style toolbar helpers ────────────────────────────────────────────────
+const TVToolBtn: React.FC<{
+  label: string; active: boolean; onClick: () => void; children: React.ReactNode;
+}> = ({ label, active, onClick, children }) => (
+  <button type="button" onClick={onClick} title={label}
+    className={`flex items-center justify-center w-7 h-7 rounded-md transition-all cursor-pointer ${active
+      ? 'bg-[var(--brand-primary)] text-white'
+      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]'
+      }`}>
+    {children}
+  </button>
+);
+
+type DropdownItem = {
+  tool: string; icon: React.ReactNode; label: string;
+  variant?: 'green' | 'red';
+};
+
+const TVDropdown: React.FC<{
+  label: React.ReactNode; active: boolean;
+  items: DropdownItem[]; activeTool: DrawTool;
+  onSelect: (tool: string) => void;
+  isIndicators?: boolean;
+  activeIndicators?: string[];
+  onToggleIndicator?: (ind: string) => void;
+}> = ({ label, active, items, activeTool, onSelect, isIndicators, activeIndicators = [], onToggleIndicator }) => {
+  const [open, setOpen] = useState(false);
+  const ref = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const INDICATORS = [
+    { id: 'ma9', label: 'MA 9', color: '#60a5fa' },
+    { id: 'ma20', label: 'MA 20', color: '#f97316' },
+    { id: 'ma50', label: 'MA 50', color: '#a78bfa' },
+    { id: 'ma200', label: 'MA 200', color: '#fbbf24' },
+    { id: 'ema9', label: 'EMA 9', color: '#34d399' },
+    { id: 'ema20', label: 'EMA 20', color: '#fb7185' },
+    { id: 'ema50', label: 'EMA 50', color: '#38bdf8' },
+    { id: 'volume', label: 'Volume', color: '#94a3b8' },
+  ];
+
+  return (
+    <div className="relative" ref={ref}>
+      <button type="button" onClick={() => setOpen(!open)}
+        className={`flex items-center gap-1 px-2 h-7 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${active || (isIndicators && activeIndicators.length > 0)
+          ? 'bg-[var(--brand-primary)] text-white'
+          : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]'
+          }`}>
+        {label}
+        <svg className="w-2.5 h-2.5 opacity-60" viewBox="0 0 10 6" fill="currentColor">
+          <path d="M0 0l5 6 5-6z" />
+        </svg>
+      </button>
+      {open && (
+        <div className="absolute top-full left-0 mt-1 z-[999] bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl shadow-2xl py-1 min-w-[180px]">
+          {isIndicators ? (
+            INDICATORS.map(ind => (
+              <button key={ind.id} type="button"
+                onClick={() => { onToggleIndicator?.(ind.id); }}
+                className="w-full flex items-center justify-between gap-2 px-3 py-2 text-xs hover:bg-[var(--bg-secondary)] transition-colors cursor-pointer">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: ind.color }} />
+                  <span className="text-[var(--text-primary)] font-semibold">{ind.label}</span>
+                </div>
+                {activeIndicators.includes(ind.id) && (
+                  <svg className="w-3.5 h-3.5 text-[var(--brand-primary)]" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                )}
+              </button>
+            ))
+          ) : (
+            items.map(it => (
+              <button key={it.tool} type="button"
+                onClick={() => { onSelect(it.tool); setOpen(false); }}
+                className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs transition-colors cursor-pointer ${activeTool === it.tool
+                  ? 'bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]'
+                  : 'text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]'
+                  }`}>
+                <span className={it.variant === 'green' ? 'text-[var(--color-success)]' : it.variant === 'red' ? 'text-[var(--color-danger)]' : 'text-[var(--text-muted)]'}>
+                  {it.icon}
+                </span>
+                <span className="font-semibold">{it.label}</span>
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ─── Main Component ─────────────────────────────────────────────────────────────
 export const ZoneLinesChart: React.FC<Props> = ({
   instrument, prediction, timeframe: tframeProp,
@@ -290,6 +391,8 @@ export const ZoneLinesChart: React.FC<Props> = ({
   const wsRef = useRef<WebSocket | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastCandleRef = useRef<{ time: number; open: number; high: number; low: number; close: number } | null>(null);
+  // Store all loaded candle data for indicator calculations
+  const candleDataRef = useRef<{ time: any; open: number; high: number; low: number; close: number }[]>([]);
   const { theme } = useUIStore();
   const themeRef = useRef(theme);
 
@@ -304,6 +407,9 @@ export const ZoneLinesChart: React.FC<Props> = ({
   const [activeTool, setActiveTool] = useState<DrawTool>('cursor');
   const [drawings, setDrawings] = useState<Map<string, Drawing[]>>(new Map());
   const [pendingPts, setPendingPts] = useState<PT[]>([]);
+  // Indicators
+  const [activeIndicators, setActiveIndicators] = useState<string[]>([]);
+  const indicatorSeriesRef = useRef<Record<string, any>>({});
   // preview: keeps the crosshair position for ghost-line drawing
   // Still goes through scheduleRepaint so it's capped at 60fps
   const previewRef = useRef<PT | null>(null);
@@ -520,6 +626,7 @@ export const ZoneLinesChart: React.FC<Props> = ({
 
     const startLive = (initialData: any[]) => {
       s.setData(initialData);
+      candleDataRef.current = initialData;
       if (initialData.length) lastCandleRef.current = initialData[initialData.length - 1];
       chartRef.current?.timeScale().fitContent();
     };
@@ -612,7 +719,94 @@ export const ZoneLinesChart: React.FC<Props> = ({
     return () => { try { s.removePriceLine(line); } catch { } };
   }, [currentPrice, prediction, instrument]);
 
-  // ── Build handles for selected drawing ────────────────────────────────────────
+  // ── Indicators — added/removed when activeIndicators changes ────────────────
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+
+    const IND_COLORS: Record<string, string> = {
+      ma9: '#60a5fa', ma20: '#f97316', ma50: '#a78bfa', ma200: '#fbbf24',
+      ema9: '#34d399', ema20: '#fb7185', ema50: '#38bdf8',
+    };
+
+    // Remove deactivated indicators
+    Object.keys(indicatorSeriesRef.current).forEach(id => {
+      if (!activeIndicators.includes(id)) {
+        try { chart.removeSeries(indicatorSeriesRef.current[id]); } catch { }
+        delete indicatorSeriesRef.current[id];
+      }
+    });
+
+    // Get stored candle data for calculations
+    const rawData = candleDataRef.current;
+    if (!rawData.length) return;
+
+    const closes = rawData.map(c => c.close);
+    const times  = rawData.map(c => c.time);
+
+    const sma = (period: number) => closes.map((_, i) => {
+      if (i < period - 1) return null;
+      return closes.slice(i - period + 1, i + 1).reduce((a, b) => a + b, 0) / period;
+    });
+
+    const emaCalc = (period: number) => {
+      const k = 2 / (period + 1);
+      let prev: number | null = null;
+      return closes.map((c, i) => {
+        if (i < period - 1) return null;
+        if (prev === null) {
+          prev = closes.slice(0, period).reduce((a, b) => a + b, 0) / period;
+          return prev;
+        }
+        prev = c * k + prev * (1 - k);
+        return prev;
+      });
+    };
+
+    const CALCS: Record<string, () => (number | null)[]> = {
+      ma9:   () => sma(9),   ma20: () => sma(20),
+      ma50:  () => sma(50),  ma200: () => sma(200),
+      ema9:  () => emaCalc(9),   ema20: () => emaCalc(20),
+      ema50: () => emaCalc(50),
+    };
+
+    activeIndicators.forEach(id => {
+      if (indicatorSeriesRef.current[id]) return;
+      if (id === 'volume') return; // volume handled separately via chart options
+
+      const calc = CALCS[id];
+      if (!calc) return;
+      const values = calc();
+
+      try {
+        const ser = chart.addSeries(LWLineSeries, {
+          color: IND_COLORS[id] ?? '#94a3b8',
+          lineWidth: 1,
+          priceLineVisible: false,
+          lastValueVisible: true,
+          crosshairMarkerVisible: false,
+          title: id.toUpperCase(),
+        } as any);
+        const lineData = times
+          .map((t, i) => ({ time: t, value: values[i] }))
+          .filter((d): d is { time: any; value: number } => d.value != null);
+        ser.setData(lineData);
+        indicatorSeriesRef.current[id] = ser;
+      } catch { /* series may fail if chart is mid-update */ }
+    });
+  }, [activeIndicators, instrument, activeTF]);
+
+  // Clean up indicator series on unmount
+  useEffect(() => {
+    return () => {
+      const chart = chartRef.current;
+      if (!chart) return;
+      Object.values(indicatorSeriesRef.current).forEach(s => {
+        try { chart.removeSeries(s); } catch { }
+      });
+      indicatorSeriesRef.current = {};
+    };
+  }, []);
   const buildHandles = useCallback((d: Drawing, series: ISeriesApi<'Candlestick'>, chart: IChartApi): Handle[] => {
     const pY = (p: number) => series.priceToCoordinate(p);
     const tX = (t: number) => chart.timeScale().timeToCoordinate(t as any);
@@ -1011,28 +1205,136 @@ export const ZoneLinesChart: React.FC<Props> = ({
 
   return (
     <div className="w-full flex flex-col" style={{ height }}>
+
+      {/* ── Top toolbar: timeframe + drawing tools + indicators (TradingView style) */}
       {showTimeframeBar && (
-        <div className="flex items-center gap-1 px-2 py-1.5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] border-b-0 rounded-t-2xl flex-shrink-0">
-          <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider mr-1 select-none">TF</span>
-          {TF_OPTIONS.map(tf => (
-            <button key={tf} type="button" onClick={() => setActiveTF(tf)}
-              className={`px-2 py-0.5 rounded text-[11px] font-bold transition-all cursor-pointer ${activeTF === tf ? 'bg-[var(--brand-primary)] text-white' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]'}`}>
-              {tf}
-            </button>
-          ))}
-          {prediction && <span className="ml-auto text-[9px] text-[var(--text-muted)] select-none">Signal: <span className="font-bold text-[var(--brand-primary)]">{prediction.timeframe}</span> · all TFs</span>}
+        <div className="flex items-center gap-0.5 px-2 py-1 bg-[var(--bg-surface)] border border-[var(--border-subtle)] border-b-0 rounded-t-2xl flex-shrink-0 overflow-x-auto scrollbar-none">
+
+          {/* Timeframes */}
+          <div className="flex items-center gap-0.5 flex-shrink-0">
+            {TF_OPTIONS.map(tf => (
+              <button key={tf} type="button" onClick={() => setActiveTF(tf)}
+                className={`px-2 py-0.5 rounded text-[11px] font-bold transition-all cursor-pointer ${activeTF === tf ? 'bg-[var(--brand-primary)] text-white' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]'}`}>
+                {tf}
+              </button>
+            ))}
+          </div>
+
+          {/* Separator */}
+          {allowDrawing && <div className="w-px h-4 bg-[var(--border-subtle)] mx-1.5 flex-shrink-0" />}
+
+          {/* Drawing tools - horizontal dropdowns */}
+          {allowDrawing && (
+            <div className="flex items-center gap-0.5 flex-shrink-0">
+
+              {/* Cursor */}
+              <TVToolBtn
+                label="Cursor"
+                active={activeTool === 'cursor'}
+                onClick={() => { setActiveTool('cursor'); setPendingPts([]); pendingPtsRef.current = []; setSelectedId(null); setEditPanel(null); }}>
+                <MousePointer className="w-3.5 h-3.5" />
+              </TVToolBtn>
+
+              {/* Lines dropdown */}
+              <TVDropdown
+                label={<><Minus className="w-3.5 h-3.5" /><span className="text-[11px] font-semibold">Lines</span></>}
+                active={['hline', 'vline', 'extline', 'trendline', 'ray', 'arrow'].includes(activeTool)}
+                items={[
+                  { tool: 'hline', icon: <Minus className="w-3.5 h-3.5" />, label: 'Horizontal Line' },
+                  { tool: 'vline', icon: <AlignJustify className="w-3.5 h-3.5 rotate-90" />, label: 'Vertical Line' },
+                  { tool: 'trendline', icon: <TrendIcon className="w-3.5 h-3.5" />, label: 'Trend Line' },
+                  { tool: 'extline', icon: <Layers className="w-3.5 h-3.5" />, label: 'Extended Line' },
+                  { tool: 'ray', icon: <ArrowRight className="w-3.5 h-3.5" />, label: 'Ray' },
+                  { tool: 'arrow', icon: <ArrowUpRight className="w-3.5 h-3.5" />, label: 'Arrow' },
+                ]}
+                activeTool={activeTool}
+                onSelect={(t) => { setActiveTool(t as DrawTool); setPendingPts([]); pendingPtsRef.current = []; setSelectedId(null); setEditPanel(null); }}
+              />
+
+              {/* Shapes dropdown */}
+              <TVDropdown
+                label={<><Square className="w-3.5 h-3.5" /><span className="text-[11px] font-semibold">Shapes</span></>}
+                active={['rect', 'triangle', 'zone', 'hchannel', 'pchannel'].includes(activeTool)}
+                items={[
+                  { tool: 'rect', icon: <Square className="w-3.5 h-3.5" />, label: 'Rectangle' },
+                  { tool: 'triangle', icon: <Triangle className="w-3.5 h-3.5" />, label: 'Triangle' },
+                  { tool: 'zone', icon: <Layers className="w-3.5 h-3.5" />, label: 'Price Zone' },
+                  { tool: 'hchannel', icon: <BarChart2 className="w-3.5 h-3.5" />, label: 'Horizontal Channel' },
+                  { tool: 'pchannel', icon: <TrendIcon className="w-3.5 h-3.5" />, label: 'Parallel Channel' },
+                ]}
+                activeTool={activeTool}
+                onSelect={(t) => { setActiveTool(t as DrawTool); setPendingPts([]); pendingPtsRef.current = []; setSelectedId(null); setEditPanel(null); }}
+              />
+
+              {/* Fibonacci / Measure */}
+              <TVDropdown
+                label={<><GitCommitHorizontal className="w-3.5 h-3.5" /><span className="text-[11px] font-semibold">Fib</span></>}
+                active={['fib', 'fibext', 'measure', 'long', 'short'].includes(activeTool)}
+                items={[
+                  { tool: 'fib', icon: <GitCommitHorizontal className="w-3.5 h-3.5" />, label: 'Fibonacci Retracement' },
+                  { tool: 'fibext', icon: <GitCommitHorizontal className="w-3.5 h-3.5 rotate-180" />, label: 'Fibonacci Extension' },
+                  { tool: 'measure', icon: <Ruler className="w-3.5 h-3.5" />, label: 'Measure Range' },
+                  { tool: 'long', icon: <TrendingUp className="w-3.5 h-3.5" />, label: 'Long Position', variant: 'green' as const },
+                  { tool: 'short', icon: <TrendingDown className="w-3.5 h-3.5" />, label: 'Short Position', variant: 'red' as const },
+                ]}
+                activeTool={activeTool}
+                onSelect={(t) => { setActiveTool(t as DrawTool); setPendingPts([]); pendingPtsRef.current = []; setSelectedId(null); setEditPanel(null); }}
+              />
+
+              {/* Text */}
+              <TVToolBtn
+                label="Text"
+                active={activeTool === 'text'}
+                onClick={() => { setActiveTool('text'); setPendingPts([]); pendingPtsRef.current = []; setSelectedId(null); setEditPanel(null); }}>
+                <Type className="w-3.5 h-3.5" />
+              </TVToolBtn>
+
+              {/* Eraser */}
+              <TVToolBtn
+                label="Eraser"
+                active={activeTool === 'eraser'}
+                onClick={() => { setActiveTool('eraser'); setPendingPts([]); pendingPtsRef.current = []; setSelectedId(null); setEditPanel(null); }}>
+                <Eraser className="w-3.5 h-3.5" />
+              </TVToolBtn>
+
+              {insDrawings.length > 0 && (
+                <TVToolBtn label="Clear all drawings" active={false} onClick={clearAll}>
+                  <Trash2 className="w-3.5 h-3.5 text-[var(--color-danger)]" />
+                </TVToolBtn>
+              )}
+            </div>
+          )}
+
+          {/* Indicators dropdown (right side) */}
+          {allowDrawing && <div className="w-px h-4 bg-[var(--border-subtle)] mx-1.5 flex-shrink-0" />}
+          {allowDrawing && (
+            <TVDropdown
+              label={<><BarChart2 className="w-3.5 h-3.5" /><span className="text-[11px] font-semibold">Indicators</span></>}
+              active={false}
+              isIndicators
+              activeIndicators={activeIndicators}
+              onToggleIndicator={(ind) => setActiveIndicators(prev =>
+                prev.includes(ind) ? prev.filter(i => i !== ind) : [...prev, ind]
+              )}
+              items={[]}
+              activeTool={activeTool}
+              onSelect={() => { }}
+            />
+          )}
+
+          {prediction && <span className="ml-auto text-[9px] text-[var(--text-muted)] select-none flex-shrink-0">Signal: <span className="font-bold text-[var(--brand-primary)]">{prediction.timeframe}</span></span>}
         </div>
       )}
 
+      {/* ── Chart canvas area — toolbar is OUTSIDE so p.point coords are unaffected */}
       <div className={`w-full relative flex-1 overflow-hidden border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-sm select-none ${showTimeframeBar ? 'rounded-b-2xl' : 'rounded-2xl'}`}
         style={{ cursor: activeTool !== 'cursor' ? cur : undefined }}
         onClick={() => { if (activeTool === 'cursor') { setSelectedId(null); setEditPanel(null); } }}>
 
-        {/* Canvas */}
+        {/* Canvas — fills entire container; no toolbar inside */}
         <div ref={containerRef} className="absolute inset-0" />
 
-        {/* SVG overlay — transparent to pointer input so the chart underneath
-            stays fully interactive; child drawings re-enable events for clicks. */}
+        {/* SVG overlay */}
         <svg className="absolute inset-0 z-10"
           width={svgSize.w} height={svgSize.h}
           style={{ overflow: 'visible', pointerEvents: 'none' }}>
@@ -1046,35 +1348,7 @@ export const ZoneLinesChart: React.FC<Props> = ({
           </div>
         )}
 
-        {/* Drawing toolbar */}
-        {allowDrawing && (
-          <div className="absolute left-1.5 top-1/2 -translate-y-1/2 z-20 flex flex-col gap-0.5 bg-[var(--bg-card)]/95 backdrop-blur-md p-1.5 rounded-2xl border border-[var(--border-subtle)] shadow-xl overflow-y-auto max-h-[85%] scrollbar-thin">
-            {TOOL_GROUPS.map((g, gi) => (
-              <React.Fragment key={g.name}>
-                {gi > 0 && <div className="w-full h-px bg-[var(--border-subtle)] my-0.5" />}
-                {g.tools.map(t => (
-                  <Tip key={t.tool} label={t.label} active={activeTool === t.tool} variant={t.variant}
-                    onClick={() => { setActiveTool(t.tool); setPendingPts([]); pendingPtsRef.current = []; setSelectedId(null); setEditPanel(null); }}>
-                    {t.icon}
-                  </Tip>
-                ))}
-              </React.Fragment>
-            ))}
-            <div className="w-full h-px bg-[var(--border-subtle)] my-0.5" />
-            {/* Interactivity toggle — restores cursor / pan / zoom mode */}
-            <Tip label={activeTool === 'cursor' ? 'Interactivity ON — chart pan, zoom & crosshair' : 'Re-activate chart interactivity (cursor mode)'}
-              active={activeTool === 'cursor'}
-              onClick={() => { setActiveTool('cursor'); setPendingPts([]); pendingPtsRef.current = []; setEditPanel(null); }}>
-              <Hand className="w-4 h-4" />
-            </Tip>
-            <div className="w-full h-px bg-[var(--border-subtle)] my-0.5" />
-            <Tip label="Clear all drawings" active={false} onClick={clearAll}>
-              <Trash2 className={`w-4 h-4 ${insDrawings.length === 0 ? 'opacity-30' : 'text-[var(--color-danger)]'}`} />
-            </Tip>
-          </div>
-        )}
-
-        {/* ── Edit Panel — shown when drawing is selected ───────────────────── */}
+        {/* Edit Panel */}
         {allowDrawing && editPanel && selectedDrawing && (
           <div className="absolute z-30 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl shadow-2xl p-3 w-52"
             style={{ left: Math.min(editPanel.x, svgSize.w - 220), top: Math.max(8, editPanel.y) }}
@@ -1085,8 +1359,6 @@ export const ZoneLinesChart: React.FC<Props> = ({
                 <X className="w-3.5 h-3.5 text-[var(--text-muted)]" />
               </button>
             </div>
-
-            {/* Color picker */}
             <div className="mb-2">
               <p className="text-[10px] text-[var(--text-muted)] mb-1 font-semibold">Color</p>
               <div className="flex flex-wrap gap-1">
@@ -1097,26 +1369,12 @@ export const ZoneLinesChart: React.FC<Props> = ({
                 ))}
               </div>
             </div>
-
-            {/* Price inputs based on drawing type */}
             {selectedDrawing.type === 'hline' && (
               <div>
                 <p className="text-[10px] text-[var(--text-muted)] mb-1 font-semibold">Price</p>
                 <input type="number" step="any" defaultValue={(selectedDrawing as HLine).price}
                   onBlur={e => { const v = parseFloat(e.target.value); if (!isNaN(v)) updateDrawing(selectedDrawing.id, { price: v, label: fmt(v, instrument) } as any); }}
                   className="w-full bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-lg px-2 py-1 text-xs font-mono-num text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-primary)]" />
-              </div>
-            )}
-            {(selectedDrawing.type === 'zone' || selectedDrawing.type === 'hchannel') && (
-              <div className="space-y-1.5">
-                {['priceTop', 'priceBot'].map(k => (
-                  <div key={k}>
-                    <p className="text-[10px] text-[var(--text-muted)] mb-0.5 font-semibold">{k === 'priceTop' ? 'Top Price' : 'Bottom Price'}</p>
-                    <input type="number" step="any" defaultValue={(selectedDrawing as any)[k]}
-                      onBlur={e => { const v = parseFloat(e.target.value); if (!isNaN(v)) { const patch: any = { [k]: v }; if (selectedDrawing.type === 'zone') patch.label = `${fmt(Math.min(v, (selectedDrawing as Zone).priceBot), instrument)}–${fmt(Math.max(v, (selectedDrawing as Zone).priceTop), instrument)}`; updateDrawing(selectedDrawing.id, patch); } }}
-                      className="w-full bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-lg px-2 py-1 text-xs font-mono-num text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-primary)]" />
-                  </div>
-                ))}
               </div>
             )}
             {(selectedDrawing.type === 'long' || selectedDrawing.type === 'short') && (
@@ -1139,8 +1397,6 @@ export const ZoneLinesChart: React.FC<Props> = ({
                   className="w-full bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-lg px-2 py-1 text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-primary)]" />
               </div>
             )}
-
-            {/* Delete */}
             <button type="button" onClick={() => removeDrawing(selectedDrawing.id)}
               className="mt-2 w-full py-1.5 rounded-lg bg-[var(--color-danger-bg)] text-[var(--color-danger)] border border-[var(--color-danger)]/30 text-xs font-semibold hover:bg-[var(--color-danger)] hover:text-white transition-all cursor-pointer">
               Delete drawing
@@ -1148,50 +1404,9 @@ export const ZoneLinesChart: React.FC<Props> = ({
           </div>
         )}
 
-        {/* Drawing legend */}
-        {allowDrawing && insDrawings.length > 0 && (
-          <div className="absolute bottom-12 z-20 flex flex-col gap-0.5 max-h-40 overflow-y-auto scrollbar-thin" style={{ left: '3.5rem' }}>
-            {insDrawings.map(d => {
-              const label =
-                d.type === 'hline' ? `H-Line $${fmt((d as HLine).price, instrument)}` :
-                  d.type === 'vline' ? 'V-Line' :
-                    d.type === 'extline' ? 'Extended Line' :
-                      d.type === 'trendline' ? 'Trend Line' :
-                        d.type === 'ray' ? 'Ray' :
-                          d.type === 'arrow' ? 'Arrow' :
-                            d.type === 'hchannel' ? 'H-Channel' :
-                              d.type === 'pchannel' ? 'Parallel Channel' :
-                                d.type === 'rect' ? 'Rectangle' :
-                                  d.type === 'triangle' ? 'Triangle' :
-                                    d.type === 'zone' ? (d as Zone).label :
-                                      d.type === 'fib' ? 'Fibonacci' :
-                                        d.type === 'fibext' ? 'Fib Extension' :
-                                          d.type === 'long' ? `▲ Long $${fmt((d as LongPos).entry, instrument)}` :
-                                            d.type === 'short' ? `▼ Short $${fmt((d as ShortPos).entry, instrument)}` :
-                                              d.type === 'measure' ? 'Measure' :
-                                                d.type === 'text' ? `"${(d as TextLbl).text}"` : d.type;
-              const col = d.type === 'long' ? '#22c55e' : d.type === 'short' ? '#ef4444' : d.type === 'fib' || d.type === 'fibext' ? '#fbbf24' : (d as any).color ?? '#94a3b8';
-              const isSel = d.id === selectedId;
-              return (
-                <div key={d.id}
-                  className={`flex items-center gap-1.5 px-2 py-0.5 rounded text-[9px] font-mono backdrop-blur-sm border group cursor-pointer ${isSel ? 'bg-white/15 border-white/30' : 'bg-black/75 border-white/10'}`}
-                  style={{ color: col }}
-                  onClick={() => { setSelectedId(d.id); setActiveTool('cursor'); }}>
-                  <span className="truncate max-w-[160px]">{label}</span>
-                  <button type="button" onClick={e => { e.stopPropagation(); removeDrawing(d.id); }}
-                    className="ml-auto opacity-0 group-hover:opacity-100 text-white/50 hover:text-red-400 transition-all cursor-pointer flex-shrink-0">×</button>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
         {/* Signal legend */}
         {prediction && (
           <div className="absolute top-2 right-2 z-10 flex flex-col gap-1 pointer-events-none">
-            <div className="flex items-center gap-2 px-2.5 py-1 rounded-md text-xs font-bold font-mono shadow-sm backdrop-blur-md bg-black/60 border border-white/10 text-white w-fit">
-              <span>{instrument}</span><span className="text-[10px] text-white/60 uppercase">{activeTF}</span>
-            </div>
             {[
               prediction.buyingZone && { label: 'Buy Zone', value: prediction.buyingZone, color: '#22c55e' },
               prediction.sellingZone && { label: 'Sell Zone', value: prediction.sellingZone, color: '#ef4444' },
@@ -1202,7 +1417,6 @@ export const ZoneLinesChart: React.FC<Props> = ({
             ].filter(Boolean).map((lv: any) => (
               <div key={lv.label} className="flex items-center gap-2 px-2.5 py-1 rounded-lg text-[11px] font-bold font-mono shadow-lg"
                 style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)', border: `1px solid ${lv.color}40` }}>
-                <span className="w-2.5 flex-shrink-0" style={{ display: 'inline-block', height: '2px', background: lv.dashed ? 'transparent' : lv.color, borderTop: lv.dashed ? `2px dashed ${lv.color}` : 'none' }} />
                 <span style={{ color: lv.color }}>{lv.label}</span>
                 <span className="text-white/80">${fmt(lv.value, instrument)}</span>
               </div>
@@ -1211,34 +1425,27 @@ export const ZoneLinesChart: React.FC<Props> = ({
         )}
 
         {/* Nav toolbar */}
-        <div className="absolute bottom-3 z-20 flex items-center gap-0.5 bg-[var(--bg-card)]/90 backdrop-blur-md px-1.5 py-1 rounded-lg border border-[var(--border-subtle)] shadow-md"
-          style={{ left: allowDrawing ? '3.5rem' : '0.75rem' }}>
-          {[{ icon: <ChevronLeft className="w-3.5 h-3.5" />, fn: scrollL, tip: 'Scroll left' }, { icon: <ChevronRight className="w-3.5 h-3.5" />, fn: scrollR, tip: 'Scroll right' }].map(b => (
-            <div key={b.tip} className="relative group/n">
-              <button type="button" onClick={b.fn} className="p-1 rounded hover:bg-[var(--bg-surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">{b.icon}</button>
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-50 pointer-events-none opacity-0 group-hover/n:opacity-100 transition-opacity whitespace-nowrap">
-                <div className="px-2 py-1 rounded-md bg-[var(--bg-secondary)] border border-[var(--border-subtle)] text-[10px] font-semibold text-[var(--text-primary)] shadow-lg">{b.tip}</div>
-              </div>
-            </div>
+        <div className="absolute bottom-3 left-3 z-20 flex items-center gap-0.5 bg-[var(--bg-card)]/90 backdrop-blur-md px-1.5 py-1 rounded-lg border border-[var(--border-subtle)] shadow-md">
+          {[
+            { icon: <ChevronLeft className="w-3.5 h-3.5" />, fn: scrollL, tip: 'Scroll left' },
+            { icon: <ChevronRight className="w-3.5 h-3.5" />, fn: scrollR, tip: 'Scroll right' },
+          ].map(b => (
+            <button key={b.tip} type="button" onClick={b.fn} title={b.tip}
+              className="p-1 rounded hover:bg-[var(--bg-surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">{b.icon}</button>
           ))}
           <div className="w-px h-3.5 bg-[var(--border-subtle)] mx-0.5" />
-          {[{ icon: <ZoomIn className="w-3.5 h-3.5" />, fn: zIn, tip: 'Zoom in' }, { icon: <ZoomOut className="w-3.5 h-3.5" />, fn: zOut, tip: 'Zoom out' }].map(b => (
-            <div key={b.tip} className="relative group/n">
-              <button type="button" onClick={b.fn} className="p-1 rounded hover:bg-[var(--bg-surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">{b.icon}</button>
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-50 pointer-events-none opacity-0 group-hover/n:opacity-100 transition-opacity whitespace-nowrap">
-                <div className="px-2 py-1 rounded-md bg-[var(--bg-secondary)] border border-[var(--border-subtle)] text-[10px] font-semibold text-[var(--text-primary)] shadow-lg">{b.tip}</div>
-              </div>
-            </div>
+          {[
+            { icon: <ZoomIn className="w-3.5 h-3.5" />, fn: zIn, tip: 'Zoom in' },
+            { icon: <ZoomOut className="w-3.5 h-3.5" />, fn: zOut, tip: 'Zoom out' },
+          ].map(b => (
+            <button key={b.tip} type="button" onClick={b.fn} title={b.tip}
+              className="p-1 rounded hover:bg-[var(--bg-surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">{b.icon}</button>
           ))}
           <div className="w-px h-3.5 bg-[var(--border-subtle)] mx-0.5" />
-          <div className="relative group/n">
-            <button type="button" onClick={rv} className="px-1.5 py-0.5 text-[10px] font-medium rounded hover:bg-[var(--bg-surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer flex items-center gap-1">
-              <RotateCcw className="w-2.5 h-2.5" /><span>Reset</span>
-            </button>
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-50 pointer-events-none opacity-0 group-hover/n:opacity-100 transition-opacity whitespace-nowrap">
-              <div className="px-2 py-1 rounded-md bg-[var(--bg-secondary)] border border-[var(--border-subtle)] text-[10px] font-semibold text-[var(--text-primary)] shadow-lg">Reset view · double-click chart</div>
-            </div>
-          </div>
+          <button type="button" onClick={rv} title="Reset view"
+            className="px-1.5 py-0.5 text-[10px] font-medium rounded hover:bg-[var(--bg-surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer flex items-center gap-1">
+            <RotateCcw className="w-2.5 h-2.5" /><span>Reset</span>
+          </button>
         </div>
 
         {/* Text input modal */}
@@ -1259,7 +1466,12 @@ export const ZoneLinesChart: React.FC<Props> = ({
                 className="w-full bg-[var(--bg-secondary)] text-[var(--text-primary)] border border-[var(--border-subtle)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[var(--brand-primary)]" />
               <div className="flex gap-2">
                 <button type="button" onClick={() => { setTextVal(''); setTextPrompt(null); }} className="flex-1 px-3 py-1.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-subtle)] text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer">Cancel</button>
-                <button type="button" onClick={() => { if (!textVal.trim()) return; const col = PALETTE[colorIdxRef.current % PALETTE.length]; setDrawings(prev => { const n = new Map(prev); const ins = instrumentRef.current; n.set(ins, [...(n.get(ins) ?? []), { id: `txt_${Date.now()}`, type: 'text', price: textPrompt.price, time: textPrompt.time, text: textVal.trim(), color: col } as TextLbl]); return n; }); setColorIdx(i => i + 1); scheduleRepaint(); setTextVal(''); setTextPrompt(null); }} className="flex-1 px-3 py-1.5 rounded-lg bg-[var(--brand-primary)] text-white text-xs font-semibold cursor-pointer">Add</button>
+                <button type="button" onClick={() => {
+                  if (!textVal.trim()) return;
+                  const col = PALETTE[colorIdxRef.current % PALETTE.length];
+                  setDrawings(prev => { const n = new Map(prev); const ins = instrumentRef.current; n.set(ins, [...(n.get(ins) ?? []), { id: `txt_${Date.now()}`, type: 'text', price: textPrompt.price, time: textPrompt.time, text: textVal.trim(), color: col } as TextLbl]); return n; });
+                  setColorIdx(i => i + 1); scheduleRepaint(); setTextVal(''); setTextPrompt(null);
+                }} className="flex-1 px-3 py-1.5 rounded-lg bg-[var(--brand-primary)] text-white text-xs font-semibold cursor-pointer">Add</button>
               </div>
             </div>
           </div>

@@ -16,6 +16,8 @@ import { Button } from '../ui/Button';
 import { analyzeTraderSetup, sendChatMessage } from '../../services/api/geminiService';
 import type { GeminiAnalysisResult, GeminiMessage } from '../../services/api/geminiService';
 import type { Prediction } from '../../types';
+import { usePaperSignalStore } from '../../state/usePaperSignalStore';
+import { useNavigate } from 'react-router-dom';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -66,6 +68,8 @@ export function AIAnalysisPanel({ instrument, prediction, isSubscribed, onUnlock
     const [chatOpen, setChatOpen] = useState(false);
 
     const chatBottomRef = useRef<HTMLDivElement>(null);
+    const setSignal = usePaperSignalStore((s) => s.setSignal);
+    const navigate = useNavigate();
 
     // Reset everything when the instrument changes
     useEffect(() => {
@@ -350,6 +354,26 @@ export function AIAnalysisPanel({ instrument, prediction, isSubscribed, onUnlock
                     <p className="text-[9px] text-[var(--text-muted)] italic leading-relaxed">
                         AI commentary only — not financial advice. Signal levels are sourced from trader upload.
                     </p>
+
+                    {/* Test on Paper Trading */}
+                    {prediction && (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setSignal(prediction);
+                                navigate('/my-trades');
+                            }}
+                            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl
+                                       bg-gradient-to-r from-[var(--brand-primary)] to-[var(--brand-vivid)]
+                                       text-white text-xs font-bold shadow-lg shadow-[var(--brand-primary)]/25
+                                       hover:opacity-90 transition-all cursor-pointer"
+                        >
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                            </svg>
+                            Test on Paper Trading
+                        </button>
+                    )}
                 </div>
             )}
 
