@@ -154,22 +154,22 @@ const KNOWLEDGE_BASE: {
       response: {
         text: "🛠️ **Developer & Engineering Desk**:\n• Email: **dev@tradebeast.io** (SLA < 1 hr)\n• Dedicated channel for verified traders, API integrations, and charting bugs.",
         action: { label: 'Contact Developer Team', path: '/contact?dept=dev' },
-        suggestions: ['Join Community Discord', 'Follow on Twitter'],
+        suggestions: ['Follow on Twitter', 'Follow on Instagram'],
       },
     },
     {
       keywords: ['contact', 'support', 'email', 'help', 'question', 'ticket'],
       response: {
-        text: "📫 **24/7 Support Desk**:\n• Email: **support@tradebeast.io**\n• Average reply time < 2 hours.",
+        text: "📫 **24/7 Support Desk**:\n• Email: **support@snyprr.ai**\n• Average reply time < 2 hours.",
         action: { label: 'Open Support Desk', path: '/contact' },
-        suggestions: ['Join Community Discord', 'Is TradeBeast free?'],
+        suggestions: ['Is Snyprr.ai free?'],
       },
     },
     {
-      keywords: ['discord', 'twitter', 'social', 'community', 'instagram', 'facebook', 'follow'],
+      keywords: ['twitter', 'social', 'community', 'instagram', 'facebook', 'follow'],
       response: {
-        text: "🌐 **Follow Us & Join 20K+ Traders**:\n• **Discord**: discord.gg/tradebeast (14K+ active)\n• **Twitter / X**: @TradeBeastHQ\n• **Instagram**: @tradebeast.official\n• **Facebook**: Trade Beast Global",
-        action: { label: 'Join Official Discord', href: 'https://discord.gg/tradebeast' },
+        text: "🌐 **Follow Us**:\n• **Twitter / X**: https://x.com/snyprrai?s=11\n• **Instagram**: @snyprr.ai\n• **Facebook**: https://www.facebook.com/share/1K5qrBYUnC/?mibextid=wwXIfr",
+        action: { label: 'Follow on Instagram', href: 'https://www.instagram.com/snyprr.ai?exln=MTBrY2Y2M2ZoMzZjOQ%3D%3D&utm_source=qr' },
         suggestions: ['Check live BTC signal', 'How do I start?'],
       },
     },

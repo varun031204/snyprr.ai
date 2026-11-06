@@ -146,10 +146,13 @@ export const Sidebar: React.FC = () => {
                 if (window.innerWidth < 768) setSidebarOpen(false);
               }}
               title="Create Prediction"
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-[var(--brand-primary)] to-[var(--brand-vivid)] hover:opacity-95 shadow-md shadow-[var(--brand-glow)] transition-all mb-3 ${!sidebarOpen ? 'md:justify-center md:px-0' : ''
-                }`}
+              className={`w-full flex items-center gap-3 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-[var(--brand-primary)] to-[var(--brand-vivid)] hover:opacity-95 shadow-md shadow-[var(--brand-glow)] transition-all mb-3 ${
+                sidebarOpen ? 'px-3 py-2.5' : 'md:h-10 md:justify-center md:px-0 md:py-0'
+              }`}
             >
-              <PenSquare className="w-4 h-4 flex-shrink-0" />
+              <span className="w-5 h-5 flex items-center justify-center flex-shrink-0">
+                <PenSquare className="w-4 h-4" />
+              </span>
               {sidebarOpen && <span className="truncate whitespace-nowrap">Create Prediction</span>}
             </button>
           )}
@@ -167,13 +170,15 @@ export const Sidebar: React.FC = () => {
                   }
                 }}
                 title={!sidebarOpen ? item.label : undefined}
-                className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all duration-150 relative ${!sidebarOpen ? 'md:justify-center md:px-0' : ''
-                  } ${active
+                className={`group flex items-center gap-3 rounded-xl text-xs font-semibold transition-all duration-150 relative ${
+                  sidebarOpen ? 'px-3 py-2.5' : 'md:h-10 md:justify-center md:px-0 md:py-0'
+                } ${active
                     ? 'bg-[var(--brand-glow)] text-[var(--brand-primary)] border border-[var(--brand-primary)]/30 font-bold shadow-sm'
                     : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)]'
                   }`}
               >
-                <span className="flex-shrink-0 transition-transform group-hover:scale-110 relative">
+                {/* Fixed-size icon container — ensures all icons are perfectly centred when collapsed */}
+                <span className="w-5 h-5 flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110 relative">
                   {item.icon}
                   {!sidebarOpen && item.path === '/notifications' && unreadCount > 0 && (
                     <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-[var(--brand-primary)] ring-2 ring-[var(--bg-secondary)]" />
@@ -237,16 +242,20 @@ export const Sidebar: React.FC = () => {
               if (window.innerWidth < 768) setSidebarOpen(false);
             }}
             title={!sidebarOpen ? `${currentUser?.name} (Profile)` : undefined}
-            className={`group flex items-center gap-3 px-2.5 py-2 rounded-xl text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] transition-all relative ${!sidebarOpen ? 'md:justify-center md:px-0' : ''
-              }`}
+            className={`group flex items-center gap-3 rounded-xl text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] transition-all relative ${
+              sidebarOpen ? 'px-2.5 py-2' : 'md:h-10 md:justify-center md:px-0 md:py-0'
+            }`}
           >
-            <div className="w-7 h-7 rounded-lg overflow-hidden ring-1 ring-[var(--border-glass)] flex-shrink-0">
-              {currentUser?.avatar ? (
-                <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
-              ) : (
-                <UserCircle className="w-7 h-7 text-[var(--text-muted)]" />
-              )}
-            </div>
+            {/* Avatar / profile icon — fixed to w-5 h-5 footprint when collapsed */}
+            <span className="w-5 h-5 flex items-center justify-center flex-shrink-0">
+              <div className="w-5 h-5 rounded-md overflow-hidden ring-1 ring-[var(--border-glass)]">
+                {currentUser?.avatar ? (
+                  <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
+                ) : (
+                  <UserCircle className="w-5 h-5 text-[var(--text-muted)]" />
+                )}
+              </div>
+            </span>
 
             {sidebarOpen && (
               <div className="flex-1 min-w-0 text-left">
@@ -270,10 +279,13 @@ export const Sidebar: React.FC = () => {
               if (window.innerWidth < 768) setSidebarOpen(false);
             }}
             title={!sidebarOpen ? 'Settings' : undefined}
-            className={`group flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] transition-all relative ${!sidebarOpen ? 'md:justify-center md:px-0' : ''
-              }`}
+            className={`group flex items-center gap-3 rounded-xl text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] transition-all relative ${
+              sidebarOpen ? 'px-3 py-2' : 'md:h-10 md:justify-center md:px-0 md:py-0'
+            }`}
           >
-            <Settings className="w-4 h-4 flex-shrink-0 group-hover:rotate-45 transition-transform" />
+            <span className="w-5 h-5 flex items-center justify-center flex-shrink-0">
+              <Settings className="w-5 h-5 group-hover:rotate-45 transition-transform" />
+            </span>
             {sidebarOpen && <span className="truncate">Settings</span>}
 
             {!sidebarOpen && (
@@ -289,10 +301,13 @@ export const Sidebar: React.FC = () => {
               navigate('/');
             }}
             title={!sidebarOpen ? 'Sign Out' : undefined}
-            className={`group w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-bg)] transition-all relative ${!sidebarOpen ? 'md:justify-center md:px-0' : ''
-              }`}
+            className={`group w-full flex items-center gap-3 rounded-xl text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-bg)] transition-all relative ${
+              sidebarOpen ? 'px-3 py-2' : 'md:h-10 md:justify-center md:px-0 md:py-0'
+            }`}
           >
-            <LogOut className="w-4 h-4 flex-shrink-0 group-hover:-translate-x-0.5 transition-transform" />
+            <span className="w-5 h-5 flex items-center justify-center flex-shrink-0">
+              <LogOut className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" />
+            </span>
             {sidebarOpen && <span className="truncate">Sign Out</span>}
 
             {!sidebarOpen && (

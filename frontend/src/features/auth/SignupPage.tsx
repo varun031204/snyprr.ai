@@ -316,7 +316,7 @@ export default function SignupPage() {
               I agree to Snyprr.ai's{' '}
               <Link to="/terms" className="text-[var(--brand-primary)] hover:underline">Terms & Conditions</Link>
               {' '}and{' '}
-              <Link to="/terms" className="text-[var(--brand-primary)] hover:underline">Privacy Policy</Link>.
+              <Link to="/privacy" className="text-[var(--brand-primary)] hover:underline">Privacy Policy</Link>.
               Nothing on this platform constitutes financial advice.
             </span>
           </label>

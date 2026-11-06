@@ -44,6 +44,7 @@ const AboutPage = lazy(() => import('../../features/landing/AboutPage'));
 const TestimonialsPage = lazy(() => import('../../features/landing/TestimonialsPage'));
 const PublicContactPage = lazy(() => import('../../features/landing/PublicContactPage'));
 const TermsPage = lazy(() => import('../../features/landing/TermsPage'));
+const PrivacyPage = lazy(() => import('../../features/landing/PrivacyPage'));
 const NewsPage = lazy(() => import('../../features/news/NewsPage'));
 const AICopilotPage = lazy(() => import('../../features/ai-copilot/AICopilotPage'));
 
@@ -174,6 +175,10 @@ const router = createBrowserRouter([
       {
         path: '/terms',
         element: <Suspense fallback={<PageLoader />}><TermsPage /></Suspense>,
+      },
+      {
+        path: '/privacy',
+        element: <Suspense fallback={<PageLoader />}><PrivacyPage /></Suspense>,
       },
 
       // Protected Routes

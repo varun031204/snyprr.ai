@@ -42,13 +42,14 @@ export default function ProfilePage() {
       // Call the real API endpoint PATCH /api/profiles/me
       const result = await profilesUserService.updateProfile({
         full_name: name,
+        bio: bio || null,
       });
 
       // Re-hydrate the auth store so the sidebar/topbar reflect the new name immediately
       if (result.data) {
         useAuthStore.setState((state) => ({
           currentUser: state.currentUser
-            ? { ...state.currentUser, name: result.data.name, bio, twoFactorEnabled: twoFactor }
+            ? { ...state.currentUser, name: result.data.name, bio: result.data.bio, twoFactorEnabled: twoFactor }
             : null,
         }));
       }

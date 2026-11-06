@@ -42,6 +42,24 @@ interface BackendSubscription {
 // Prices in ₹. These mirror the LandingPage pricing section.
 // When the payment gateway is integrated, replace with live backend data.
 
+const FREE_TRIAL_PLAN: SubscriptionPlan = {
+  id: 'free_trial',
+  name: '14-Day Free Trial',
+  description: 'Try the full platform for 14 days at zero cost',
+  priceMonthly: 0,
+  priceYearly: 0,
+  badge: 'Free',
+  isPopular: false,
+  features: [
+    'Chart Analysis with Explanation',
+    'Access to Copilot / AI Assistant',
+    'Paper Trading Simulation',
+    'Real-time Market Data',
+    'Historical Setup Outcomes',
+    'Community Access',
+  ],
+};
+
 const LOCAL_PLANS: SubscriptionPlan[] = [
   {
     id: 'standard',
@@ -104,7 +122,7 @@ class SubscriptionsService implements ISubscriptionApi {
       const backendPlans = raw.data ?? [];
       // Backend returns plans without features or ₹ pricing — use local definitions
       if (backendPlans.length === 0) {
-        return { success: true, data: LOCAL_PLANS, timestamp: new Date().toISOString() };
+        return { success: true, data: [FREE_TRIAL_PLAN, ...LOCAL_PLANS], timestamp: new Date().toISOString() };
       }
       // Merge backend plan IDs with local feature/pricing data
       const merged = LOCAL_PLANS.map((local) => {
@@ -113,10 +131,17 @@ class SubscriptionsService implements ISubscriptionApi {
         );
         return backend ? { ...local, id: backend.id } : local;
       });
-      return { success: true, data: merged, timestamp: new Date().toISOString() };
+      // Prepend the free trial plan (merge backend ID if available)
+      const backendFreeTrial = backendPlans.find(
+        (b) => b.name.toLowerCase().includes('14-day') || b.billing_interval === 'FREE_TRIAL',
+      );
+      const freePlan = backendFreeTrial
+        ? { ...FREE_TRIAL_PLAN, id: backendFreeTrial.id }
+        : FREE_TRIAL_PLAN;
+      return { success: true, data: [freePlan, ...merged], timestamp: new Date().toISOString() };
     } catch {
       // Backend unreachable — serve local plans
-      return { success: true, data: LOCAL_PLANS, timestamp: new Date().toISOString() };
+      return { success: true, data: [FREE_TRIAL_PLAN, ...LOCAL_PLANS], timestamp: new Date().toISOString() };
     }
   }
 

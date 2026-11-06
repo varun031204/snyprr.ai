@@ -1,18 +1,9 @@
 import { Link } from 'react-router-dom';
-import { ArrowLeft, TrendingUp, ShieldCheck, Users, BarChart2, Target, Zap, Globe } from 'lucide-react';
+import { ArrowLeft, TrendingUp, ShieldCheck, Users, BarChart2, Zap, Globe } from 'lucide-react';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { Button } from '../../components/ui/Button';
 import { ThemeToggle } from '../../components/ui/ThemeToggle';
 import { Logo } from '../../components/ui/Logo';
-
-const team = [
-    { name: 'Varun', role: 'Co-Founder & CEO', color: 'from-violet-500 to-purple-600', initials: 'V', bio: 'Visionary behind Snyprr.ai. 8+ years in algorithmic trading and financial product design.' },
-    { name: 'Prince', role: 'CTO', color: 'from-blue-500 to-cyan-500', initials: 'P', bio: 'Full-stack architect with deep expertise in real-time data systems and trading infrastructure.' },
-    { name: 'Gaurav', role: 'Head of Product', color: 'from-emerald-500 to-teal-500', initials: 'G', bio: 'Product thinker who bridges trader needs with intuitive platform experiences.' },
-    { name: 'Sahil', role: 'Lead Engineer', color: 'from-orange-500 to-amber-500', initials: 'S', bio: "Frontend and systems engineer, leading the platform's performance and reliability." },
-    { name: 'Vikrant', role: 'Co-Founder', color: 'from-rose-500 to-pink-500', initials: 'Vk', bio: 'Operations and strategy lead, ensuring Snyprr.ai scales across global markets.' },
-    { name: 'Priyansu', role: 'Growth & Marketing', color: 'from-indigo-500 to-blue-500', initials: 'PR', bio: 'Growth strategist driving community building, partnerships, and brand presence.' },
-];
 
 const values = [
     { icon: <ShieldCheck className="w-6 h-6" />, title: 'Transparent Publishing', desc: 'Every setup is published with full entry zone, exit zone, and rationale. Outcomes are declared publicly and tracked historically.' },
@@ -114,34 +105,6 @@ export default function AboutPage() {
                                 </div>
                                 <h3 className="text-sm font-bold text-[var(--text-primary)]">{v.title}</h3>
                                 <p className="text-xs text-[var(--text-muted)] leading-relaxed">{v.desc}</p>
-                            </GlassCard>
-                        ))}
-                    </div>
-                </section>
-
-                {/* Team */}
-                <section className="space-y-10">
-                    <div className="text-center">
-                        <p className="text-xs font-medium text-[var(--brand-primary)] uppercase tracking-widest mb-2">The People Behind It</p>
-                        <h2 className="text-2xl md:text-3xl font-bold text-[var(--text-primary)]">Meet the Team</h2>
-                        <p className="text-sm text-[var(--text-muted)] mt-3 max-w-xl mx-auto">
-                            A tight-knit team of traders, engineers, and product builders united by one goal.
-                        </p>
-                    </div>
-                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {team.map((m) => (
-                            <GlassCard key={m.name} className="p-6 flex flex-col gap-4">
-                                <div className="flex items-center gap-4">
-                                    <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${m.color} flex items-center justify-center shadow-lg flex-shrink-0`}>
-                                        <span className="text-white text-lg font-extrabold">{m.initials}</span>
-                                    </div>
-                                    <div>
-                                        <h3 className="text-sm font-bold text-[var(--text-primary)]">{m.name}</h3>
-                                        <p className="text-xs text-[var(--brand-primary)] font-medium">{m.role}</p>
-                                    </div>
-                                </div>
-                                <p className="text-xs text-[var(--text-muted)] leading-relaxed">{m.bio}</p>
-                                <div className={`h-0.5 w-12 rounded-full bg-gradient-to-r ${m.color} opacity-60 mt-auto`} />
                             </GlassCard>
                         ))}
                     </div>

@@ -7,6 +7,7 @@ export interface UpdateProfileInput {
   username?: string | null;
   avatar_url?: string | null;
   phone?: string | null;
+  bio?: string | null;
 }
 
 export class ProfilesService {
@@ -85,6 +86,7 @@ export class ProfilesService {
         ...(input.username !== undefined ? { username: input.username } : {}),
         ...(input.avatar_url !== undefined ? { avatar_url: input.avatar_url } : {}),
         ...(input.phone !== undefined ? { phone: input.phone } : {}),
+        ...(input.bio !== undefined ? { bio: input.bio } : {}),
         updated_at: new Date().toISOString(),
       })
       .eq('id', userId)

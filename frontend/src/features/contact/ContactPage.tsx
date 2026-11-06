@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Mail, MessageSquare, Headphones, Send, Clock, ShieldCheck, CheckCircle2, HelpCircle, Code2, Terminal } from 'lucide-react';
+import { Mail, Headphones, Send, Clock, ShieldCheck, CheckCircle2, HelpCircle, Code2, Terminal } from 'lucide-react';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -69,7 +69,7 @@ export default function ContactPage() {
           {isDevDept ? 'ENGINEERING & DEVELOPER DESK' : '24/7 SUPPORT DESK'}
         </span>
         <h1 className="text-3xl font-extrabold text-[var(--text-primary)]">
-          {isDevDept ? 'Contact the Developer Team' : 'Contact Trade Beast Support'}
+          {isDevDept ? 'Contact the Developer Team' : 'Contact Snyprr Support'}
         </h1>
         <p className="text-sm text-[var(--text-muted)]">
           {isDevDept
@@ -90,19 +90,6 @@ export default function ContactPage() {
           </div>
           <span className="text-[11px] text-[var(--color-success)] font-medium flex items-center gap-1 mt-auto">
             <Clock className="w-3.5 h-3.5" /> {isDevDept ? 'Direct Engineering SLA < 1 hr' : 'Average response < 2 hrs'}
-          </span>
-        </GlassCard>
-
-        <GlassCard hoverEffect={false} className="p-5 rounded-2xl flex flex-col items-start gap-3">
-          <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20 flex items-center justify-center">
-            <MessageSquare className="w-5 h-5" />
-          </div>
-          <div>
-            <h2 className="text-sm font-bold text-[var(--text-primary)]">Community Discord</h2>
-            <p className="text-xs text-[var(--text-muted)] mt-0.5">discord.gg/tradebeast</p>
-          </div>
-          <span className="text-[11px] text-[var(--text-muted)] font-medium flex items-center gap-1 mt-auto">
-            <CheckCircle2 className="w-3.5 h-3.5 text-purple-400" /> 14,000+ Active Traders
           </span>
         </GlassCard>
 
@@ -153,7 +140,7 @@ export default function ContactPage() {
                 <option value="TECHNICAL">Technical Bug or Issue</option>
                 <option value="GENERAL">General Platform Inquiry</option>
                 <option value="VERIFICATION">Trader Verification Application</option>
-                <option value="SUBSCRIPTION">30-Day Trial & Subscription</option>
+                <option value="SUBSCRIPTION">14-Day Trial &amp; Subscription</option>
                 <option value="FEEDBACK">Feature Request & Feedback</option>
               </select>
             </div>

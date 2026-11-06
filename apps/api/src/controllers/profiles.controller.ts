@@ -14,6 +14,7 @@ const updateProfileSchema = z.object({
   username: z.string().min(3).max(30).regex(/^[a-zA-Z0-9_]+$/, 'Username must only contain letters, numbers, and underscores').optional(),
   avatar_url: z.string().url('Invalid avatar URL').optional().nullable(),
   phone: z.string().optional().nullable(),
+  bio: z.string().max(500).optional().nullable(),
 });
 
 export class ProfilesController {

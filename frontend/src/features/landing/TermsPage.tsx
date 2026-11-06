@@ -24,13 +24,15 @@ export default function TermsPage() {
             {/* Navbar */}
             <header className="sticky top-0 z-50 w-full border-b border-[var(--border-subtle)] bg-[var(--bg-base)]/90 backdrop-blur-xl">
                 <div className="max-w-4xl mx-auto flex items-center justify-between px-5 sm:px-8 py-3.5">
-                    <Link to="/" className="flex items-center gap-2 flex-shrink-0">
-                        <Logo className="h-8 object-contain" />
-                    </Link>
                     <div className="flex items-center gap-2">
-                        <ThemeToggle />
                         <Link to="/">
                             <Button variant="ghost" size="sm" leftIcon={<ArrowLeft className="w-4 h-4" />}>Back</Button>
+                        </Link>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <ThemeToggle />
+                        <Link to="/" className="flex items-center gap-2 flex-shrink-0">
+                            <Logo className="h-8 object-contain" />
                         </Link>
                     </div>
                 </div>
@@ -140,7 +142,8 @@ export default function TermsPage() {
                 <Section title="8. Privacy & Data">
                     <p>
                         Snyprr.ai collects user data (email, usage patterns, subscription information) to provide and improve the service.
-                        We do not sell personal data to third parties. Full details are available in our Privacy Policy.
+                        We do not sell personal data to third parties. Full details are available in our{' '}
+                        <Link to="/privacy" className="text-[var(--brand-primary)] hover:underline">Privacy Policy</Link>.
                     </p>
                 </Section>
 
@@ -163,9 +166,11 @@ export default function TermsPage() {
                     <p className="text-xs text-[var(--text-muted)]">
                         Questions about these terms?{' '}
                         <Link to="/contact-us" className="text-[var(--brand-primary)] hover:underline">Contact us</Link>
+                        {' · '}
+                        <Link to="/privacy" className="text-[var(--brand-primary)] hover:underline">Privacy Policy</Link>
                     </p>
                     <Link to="/signup">
-                        <Button variant="primary" size="md">Get Started — 30 Days Free</Button>
+                        <Button variant="primary" size="md">Get Started — 14 Days Free</Button>
                     </Link>
                 </div>
 

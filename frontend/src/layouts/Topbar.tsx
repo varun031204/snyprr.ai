@@ -237,7 +237,7 @@ export const Topbar: React.FC = () => {
 
               <button
                 role="menuitem"
-                onClick={() => { logout(); navigate('/login'); setProfileOpen(false); }}
+                onClick={() => { logout(); navigate('/'); setProfileOpen(false); }}
                 className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-[var(--color-danger)] hover:bg-[var(--color-danger-bg)] transition-colors rounded-b-2xl focus:outline-none focus:bg-[var(--color-danger-bg)]"
               >
                 Sign Out

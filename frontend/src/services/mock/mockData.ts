@@ -406,7 +406,7 @@ export const MOCK_SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
       'Instant WebSocket realtime alerts',
       'Trader Journal reflections & rationale access',
       'Priority AI Assistant product search',
-      'Dedicated VIP Discord channel access',
+      'Dedicated VIP community channel access',
     ],
   },
 ];

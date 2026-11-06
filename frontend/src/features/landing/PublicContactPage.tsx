@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Mail, MessageSquare, Send, CheckCircle2, Clock, Headphones, ShieldCheck, HelpCircle } from 'lucide-react';
+import { ArrowLeft, Mail, Send, CheckCircle2, Clock, Headphones, ShieldCheck, HelpCircle } from 'lucide-react';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -83,10 +83,9 @@ export default function PublicContactPage() {
                 </div>
 
                 {/* Channel cards */}
-                <div className="grid sm:grid-cols-3 gap-4">
+                <div className="grid sm:grid-cols-2 gap-4">
                     {[
                         { icon: <Mail className="w-5 h-5" />, title: 'Email Support', sub: 'support@snyprr.ai', badge: '< 2 hr response', badgeCls: 'text-[var(--color-success)]', bg: 'bg-[var(--brand-glow)]', color: 'text-[var(--brand-primary)]' },
-                        { icon: <MessageSquare className="w-5 h-5" />, title: 'Discord Community', sub: 'discord.gg/snyprr', badge: '14,000+ traders', badgeCls: 'text-purple-400', bg: 'bg-purple-500/10', color: 'text-purple-400' },
                         { icon: <Headphones className="w-5 h-5" />, title: 'VIP Priority Desk', sub: 'For PRO & VIP subscribers', badge: 'Instant queue', badgeCls: 'text-amber-400', bg: 'bg-amber-500/10', color: 'text-amber-400' },
                     ].map((c) => (
                         <GlassCard key={c.title} hoverEffect={false} className="p-5 flex flex-col gap-3">
