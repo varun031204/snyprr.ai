@@ -136,10 +136,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isLoading: true, authError: null });
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
-      set({ isLoading: false, authError: error.message });
+      let message = error.message;
+      const lower = error.message.toLowerCase();
+      if (lower.includes('invalid login') || lower.includes('invalid credentials') || lower.includes('wrong password')) {
+        message = 'Incorrect email or password. Please try again.';
+      } else if (lower.includes('email not confirmed') || lower.includes('not confirmed')) {
+        message = 'Please verify your email first.';
+      } else if (lower.includes('too many requests') || lower.includes('rate limit')) {
+        message = 'Too many login attempts. Please wait a few minutes.';
+      }
+      set({ isLoading: false, authError: message });
       throw error;
     }
-    // onAuthStateChange will fire and call _hydrateUser automatically
+    // ── One device at a time: sign out all other sessions ─────────────────
+    try { await supabase.auth.signOut({ scope: 'others' }); } catch { /* non-fatal */ }
+    // onAuthStateChange fires → _hydrateUser
   },
 
   signUp: async (email: string, password: string, fullName?: string) => {
@@ -149,6 +160,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       password,
       options: {
         data: fullName ? { full_name: fullName } : undefined,
+        // emailRedirectTo not needed for OTP flow — Supabase sends 6-digit code
       },
     });
     if (error) {

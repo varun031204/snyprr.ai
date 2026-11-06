@@ -51,10 +51,13 @@ describe('AI Endpoints Security', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // Include email_confirmed_at so requireAuth passes the verification check
     getUserMock.mockResolvedValue({
-      data: { user: { id: mockUserId } },
+      data: { user: { id: mockUserId, email_confirmed_at: '2026-01-01T00:00:00.000Z' } },
       error: null,
     });
+    // Return ACTIVE profile so account_status check passes
+    vi.mocked(db.query).mockResolvedValue({ rows: [{ account_status: 'ACTIVE' }] } as any);
     vi.mocked(aiService.checkRateLimit).mockResolvedValue({
       allowed: true,
       remaining: 9,
