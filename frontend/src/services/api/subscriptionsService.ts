@@ -39,8 +39,28 @@ interface BackendSubscription {
 }
 
 // ─── Local plan definitions (authoritative until payment gateway is live) ─────
-// Prices in ₹. These mirror the LandingPage pricing section.
+// Prices in ₹. These mirror the SubscriptionsPage pricing section.
 // When the payment gateway is integrated, replace with live backend data.
+
+const FREE_TRIAL_PLAN: SubscriptionPlan = {
+  id: 'free-trial',
+  name: '14-Day Free Trial',
+  description: 'Try the full platform free for 14 days — no card required',
+  priceMonthly: 0,
+  priceYearly: 0,
+  badge: 'Free',
+  isPopular: false,
+  features: [
+    'Chart Analysis with Explanation',
+    'Access to Copilot / AI Assistant',
+    'Paper Trading Simulation',
+    'Real-time Market Data',
+    'Historical Setup Outcomes',
+    'Community Access',
+    'Full PRO Access for 14 Days',
+    'No Credit Card Required',
+  ],
+};
 
 const LOCAL_PLANS: SubscriptionPlan[] = [
   {
@@ -79,6 +99,8 @@ const LOCAL_PLANS: SubscriptionPlan[] = [
     ],
   },
 ];
+
+export { FREE_TRIAL_PLAN };
 
 // ─── Adapters ─────────────────────────────────────────────────────────────────
 
@@ -135,6 +157,21 @@ class SubscriptionsService implements ISubscriptionApi {
       success: false,
       data: { subscriptionId: '', status: 'PENDING' },
       message: 'Payment gateway not yet configured. Contact support.',
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * Activate the 14-day free trial for the current user.
+   * Trial state is computed client-side from createdAt via useTrialStore.
+   * This call records intent on the backend when the endpoint is ready.
+   */
+  async activateTrial(): Promise<ApiResponse<{ activated: boolean }>> {
+    // Trial is auto-activated on account creation via useTrialStore (createdAt-based).
+    // No separate backend call is needed in V1 — trial state derives from createdAt.
+    return {
+      success: true,
+      data: { activated: true },
       timestamp: new Date().toISOString(),
     };
   }
