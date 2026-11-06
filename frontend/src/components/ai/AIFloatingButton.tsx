@@ -3,7 +3,10 @@ import { BotMessageSquare, X } from 'lucide-react';
 import { useUIStore } from '../../state/useUIStore';
 
 export const AIFloatingButton: React.FC = () => {
-  const { aiDrawerOpen, toggleAIDrawer } = useUIStore();
+  const { aiDrawerOpen, toggleAIDrawer, sidebarOpen } = useUIStore();
+
+  // Hide behind sidebar on mobile when it's open (sidebar backdrop is z-30, button is z-40 — would float above)
+  if (sidebarOpen) return null;
 
   return (
     <button

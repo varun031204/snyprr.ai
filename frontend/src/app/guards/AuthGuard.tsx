@@ -1,11 +1,17 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../state/useAuthStore';
+import { isSupabasePlaceholder } from '../../lib/supabase';
 import { Skeleton } from '../../components/ui/Skeleton';
 
 export const AuthGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuthStore();
   const location = useLocation();
+
+  // DEV BYPASS: No real Supabase — skip auth gate entirely
+  if (isSupabasePlaceholder) {
+    return <>{children}</>;
+  }
 
   // While Supabase is restoring session from storage, show a skeleton
   if (isLoading) {

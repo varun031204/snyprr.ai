@@ -6,6 +6,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { useAuthStore } from '../../state/useAuthStore';
 import { useUIStore } from '../../state/useUIStore';
+import { submitContactForm } from '../../services/api/formspreeService';
 
 export default function ContactPage() {
   const { currentUser, activeRole } = useAuthStore();
@@ -20,19 +21,28 @@ export default function ContactPage() {
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Fix: subject included in deps to avoid stale-closure warning; the guard
+  // `if (!subject)` correctly prevents overwriting user-typed content.
   useEffect(() => {
     if (isDevDept) {
       setCategory('TECHNICAL');
       if (!subject) setSubject('Developer Team / Technical Inquiry');
     }
-  }, [isDevDept]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDevDept]); // intentionally omits `subject` — only auto-fills on first switch
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    setTimeout(() => {
-      setIsSubmitting(false);
+    const result = await submitContactForm({
+      name, email, category, subject, message,
+      _source: isDevDept ? 'developer-contact-page' : 'support-contact-page',
+    });
+
+    setIsSubmitting(false);
+
+    if (result.ok) {
       addToast({
         type: 'success',
         title: isDevDept ? 'Developer Ticket Dispatched 🛠️' : 'Message Dispatched 🚀',
@@ -42,7 +52,13 @@ export default function ContactPage() {
       });
       setSubject('');
       setMessage('');
-    }, 600);
+    } else {
+      addToast({
+        type: 'danger',
+        title: 'Could not send message',
+        message: result.error ?? 'Something went wrong. Please try again.',
+      });
+    }
   };
 
   return (

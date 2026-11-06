@@ -244,8 +244,22 @@ export const TradingChartPro: React.FC<TradingChartProProps> = ({
       layout: { background: { color: bgColor }, textColor, fontFamily: 'Inter, system-ui, sans-serif', fontSize: 11 },
       grid: { vertLines: { color: borderColor, style: LineStyle.Dashed }, horzLines: { color: borderColor, style: LineStyle.Dashed } },
       crosshair: { mode: CrosshairMode.Normal },
-      rightPriceScale: { borderColor, textColor, autoScale: true },
-      timeScale: { borderColor, timeVisible: true, secondsVisible: false },
+      rightPriceScale: {
+        borderColor, textColor,
+        // autoScale: true causes vertical jumps on every high-frequency tick.
+        // Keep it enabled by default but suppress the re-fit on each update by
+        // using the library's built-in behaviour — the series update() call only
+        // extends the scale if the new price is outside the current visible range.
+        autoScale: true,
+        // Prevent the scale from collapsing on tiny single-candle ranges
+        entireTextOnly: false,
+      },
+      timeScale: {
+        borderColor, timeVisible: true, secondsVisible: false,
+        // Do NOT call fitContent() on every data update — let the user's scroll position
+        // stay intact. Only the initial load explicitly calls fitContent().
+        lockVisibleTimeRangeOnResize: true,
+      },
       handleScale: { mouseWheel: true, pinch: true, axisPressedMouseMove: { time: true, price: true }, axisDoubleClickReset: { time: true, price: true } },
       handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: true },
     });
@@ -268,6 +282,7 @@ export const TradingChartPro: React.FC<TradingChartProProps> = ({
         });
       }
     });
+    ro.observe(containerRef.current);
     const onDbl = () => {
       chart.priceScale('right').applyOptions({ autoScale: true });
       chart.timeScale().fitContent();
@@ -282,6 +297,7 @@ export const TradingChartPro: React.FC<TradingChartProProps> = ({
       chartRef.current = null;
       seriesRef.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [height, getThemeColors]);
 
   useEffect(() => {
@@ -294,7 +310,7 @@ export const TradingChartPro: React.FC<TradingChartProProps> = ({
       rightPriceScale: { borderColor, textColor },
       timeScale: { borderColor },
     });
-    chartRef.current.timeScale().fitContent();
+    // Do NOT call fitContent() here — theme changes must not reset the user's zoom/scroll position
   }, [theme, getThemeColors]);
 
   const loadData = useCallback(async () => {
@@ -315,10 +331,24 @@ export const TradingChartPro: React.FC<TradingChartProProps> = ({
         const c = await fetchBinanceCandles(binanceSymbol, interval);
         seriesRef.current.setData(c);
         if (c.length) lastCandleRef.current = c[c.length - 1];
+        // fitContent only on initial load — never on live updates
         chartRef.current?.timeScale().fitContent();
 
         // Track last WebSocket message time for smart fallback
         let lastWsMsgTime = 0;
+
+        // Throttle: skip WS updates for the same open candle that arrive within
+        // 250ms of each other — Binance fires on every single trade, which can be
+        // hundreds per second on BTC. We only need chart-visible precision.
+        let wsPendingRaf: number | null = null;
+        let wsQueuedSnap: { time: number; open: number; high: number; low: number; close: number } | null = null;
+
+        const flushWsUpdate = () => {
+          wsPendingRaf = null;
+          if (!seriesRef.current || !wsQueuedSnap) return;
+          seriesRef.current.update(wsQueuedSnap as any);
+          wsQueuedSnap = null;
+        };
 
         // Start WebSocket for REAL-TIME candle updates (sub-second, on every trade tick)
         wsRef.current = openBinanceWebSocket(
@@ -329,12 +359,25 @@ export const TradingChartPro: React.FC<TradingChartProProps> = ({
             lastWsMsgTime = Date.now();
             // WebSocket is live — stop polling backup
             if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
-            // RAF-batch chart updates to stay in sync with browser paint cycle
+
             const snap = { time: candle.time, open: candle.open, high: candle.high, low: candle.low, close: candle.close };
             lastCandleRef.current = snap;
-            requestAnimationFrame(() => {
-              if (seriesRef.current) seriesRef.current.update(snap as any);
-            });
+
+            if (candle.isClosed) {
+              // Closed candle: flush immediately (new candle must appear without delay)
+              if (wsPendingRaf !== null) { cancelAnimationFrame(wsPendingRaf); wsPendingRaf = null; }
+              wsQueuedSnap = null;
+              requestAnimationFrame(() => {
+                if (seriesRef.current) seriesRef.current.update(snap as any);
+              });
+            } else {
+              // Open (live) candle: queue the latest value, flush in the next RAF.
+              // Multiple ticks within the same frame collapse into one update.
+              wsQueuedSnap = snap;
+              if (wsPendingRaf === null) {
+                wsPendingRaf = requestAnimationFrame(flushWsUpdate);
+              }
+            }
           },
           () => { /* WebSocket error — watchdog polling handles backup */ },
         );
@@ -621,6 +664,8 @@ export const TradingChartPro: React.FC<TradingChartProProps> = ({
     }
     return null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
+    // overlayTick is intentionally included: priceToY/barToX depend on it and are
+    // declared with [overlayTick] deps, so renderDrawing must also re-create when it ticks.
   }, [selectedId, activeTool, priceToY, barToX, svgW, handleDClick, overlayTick]);
 
   useLayoutEffect(() => { setDrawColor(DEFAULT_COLORS[activeTool]); }, [activeTool]);
@@ -661,7 +706,11 @@ export const TradingChartPro: React.FC<TradingChartProProps> = ({
       </svg>
 
       {pendingText && (
-        <div className="absolute z-20" style={{ left: pendingText.x + 4, top: pendingText.y - 20 }}>
+        <div className="absolute z-20" style={{
+          left: pendingText.x + 4,
+          // Clamp so the input never goes above the chart top edge
+          top: Math.max(8, pendingText.y - 20),
+        }}>
           <input ref={textInputRef} value={textValue}
             onChange={(e: ChangeEvent<HTMLInputElement>) => setTextValue(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') commitText(); if (e.key === 'Escape') setPendingText(null); }}
@@ -695,8 +744,8 @@ export const TradingChartPro: React.FC<TradingChartProProps> = ({
         </button>
       </div>
 
-      {/* Bottom toolbar */}
-      <div className="absolute bottom-3 left-14 z-10 flex items-center gap-1 bg-[var(--bg-card)]/90 backdrop-blur-md px-1.5 py-1 rounded-lg border border-[var(--border-subtle)] shadow-md">
+      {/* Bottom toolbar — left-14 clears the vertical tool sidebar; max-w + overflow-x-auto prevents clipping on narrow charts */}
+      <div className="absolute bottom-3 left-14 right-3 z-10 flex items-center gap-1 bg-[var(--bg-card)]/90 backdrop-blur-md px-1.5 py-1 rounded-lg border border-[var(--border-subtle)] shadow-md overflow-x-auto scrollbar-none max-w-[calc(100%-4rem)]">
         <button type="button" onClick={scrollLeft} title="Scroll Left" className="p-1 rounded hover:bg-[var(--bg-surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all cursor-pointer"><ChevronLeft className="w-3.5 h-3.5" /></button>
         <button type="button" onClick={scrollRight} title="Scroll Right" className="p-1 rounded hover:bg-[var(--bg-surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all cursor-pointer"><ChevronRight className="w-3.5 h-3.5" /></button>
         <div className="w-px h-3.5 bg-[var(--border-subtle)] mx-0.5" />
@@ -737,6 +786,7 @@ export const TradingChartPro: React.FC<TradingChartProProps> = ({
         )}
       </div>
 
+      {/* Top-right: status indicator (only shown when tool is active or interactive) */}
       {(activeTool !== 'pointer' || interactive) && (
         <div className="absolute top-3 right-3 z-10 pointer-events-none flex flex-col items-end gap-1">
           {activeTool !== 'pointer' && (
@@ -752,8 +802,9 @@ export const TradingChartPro: React.FC<TradingChartProProps> = ({
         </div>
       )}
 
+      {/* Delete selected button — rendered at bottom-right to avoid overlapping top-right status */}
       {selectedId && activeTool === 'pointer' && (
-        <div className="absolute top-3 right-3 z-10 pointer-events-auto">
+        <div className="absolute bottom-14 right-3 z-20 pointer-events-auto">
           <button type="button"
             onClick={() => { setDrawings(p => p.filter(d => d.id !== selectedId)); setSelectedId(null); }}
             className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-semibold shadow-sm backdrop-blur-md bg-red-500/20 border border-red-500/40 text-red-400 hover:bg-red-500/30 transition-colors cursor-pointer">

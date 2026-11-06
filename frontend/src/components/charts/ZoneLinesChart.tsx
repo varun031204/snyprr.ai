@@ -212,24 +212,19 @@ interface Props {
   onTpChange?: (price: number) => void;
 }
 
-// ─── Tooltip toolbar button ─────────────────────────────────────────────────────
+// ─── Tooltip toolbar button (uses native title — avoids z-index trap from absolute children) ──
 const Tip: React.FC<{ label: string; active: boolean; onClick: () => void; variant?: 'green' | 'red'; children: React.ReactNode }> =
   ({ label, active, onClick, variant, children }) => {
-    const [show, setShow] = useState(false);
     const cls = active
       ? variant === 'green' ? 'bg-[var(--color-success)] text-white'
         : variant === 'red' ? 'bg-[var(--color-danger)] text-white'
           : 'bg-[var(--brand-primary)] text-white'
       : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]';
     return (
-      <div className="relative" onMouseEnter={() => setShow(true)} onMouseLeave={() => setShow(false)}>
-        <button type="button" onClick={onClick} className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all cursor-pointer ${cls}`}>{children}</button>
-        {show && (
-          <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 z-[999] pointer-events-none">
-            <div className="px-2.5 py-1.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-subtle)] text-xs font-semibold text-[var(--text-primary)] shadow-xl whitespace-nowrap">{label}</div>
-          </div>
-        )}
-      </div>
+      <button type="button" title={label} onClick={onClick}
+        className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all cursor-pointer ${cls}`}>
+        {children}
+      </button>
     );
   };
 
@@ -462,13 +457,16 @@ export const ZoneLinesChart: React.FC<Props> = ({
   const [activeIndicators, setActiveIndicators] = useState<string[]>([]);
   const indicatorSeriesRef = useRef<Record<string, any>>({});
   // preview: keeps the crosshair position for ghost-line drawing
-  // Still goes through scheduleRepaint so it's capped at 60fps
+  // Funnelled through scheduleRepaint so it is capped at 60fps and does not
+  // trigger a full React re-render on every mouse pixel.
   const previewRef = useRef<PT | null>(null);
-  const [preview, setPreviewState] = useState<PT | null>(null);
   const setPreview = useCallback((pt: PT | null) => {
+    // Compare before mutating the ref to decide whether a repaint is needed
+    const prev = previewRef.current;
+    const changed = pt?.time !== prev?.time || pt?.price !== prev?.price;
     previewRef.current = pt;
-    setPreviewState(pt);   // direct state update — drives re-render for ghost lines
-  }, []);
+    if (changed) scheduleRepaint();
+  }, [scheduleRepaint]);
   const [colorIdx, setColorIdx] = useState(0);
   const [textPrompt, setTextPrompt] = useState<PT | null>(null);
   const [textVal, setTextVal] = useState('');
@@ -540,8 +538,16 @@ export const ZoneLinesChart: React.FC<Props> = ({
       layout: { background: { color: bg }, textColor: text, fontFamily: 'Inter,system-ui,sans-serif', fontSize: 11 },
       grid: { vertLines: { color: border, style: LineStyle.Dashed }, horzLines: { color: border, style: LineStyle.Dashed } },
       crosshair: { mode: CrosshairMode.Normal },
-      rightPriceScale: { borderColor: border, autoScale: true },
-      timeScale: { borderColor: border, timeVisible: true, secondsVisible: false },
+      rightPriceScale: {
+        borderColor: border,
+        autoScale: true,
+        entireTextOnly: false,
+      },
+      timeScale: {
+        borderColor: border, timeVisible: true, secondsVisible: false,
+        // Preserve scroll position on resize — prevents the view from jumping
+        lockVisibleTimeRangeOnResize: true,
+      },
       handleScale: { mouseWheel: true, pinch: true, axisPressedMouseMove: { time: true, price: true }, axisDoubleClickReset: { time: true, price: true } },
       handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: true },
     });
@@ -662,8 +668,18 @@ export const ZoneLinesChart: React.FC<Props> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canvasH, getColors]);
 
-  // Theme sync
-  useEffect(() => { if (!chartRef.current) return; const { bg, border, text } = getColors(); chartRef.current.applyOptions({ layout: { background: { color: bg }, textColor: text }, grid: { vertLines: { color: border }, horzLines: { color: border } }, rightPriceScale: { borderColor: border }, timeScale: { borderColor: border } }); }, [theme, getColors]);
+  // Theme sync — only update colors, never reset the visible range
+  useEffect(() => {
+    if (!chartRef.current) return;
+    const { bg, border, text } = getColors();
+    chartRef.current.applyOptions({
+      layout: { background: { color: bg }, textColor: text },
+      grid: { vertLines: { color: border }, horzLines: { color: border } },
+      rightPriceScale: { borderColor: border },
+      timeScale: { borderColor: border },
+    });
+    // Do NOT call fitContent() — theme changes must not reset the user's zoom/scroll
+  }, [theme, getColors]);
 
   // Load candles + start live updates
   useEffect(() => {
@@ -689,6 +705,20 @@ export const ZoneLinesChart: React.FC<Props> = ({
           startLive(d);
           let lastWsMsgTime = 0;
 
+          // Throttle: collapse multiple ticks for the same open candle into one
+          // RAF update. Binance fires on every trade — we only need chart-visible
+          // precision. Closed candles flush immediately so new bars appear instantly.
+          let wsPendingRaf: number | null = null;
+          let wsQueuedSnap: { time: number; open: number; high: number; low: number; close: number } | null = null;
+
+          const flushWsUpdate = () => {
+            wsPendingRaf = null;
+            if (!candleRef.current || !wsQueuedSnap) return;
+            candleRef.current.update(wsQueuedSnap as any);
+            lastCandleRef.current = wsQueuedSnap;
+            wsQueuedSnap = null;
+          };
+
           // Start WebSocket for REAL-TIME candle updates (sub-second, on every trade tick)
           wsRef.current = openKlineWS(
             binanceSym, interval,
@@ -697,12 +727,26 @@ export const ZoneLinesChart: React.FC<Props> = ({
               lastWsMsgTime = Date.now();
               // WebSocket is live — stop polling backup
               if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
-              // RAF-batch the chart update to stay in sync with browser paint
-              requestAnimationFrame(() => {
-                if (!candleRef.current) return;
-                candleRef.current.update(c as any);
-                lastCandleRef.current = c;
-              });
+
+              // Detect closed candle: the new tick's time differs from the previous candle time
+              const isClosed = lastCandleRef.current !== null && c.time !== lastCandleRef.current.time;
+
+              if (isClosed) {
+                // Closed candle — flush immediately so the new bar appears without delay
+                if (wsPendingRaf !== null) { cancelAnimationFrame(wsPendingRaf); wsPendingRaf = null; }
+                wsQueuedSnap = null;
+                requestAnimationFrame(() => {
+                  if (!candleRef.current) return;
+                  candleRef.current.update(c as any);
+                  lastCandleRef.current = c;
+                });
+              } else {
+                // Open (live) candle — queue and batch into one RAF flush
+                wsQueuedSnap = c;
+                if (wsPendingRaf === null) {
+                  wsPendingRaf = requestAnimationFrame(flushWsUpdate);
+                }
+              }
             },
             () => { /* WebSocket error — watchdog polling handles backup */ },
           );
@@ -1088,8 +1132,9 @@ export const ZoneLinesChart: React.FC<Props> = ({
     const tX = (t: number) => chart.timeScale().timeToCoordinate(t as any);
     const W = svgSize.w, H = svgSize.h;
     const FL = -200, FR = W + 200;
-    // Live preview from React state — drives ghost line during drawing
-    const currentPreview = preview;
+    // Read from the ref directly — the RAF-batched tick already causes a re-render
+    // so this always reflects the latest crosshair position without needing extra state.
+    const currentPreview = previewRef.current;
 
     const extLine = (x1: number, y1: number, x2: number, y2: number, mode: 'extend' | 'ray' | 'seg'): [number, number, number, number] => {
       if (mode === 'seg') return [x1, y1, x2, y2];
@@ -1347,7 +1392,7 @@ export const ZoneLinesChart: React.FC<Props> = ({
     // in with `pointerEvents: all` so selection still works while drawing.
     return <g style={{ pointerEvents: allowDrawing ? 'all' : 'none' }}>{elems}</g>;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tick, svgSize, instrument, drawings, pendingPts, preview, activeTool, selectedId, buildHandles, onHandleMouseDown, allowDrawing]);
+  }, [tick, svgSize, instrument, drawings, pendingPts, activeTool, selectedId, buildHandles, onHandleMouseDown, allowDrawing]);
 
   // ── Nav helpers ───────────────────────────────────────────────────────────────
   const scrollL = useCallback(() => { const ts = chartRef.current?.timeScale(); if (!ts) return; const r = ts.getVisibleLogicalRange(); if (!r) return; ts.setVisibleLogicalRange({ from: r.from - Math.max(5, (r.to - r.from) * 0.25), to: r.to - Math.max(5, (r.to - r.from) * 0.25) }); }, []);
@@ -1537,7 +1582,11 @@ export const ZoneLinesChart: React.FC<Props> = ({
         {/* Edit Panel */}
         {allowDrawing && editPanel && selectedDrawing && (
           <div className="absolute z-30 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl shadow-2xl p-3 w-52"
-            style={{ left: Math.min(editPanel.x, svgSize.w - 220), top: Math.max(8, editPanel.y) }}
+            style={{
+              left: Math.min(editPanel.x, svgSize.w - 220),
+              // top guard: min 8px from top, max keeps the ~220px panel above the bottom edge
+              top: Math.min(Math.max(8, editPanel.y), Math.max(8, svgSize.h - 230)),
+            }}
             onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-bold text-[var(--text-primary)] capitalize">{selectedDrawing.type} — Edit</span>

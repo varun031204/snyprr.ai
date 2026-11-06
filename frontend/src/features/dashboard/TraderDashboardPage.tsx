@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   TrendingUp, TrendingDown, CheckCircle2, Clock,
@@ -15,6 +15,8 @@ import { useAuthStore } from '../../state/useAuthStore';
 import { useMarketStore } from '../../state/useMarketStore';
 import { useUIStore } from '../../state/useUIStore';
 import { TradingChartPro } from '../../components/charts/TradingChartPro';
+import { AIAnalysisPanel } from '../../components/ai/AIAnalysisPanel';
+import { useTrialStore } from '../../state/useTrialStore';
 import { CHART_ITEMS } from '../../constants';
 import type { Prediction, PredictionDirection } from '../../types';
 
@@ -37,11 +39,19 @@ const TIMEFRAME_OPTIONS = [
 export default function TraderDashboardPage() {
   const { currentUser } = useAuthStore();
   const { tickers } = useMarketStore();
-  const { addToast, theme } = useUIStore();
+  const { addToast } = useUIStore();
   const navigate = useNavigate();
   const createMutation = useCreatePrediction();
+  const { isTrialActive } = useTrialStore();
 
   const [chartSymbol, setChartSymbol] = useState('BINANCE:BTCUSDT');
+  const [rightTab, setRightTab] = useState<'create' | 'ai'>('create');
+  const [aiSignalsRevealed, setAiSignalsRevealed] = useState(false);
+
+  const isSubscribed =
+    isTrialActive ||
+    currentUser?.subscriptionTier === 'PRO' ||
+    currentUser?.subscriptionTier === 'VIP';
 
   const { data, isLoading } = usePredictions({ page: 1, pageSize: 50 });
   const predictions = data?.data || [];
@@ -249,23 +259,58 @@ export default function TraderDashboardPage() {
         </div>
       </div>
 
-      {/* Chart + Create Panel — side by side */}
-      <div className="grid lg:grid-cols-[1fr_380px] gap-4 items-start">
-        {/* Chart — ZoneLinesChart with TradingView + signal levels overlay */}
+      {/* Chart + Right Panel — side by side on desktop, stacked on mobile */}
+      <div className="grid lg:grid-cols-[1fr_400px] gap-4 items-start">
+        {/* Chart */}
         <div className="w-full">
           <TradingChartPro
             tvSymbol={chartSymbol}
             instrument={activeChartInstrument}
             prediction={activePredictionForChart}
             timeframe={effectiveTimeframe}
-            height={620}
+            height={typeof window !== 'undefined' && window.innerWidth < 1024 ? 420 : 700}
             predictionId={activePredictionForChart?.id ?? activeChartInstrument}
           />
         </div>
 
-        {/* Create Prediction Panel */}
-        <GlassCard hoverEffect={false} className="flex flex-col gap-3 p-4 border border-[var(--border-subtle)] relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--brand-glow)] rounded-full blur-3xl opacity-20 pointer-events-none -mr-6 -mt-6" />
+        {/* Right Column: tabbed between Create Prediction and AI Analysis */}
+        <div className="flex flex-col rounded-2xl border border-[var(--border-subtle)] overflow-hidden bg-[var(--bg-surface)] shadow-xl lg:max-h-[700px]">
+
+          {/* Tab Bar */}
+          <div className="flex border-b border-[var(--border-subtle)] flex-shrink-0">
+            <button
+              type="button"
+              onClick={() => setRightTab('create')}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-bold transition-all cursor-pointer ${
+                rightTab === 'create'
+                  ? 'text-[var(--brand-primary)] border-b-2 border-[var(--brand-primary)] bg-[var(--brand-glow)]'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              Create Setup
+            </button>
+            <button
+              type="button"
+              onClick={() => setRightTab('ai')}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-bold transition-all cursor-pointer ${
+                rightTab === 'ai'
+                  ? 'text-[var(--brand-primary)] border-b-2 border-[var(--brand-primary)] bg-[var(--brand-glow)]'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]'
+              }`}
+            >
+              <BarChart2 className="w-3.5 h-3.5" />
+              AI Analysis
+            </button>
+          </div>
+
+          {/* Tab Content */}
+          <div className="flex-1 overflow-y-auto scrollbar-thin min-h-0">
+
+            {/* Create Prediction Tab */}
+            {rightTab === 'create' && (
+              <div className="p-4 space-y-3 relative">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--brand-glow)] rounded-full blur-3xl opacity-20 pointer-events-none -mr-6 -mt-6" />
 
           {/* Panel header */}
           <div className="flex items-center justify-between relative z-10 min-w-0">
@@ -473,7 +518,22 @@ export default function TraderDashboardPage() {
               <RotateCcw className="w-3.5 h-3.5" /> Reset
             </button>
           </div>
-        </GlassCard>
+              </div>
+            )}
+
+            {/* AI Analysis Tab */}
+            {rightTab === 'ai' && (
+              <AIAnalysisPanel
+                instrument={activeChartInstrument}
+                prediction={chartPrediction ?? activePredictionForChart ?? null}
+                isSubscribed={isSubscribed}
+                onUnlock={() => navigate('/subscriptions')}
+                onAnalysisStart={() => setAiSignalsRevealed(true)}
+                onReset={() => setAiSignalsRevealed(false)}
+              />
+            )}
+          </div>
+        </div>
       </div>
 
       {/* KPIs */}

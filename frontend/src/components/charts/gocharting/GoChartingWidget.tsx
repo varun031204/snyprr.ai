@@ -225,7 +225,7 @@ export const GoChartingWidget: React.FC<GoChartingWidgetProps> = ({
             instanceRef.current = chartInstance;
 
             // Log available methods once to help debug shape API issues
-            if (process.env.NODE_ENV !== 'production') {
+            if (import.meta.env.DEV) {
               const methods = Object.getOwnPropertyNames(Object.getPrototypeOf(chartInstance) ?? chartInstance)
                 .filter(k => typeof chartInstance[k] === 'function');
               console.log('[GoChartingWidget] Chart instance methods:', methods);
