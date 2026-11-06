@@ -84,6 +84,20 @@ const authLimiter = rateLimit({
   skip: () => env.NODE_ENV === 'test',
 });
 
+// Very tight limiter specifically for password change — 5 attempts per 15 minutes per IP.
+// Prevents brute-force current-password guessing.
+const passwordChangeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too Many Requests',
+    message: 'Too many password change attempts. Please wait 15 minutes before trying again.',
+  },
+  skip: () => env.NODE_ENV === 'test',
+});
+
 app.use(globalLimiter);
 
 // Apply the tighter auth limiter to all /api routes (every /api route runs requireAuth
@@ -142,6 +156,8 @@ app.get('/health/db', async (_req, res) => {
 // Mount domain routes
 app.use('/api/signals', signalsRouter);
 app.use('/api/profiles', profilesRouter);
+// Extra rate-limit on password change — applied before the profiles router handles it
+app.use('/api/profiles/me/password', passwordChangeLimiter);
 app.use('/api/subscriptions', subscriptionsRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/ai', aiRouter);

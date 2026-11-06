@@ -16,6 +16,7 @@ const router = Router();
 
 router.get('/me', requireAuth, ProfilesController.getMyProfile);
 router.patch('/me', requireAuth, ProfilesController.updateMyProfile);
+router.post('/me/password', requireAuth, ProfilesController.changePassword);
 
 router.get('/traders', optionalAuth, ProfilesController.listTraders);
 router.get('/traders/me', requireAuth, requireRole('trader'), ProfilesController.getMyTraderProfile);

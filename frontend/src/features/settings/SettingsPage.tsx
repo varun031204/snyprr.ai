@@ -1,31 +1,42 @@
 import React, { useState } from 'react';
-import { Sliders, Bell, Shield, CheckCircle2 } from 'lucide-react';
+import { Sliders, Bell, Shield, CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { Button } from '../../components/ui/Button';
 import { ThemeToggle } from '../../components/ui/ThemeToggle';
 import { useUIStore } from '../../state/useUIStore';
+import { ChangePasswordForm } from '../../components/auth/ChangePasswordForm';
 
 export default function SettingsPage() {
   const { theme, notifPrefs, saveNotifPrefs, addToast } = useUIStore();
 
-  // Local state mirrors the persisted prefs — only saved when user clicks "Save Preferences"
+  // Notification prefs local state
   const [emailAlerts, setEmailAlerts] = useState(notifPrefs.emailAlerts);
   const [targetHitAlerts, setTargetHitAlerts] = useState(notifPrefs.targetHitAlerts);
   const [newFollowerAlerts, setNewFollowerAlerts] = useState(notifPrefs.newFollowerAlerts);
 
-  // Track whether anything has actually changed
+  // Password change panel visibility
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+
   const isDirty =
     emailAlerts !== notifPrefs.emailAlerts ||
     targetHitAlerts !== notifPrefs.targetHitAlerts ||
     newFollowerAlerts !== notifPrefs.newFollowerAlerts;
 
   const handleSave = () => {
-    // Persist to localStorage via the store
     saveNotifPrefs({ emailAlerts, targetHitAlerts, newFollowerAlerts });
     addToast({
       type: 'success',
       title: 'Preferences Saved',
       message: 'Your notification preferences have been updated and will persist across sessions.',
+    });
+  };
+
+  const handlePasswordSuccess = () => {
+    setShowPasswordForm(false);
+    addToast({
+      type: 'success',
+      title: 'Password Changed',
+      message: 'Your password has been changed successfully. You can now log in with your new password.',
     });
   };
 
@@ -58,13 +69,13 @@ export default function SettingsPage() {
       <div>
         <h1 className="text-2xl font-bold text-[var(--text-primary)]">Platform Settings</h1>
         <p className="text-sm text-[var(--text-muted)] mt-1">
-          Configure your theme, notifications, and application preferences.
+          Configure your theme, notifications, and account security.
         </p>
       </div>
 
       <div className="space-y-5">
 
-        {/* ── Appearance ─────────────────────────────────────────────────── */}
+        {/* ── Appearance ───────────────────────────────────────────────── */}
         <GlassCard hoverEffect={false} className="p-6 space-y-4">
           <h3 className="text-sm font-semibold text-[var(--text-primary)] flex items-center gap-2">
             <Sliders className="w-4 h-4 text-[var(--brand-primary)]" /> Appearance & Theme
@@ -81,14 +92,13 @@ export default function SettingsPage() {
               <ThemeToggle />
             </div>
           </div>
-          {/* Theme saves automatically — no Save button needed */}
           <p className="text-[11px] text-[var(--text-muted)] flex items-center gap-1.5">
             <CheckCircle2 className="w-3.5 h-3.5 text-[var(--color-success)]" />
             Theme preference is saved automatically and persists across sessions.
           </p>
         </GlassCard>
 
-        {/* ── Notifications ──────────────────────────────────────────────── */}
+        {/* ── Notifications ─────────────────────────────────────────────── */}
         <GlassCard hoverEffect={false} className="p-6 space-y-4">
           <h3 className="text-sm font-semibold text-[var(--text-primary)] flex items-center gap-2">
             <Bell className="w-4 h-4 text-[var(--brand-primary)]" /> Alert Preferences
@@ -125,42 +135,65 @@ export default function SettingsPage() {
 
           <div className="flex items-center justify-between pt-2 border-t border-[var(--border-subtle)]">
             <p className="text-[11px] text-[var(--text-muted)]">
-              {isDirty
-                ? 'You have unsaved changes.'
-                : (
-                  <span className="flex items-center gap-1.5">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-[var(--color-success)]" />
-                    All preferences saved.
-                  </span>
-                )}
+              {isDirty ? (
+                'You have unsaved changes.'
+              ) : (
+                <span className="flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[var(--color-success)]" />
+                  All preferences saved.
+                </span>
+              )}
             </p>
-            <Button
-              variant="primary"
-              onClick={handleSave}
-              disabled={!isDirty}
-            >
+            <Button variant="primary" onClick={handleSave} disabled={!isDirty}>
               Save Preferences
             </Button>
           </div>
         </GlassCard>
 
-        {/* ── Security ───────────────────────────────────────────────────── */}
+        {/* ── Security ──────────────────────────────────────────────────── */}
         <GlassCard hoverEffect={false} className="p-6 space-y-4">
           <h3 className="text-sm font-semibold text-[var(--text-primary)] flex items-center gap-2">
             <Shield className="w-4 h-4 text-[var(--brand-primary)]" /> Security
           </h3>
+
           <div className="space-y-3">
-            <div className="flex items-center justify-between p-3.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)]">
-              <div>
-                <p className="text-xs font-semibold text-[var(--text-primary)]">Password</p>
-                <p className="text-[10px] text-[var(--text-muted)] mt-0.5">
-                  Last changed — not available in dev mode.
-                </p>
+
+            {/* ── Change Password row ─────────────────────────────────── */}
+            <div className="rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] overflow-hidden">
+              {/* Header row — always visible */}
+              <div className="flex items-center justify-between p-3.5">
+                <div>
+                  <p className="text-xs font-semibold text-[var(--text-primary)]">Password</p>
+                  <p className="text-[10px] text-[var(--text-muted)] mt-0.5">
+                    {showPasswordForm
+                      ? 'Fill in the form below to set a new password.'
+                      : 'Update your account password. You\'ll need your current password.'}
+                  </p>
+                </div>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setShowPasswordForm((v) => !v)}
+                  rightIcon={showPasswordForm
+                    ? <ChevronUp className="w-3.5 h-3.5" />
+                    : <ChevronDown className="w-3.5 h-3.5" />}
+                >
+                  {showPasswordForm ? 'Cancel' : 'Change Password'}
+                </Button>
               </div>
-              <Button variant="secondary" size="sm" disabled>
-                Change Password
-              </Button>
+
+              {/* Expandable form */}
+              {showPasswordForm && (
+                <div className="px-4 pb-5 border-t border-[var(--border-subtle)]">
+                  <ChangePasswordForm
+                    onCancel={() => setShowPasswordForm(false)}
+                    onSuccess={handlePasswordSuccess}
+                  />
+                </div>
+              )}
             </div>
+
+            {/* ── Active Sessions row ─────────────────────────────────── */}
             <div className="flex items-center justify-between p-3.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)]">
               <div>
                 <p className="text-xs font-semibold text-[var(--text-primary)]">Active Sessions</p>
@@ -172,6 +205,7 @@ export default function SettingsPage() {
                 Manage Sessions
               </Button>
             </div>
+
           </div>
         </GlassCard>
       </div>

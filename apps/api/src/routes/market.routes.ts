@@ -59,7 +59,7 @@ router.get('/tickers', async (_req: Request, res: Response) => {
     if (!statsRes.ok) throw new Error(`Binance Vision stats ${statsRes.status}`);
     if (!priceRes.ok) throw new Error(`Binance Vision price ${priceRes.status}`);
 
-    const statsData: any[] = await statsRes.json();
+    const statsData = (await statsRes.json()) as any[];
     // statsData already has lastPrice, priceChangePercent etc — return as-is
     // (matches the BinanceTicker24h interface on the frontend)
 

@@ -6,7 +6,7 @@
 import type { TraderProfile, User } from '../../types';
 import type { ITraderApi, IUserApi } from './apiClient';
 import type { ApiResponse } from './types';
-import { httpGet, httpPatch } from './httpClient';
+import { httpGet, httpPatch, httpPost } from './httpClient';
 
 // ─── Backend shapes ───────────────────────────────────────────────────────────
 
@@ -114,6 +114,18 @@ class ProfilesUserService implements IUserApi {
       data: toFrontendUser(raw.data),
       timestamp: new Date().toISOString(),
     };
+  }
+
+  /**
+   * Change the authenticated user's password.
+   * Calls: POST /api/profiles/me/password
+   * Verifies current password server-side before updating.
+   */
+  async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+    await httpPost<{ message: string }>('/api/profiles/me/password', {
+      currentPassword,
+      newPassword,
+    });
   }
 }
 
