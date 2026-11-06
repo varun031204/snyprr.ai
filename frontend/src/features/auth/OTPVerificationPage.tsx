@@ -12,6 +12,8 @@ export default function OTPVerificationPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const email = searchParams.get('email') ?? '';
+  // mode=login → passwordless OTP login; mode=signup (default) → email confirmation
+  const mode = (searchParams.get('mode') ?? 'signup') as 'signup' | 'login';
 
   const { verifyOtp, isLoading, authError, clearError } = useAuthStore();
 
@@ -85,7 +87,8 @@ export default function OTPVerificationPage() {
     if (code.length < OTP_LENGTH) return;
     clearError();
     try {
-      await verifyOtp(email, code);
+      // Pass the mode so Supabase uses the right OTP type
+      await verifyOtp(email, code, mode);
       navigate('/dashboard');
     } catch {
       // authError is set by store
@@ -98,14 +101,15 @@ export default function OTPVerificationPage() {
     if (!canResend) return;
     setResendMsg('');
     try {
-      const { error } = await supabase.auth.resend({ type: 'signup', email });
+      const { error } = mode === 'login'
+        ? await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: true } })
+        : await supabase.auth.resend({ type: 'signup', email });
       if (error) {
         setResendMsg(error.message);
       } else {
         setResendMsg('A new code has been sent to your email.');
         setCanResend(false);
         setResendCooldown(60);
-        // Restart countdown
         const timer = setInterval(() => {
           setResendCooldown((s) => {
             if (s <= 1) { clearInterval(timer); setCanResend(true); return 0; }
@@ -127,11 +131,13 @@ export default function OTPVerificationPage() {
         <div className="w-16 h-16 rounded-2xl bg-[var(--brand-primary)]/10 border border-[var(--brand-primary)]/30 flex items-center justify-center mb-4">
           <Mail className="w-8 h-8 text-[var(--brand-primary)]" />
         </div>
-        <h1 className="text-2xl font-extrabold text-[var(--text-primary)]">Verify your email</h1>
+        <h1 className="text-2xl font-extrabold text-[var(--text-primary)]">
+          {mode === 'login' ? 'Check your email' : 'Verify your email'}
+        </h1>
         <p className="text-sm text-[var(--text-muted)] mt-2 max-w-xs">
           We sent a <span className="font-semibold text-[var(--text-primary)]">6-digit code</span> to{' '}
           <span className="text-[var(--brand-primary)] font-medium">{email || 'your email'}</span>.
-          Enter it below.
+          {mode === 'login' ? ' Enter it to sign in.' : ' Enter it below.'}
         </p>
       </div>
 

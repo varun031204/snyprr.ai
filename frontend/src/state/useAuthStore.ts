@@ -16,6 +16,8 @@ interface AuthState {
   // Actions
   initialize: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
+  /** Send a passwordless OTP to the given email (magic-link / email OTP login) */
+  sendOtpLogin: (email: string) => Promise<void>;
   signUp: (email: string, password: string, fullName?: string) => Promise<{ needsOtp: boolean }>;
   verifyOtp: (email: string, token: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -142,6 +144,33 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     // onAuthStateChange will fire and call _hydrateUser automatically
   },
 
+  /**
+   * Send a 6-digit OTP to the user's email for passwordless login.
+   * After calling this, redirect the user to /verify-otp?email=...&mode=login
+   * They enter the code there and verifyOtpLogin() completes the sign-in.
+   */
+  sendOtpLogin: async (email: string) => {
+    set({ isLoading: true, authError: null });
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        // shouldCreateUser: false means existing users only.
+        // Set to true if you want auto-registration via OTP too.
+        shouldCreateUser: true,
+      },
+    });
+    if (error) {
+      const lower = error.message.toLowerCase();
+      let message = error.message;
+      if (lower.includes('rate limit') || lower.includes('over_email_send_rate_limit')) {
+        message = 'Too many requests. Please wait a few minutes before trying again.';
+      }
+      set({ isLoading: false, authError: message });
+      throw error;
+    }
+    set({ isLoading: false });
+  },
+
   signUp: async (email: string, password: string, fullName?: string) => {
     set({ isLoading: true, authError: null });
     const { data, error } = await supabase.auth.signUp({
@@ -191,12 +220,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
 
-  verifyOtp: async (email: string, token: string) => {
+  verifyOtp: async (email: string, token: string, type: 'signup' | 'email' = 'signup') => {
     set({ isLoading: true, authError: null });
     const { data, error } = await supabase.auth.verifyOtp({
       email,
       token,
-      type: 'signup',
+      type,
     });
     if (error) {
       set({ isLoading: false, authError: error.message });
