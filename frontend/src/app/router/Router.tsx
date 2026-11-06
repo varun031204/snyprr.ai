@@ -3,6 +3,7 @@ import { createBrowserRouter, Navigate, RouterProvider, Outlet, ScrollRestoratio
 import { AppShell } from '../../layouts/AppShell';
 import { AuthLayout } from '../../layouts/AuthLayout';
 import { AuthGuard } from '../guards/AuthGuard';
+import { GuestGuard } from '../guards/GuestGuard';
 import { RoleGuard } from '../guards/RoleGuard';
 import { useAuthStore } from '../../state/useAuthStore';
 
@@ -133,20 +134,22 @@ const router = createBrowserRouter([
       },
       {
         path: '/login',
-        element: <AuthLayout><Suspense fallback={<PageLoader />}><LoginPage /></Suspense></AuthLayout>,
+        element: <GuestGuard><AuthLayout><Suspense fallback={<PageLoader />}><LoginPage /></Suspense></AuthLayout></GuestGuard>,
       },
       {
         path: '/signup',
-        element: <AuthLayout><Suspense fallback={<PageLoader />}><SignupPage /></Suspense></AuthLayout>,
+        element: <GuestGuard><AuthLayout><Suspense fallback={<PageLoader />}><SignupPage /></Suspense></AuthLayout></GuestGuard>,
       },
       {
         path: '/forgot-password',
         element: (
-          <AuthLayout>
-            <Suspense fallback={<PageLoader />}>
-              <ForgotPasswordPage />
-            </Suspense>
-          </AuthLayout>
+          <GuestGuard>
+            <AuthLayout>
+              <Suspense fallback={<PageLoader />}>
+                <ForgotPasswordPage />
+              </Suspense>
+            </AuthLayout>
+          </GuestGuard>
         ),
       },
       {

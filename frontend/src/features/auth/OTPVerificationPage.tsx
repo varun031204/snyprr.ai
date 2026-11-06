@@ -24,6 +24,12 @@ export default function OTPVerificationPage() {
 
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
+  // Auto-focus first input when page mounts
+  useEffect(() => {
+    const timer = setTimeout(() => focusInput(0), 100);
+    return () => clearTimeout(timer);
+  }, []);
+
   // Countdown for resend
   useEffect(() => {
     const timer = setInterval(() => {
