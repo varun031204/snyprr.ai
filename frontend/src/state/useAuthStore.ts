@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { Session } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
+import { supabase, isSupabasePlaceholder } from '../lib/supabase';
 import { ROLE_PERMISSIONS } from '../constants';
 import { profilesUserService } from '../services/api/profilesService';
 import type { User, UserRole } from '../types';
@@ -39,9 +39,41 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   /**
    * Called once on app startup. Restores session from storage,
    * then subscribes to auth state changes for the lifetime of the app.
+   *
+   * DEV BYPASS: If VITE_SUPABASE_URL is a placeholder, skip Supabase entirely
+   * and inject a mock user so the UI can be explored without real credentials.
    */
   initialize: async () => {
     set({ isLoading: true });
+
+    // ── DEV BYPASS: no real Supabase configured ────────────────────────────
+    if (isSupabasePlaceholder) {
+      const mockUser: User = {
+        id: 'dev-user-0000',
+        email: 'demo@snyprr.ai',
+        name: 'Demo Trader',
+        role: 'USER',
+        isVerified: true,
+        twoFactorEnabled: false,
+        createdAt: new Date().toISOString(),
+        permissions: ROLE_PERMISSIONS['USER'],
+        subscriptionTier: 'PRO',
+        avatar: '',
+      };
+      set({
+        currentUser: mockUser,
+        session: null,
+        activeRole: 'USER',
+        isAuthenticated: true,
+        isLoading: false,
+        authError: null,
+      });
+      console.warn(
+        '[Snyprr] DEV MODE: Supabase not configured — using mock user. ' +
+        'Set real VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in frontend/.env for full auth.'
+      );
+      return;
+    }
 
     // Restore existing session
     const { data: { session } } = await supabase.auth.getSession();
@@ -82,12 +114,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         authError: null,
       });
     } catch {
-      // Profile fetch failed — still mark as authenticated with minimal info
+      // Profile fetch failed — still mark as authenticated with minimal info.
+      // subscriptionTier defaults to 'FREE' so the user isn't silently locked
+      // out of features they may have paid for, but doesn't grant unearned access.
       const minimalUser: User = {
         id: session.user.id,
         email: session.user.email ?? '',
         name: session.user.user_metadata?.full_name ?? session.user.email ?? 'User',
         role: 'USER',
+        subscriptionTier: 'FREE',
         isVerified: !!session.user.email_confirmed_at,
         twoFactorEnabled: false,
         createdAt: session.user.created_at,

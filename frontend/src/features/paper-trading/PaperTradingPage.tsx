@@ -1,18 +1,22 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import {
   TrendingUp, DollarSign, RotateCcw,
   CheckCircle2, Clock, BarChart2, ShieldCheck,
-  Wallet, BookOpen, ArrowRight, X,
+  Wallet, BookOpen, ArrowRight, X, Sparkles,
 } from 'lucide-react';
 import { StatCard } from '../../components/ui/StatCard';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { Button } from '../../components/ui/Button';
 import { DirectionBadge } from '../../components/ui/Badge';
 import { TradingChartPro } from '../../components/charts/TradingChartPro';
+import { AIAnalysisPanel } from '../../components/ai/AIAnalysisPanel';
 import { PaperTradeOrderPanel, PaperTradeDraftLevels } from './PaperTradeOrderPanel';
 import { usePaperTradingStore, type PaperPosition } from '../../state/usePaperTradingStore';
 import { useMarketStore } from '../../state/useMarketStore';
+import { useAuthStore } from '../../state/useAuthStore';
+import { useTrialStore } from '../../state/useTrialStore';
 import { CHART_ITEMS } from '../../constants';
 import type { Prediction } from '../../types';
 
@@ -31,8 +35,8 @@ const CloseTradeModal: React.FC<{ trade: PaperPosition; onClose: () => void }> =
   const pnl = priceDiff * trade.size;
   const pnlPct = trade.marginUsd > 0 ? (pnl / trade.marginUsd) * 100 : 0;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+  return createPortal(
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <div className="w-full max-w-sm bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl shadow-2xl p-5 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-bold text-[var(--text-primary)]">Close Paper Position</h2>
@@ -87,7 +91,8 @@ const CloseTradeModal: React.FC<{ trade: PaperPosition; onClose: () => void }> =
           Confirm Close Position
         </Button>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
@@ -95,12 +100,20 @@ const CloseTradeModal: React.FC<{ trade: PaperPosition; onClose: () => void }> =
 export default function PaperTradingPage() {
   const { balance, startingBalance, positions, resetAccount } = usePaperTradingStore();
   const { tickers } = useMarketStore();
+  const { currentUser } = useAuthStore();
+  const { isTrialActive } = useTrialStore();
   const navigate = useNavigate();
+
+  const isSubscribed =
+    isTrialActive ||
+    currentUser?.subscriptionTier === 'PRO' ||
+    currentUser?.subscriptionTier === 'VIP';
 
   const [chartSymbol, setChartSymbol] = useState('BINANCE:BTCUSDT');
   const [draftLevels, setDraftLevels] = useState<PaperTradeDraftLevels | null>(null);
   const [closingTrade, setClosingTrade] = useState<PaperPosition | null>(null);
   const [tab, setTab] = useState<'open' | 'history'>('open');
+  const [rightTab, setRightTab] = useState<'order' | 'ai'>('order');
 
   const currentChartItem = CHART_ITEMS.find((item) => item.symbol === chartSymbol);
   const activeChartInstrument = currentChartItem?.instrument || 'BTC/USDT';
@@ -213,8 +226,8 @@ export default function PaperTradingPage() {
         </div>
       </div>
 
-      {/* Chart + Paper Trade Panel — side by side */}
-      <div className="grid lg:grid-cols-[1fr_380px] gap-4 items-start">
+      {/* Chart + Right Panel — side by side on desktop, stacked on mobile */}
+      <div className="grid lg:grid-cols-[1fr_400px] gap-4 items-start">
         {/* Chart */}
         <div className="w-full">
           <TradingChartPro
@@ -222,17 +235,61 @@ export default function PaperTradingPage() {
             instrument={activeChartInstrument}
             prediction={activePredictionForChart}
             timeframe={draftLevels?.timeframe || '1h'}
-            height={620}
+            height={typeof window !== 'undefined' && window.innerWidth < 1024 ? 420 : 700}
             predictionId={activePredictionForChart?.id ?? activeChartInstrument}
           />
         </div>
 
-        {/* Paper Trade Order Panel */}
-        <PaperTradeOrderPanel
-          currentInstrument={activeChartInstrument}
-          onInstrumentChange={handleSelectInstrument}
-          onLevelsChange={setDraftLevels}
-        />
+        {/* Right Column: Order Panel | AI Analysis tabs */}
+        <div className="flex flex-col rounded-2xl border border-[var(--border-subtle)] overflow-hidden bg-[var(--bg-surface)] shadow-xl lg:max-h-[700px]">
+
+          {/* Tab Bar */}
+          <div className="flex border-b border-[var(--border-subtle)] flex-shrink-0">
+            <button
+              type="button"
+              onClick={() => setRightTab('order')}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-bold transition-all cursor-pointer ${
+                rightTab === 'order'
+                  ? 'text-[var(--brand-primary)] border-b-2 border-[var(--brand-primary)] bg-[var(--brand-glow)]'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]'
+              }`}
+            >
+              <TrendingUp className="w-3.5 h-3.5" />
+              Place Order
+            </button>
+            <button
+              type="button"
+              onClick={() => setRightTab('ai')}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-bold transition-all cursor-pointer ${
+                rightTab === 'ai'
+                  ? 'text-[var(--brand-primary)] border-b-2 border-[var(--brand-primary)] bg-[var(--brand-glow)]'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              AI Analysis
+            </button>
+          </div>
+
+          {/* Tab Content */}
+          <div className="flex-1 overflow-y-auto scrollbar-thin min-h-0">
+            {rightTab === 'order' && (
+              <PaperTradeOrderPanel
+                currentInstrument={activeChartInstrument}
+                onInstrumentChange={handleSelectInstrument}
+                onLevelsChange={setDraftLevels}
+              />
+            )}
+            {rightTab === 'ai' && (
+              <AIAnalysisPanel
+                instrument={activeChartInstrument}
+                prediction={activePredictionForChart ?? null}
+                isSubscribed={isSubscribed}
+                onUnlock={() => navigate('/subscriptions')}
+              />
+            )}
+          </div>
+        </div>
       </div>
 
       {/* KPIs */}

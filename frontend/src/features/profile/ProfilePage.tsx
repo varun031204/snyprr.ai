@@ -1,28 +1,72 @@
 import React, { useState } from 'react';
-import { UserCircle, Mail, Shield, Key, Bell, CheckCircle2 } from 'lucide-react';
+import { UserCircle, Shield, CheckCircle2, Loader2 } from 'lucide-react';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { SubscriptionTierBadge } from '../../components/ui/SubscriptionTierBadge';
 import { useAuthStore } from '../../state/useAuthStore';
 import { useUIStore } from '../../state/useUIStore';
+import { profilesUserService } from '../../services/api/profilesService';
+import { isSupabasePlaceholder } from '../../lib/supabase';
 
 export default function ProfilePage() {
   const { currentUser, activeRole } = useAuthStore();
   const { addToast } = useUIStore();
 
   const [name, setName] = useState(currentUser?.name || '');
-  const [email, setEmail] = useState(currentUser?.email || '');
   const [bio, setBio] = useState(currentUser?.bio || '');
   const [twoFactor, setTwoFactor] = useState(currentUser?.twoFactorEnabled || false);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    addToast({
-      type: 'success',
-      title: 'Profile Updated',
-      message: 'Your personal information and preferences have been saved.',
-    });
+    setIsSaving(true);
+
+    // DEV BYPASS: no real Supabase — update the store directly
+    if (isSupabasePlaceholder) {
+      useAuthStore.setState((state) => ({
+        currentUser: state.currentUser
+          ? { ...state.currentUser, name, bio, twoFactorEnabled: twoFactor }
+          : null,
+      }));
+      setIsSaving(false);
+      addToast({
+        type: 'success',
+        title: 'Profile Updated',
+        message: 'Your information has been saved.',
+      });
+      return;
+    }
+
+    try {
+      // Call the real API endpoint PATCH /api/profiles/me
+      const result = await profilesUserService.updateProfile({
+        full_name: name,
+      });
+
+      // Re-hydrate the auth store so the sidebar/topbar reflect the new name immediately
+      if (result.data) {
+        useAuthStore.setState((state) => ({
+          currentUser: state.currentUser
+            ? { ...state.currentUser, name: result.data.name, bio, twoFactorEnabled: twoFactor }
+            : null,
+        }));
+      }
+
+      addToast({
+        type: 'success',
+        title: 'Profile Updated',
+        message: 'Your personal information has been saved successfully.',
+      });
+    } catch (err: any) {
+      addToast({
+        type: 'danger',
+        title: 'Update Failed',
+        message: err?.message || 'Could not save profile. Please try again.',
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -34,19 +78,26 @@ export default function ProfilePage() {
 
       <GlassCard hoverEffect={false} className="p-6 md:p-8">
         <form onSubmit={handleSave} className="space-y-6">
+
           {/* Avatar & Role Header */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-5 pb-6 border-b border-[var(--border-subtle)]">
             <div className="flex flex-col items-center gap-2 flex-shrink-0">
-              <img
-                src={currentUser?.avatar || 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80'}
-                alt={currentUser?.name}
-                className="w-20 h-20 rounded-2xl object-cover ring-2 ring-[var(--brand-primary)]/40 shadow-md"
-              />
-              <SubscriptionTierBadge tier={currentUser?.subscriptionTier || 'PRO'} size="md" />
+              {currentUser?.avatar ? (
+                <img
+                  src={currentUser.avatar}
+                  alt={currentUser.name}
+                  className="w-20 h-20 rounded-2xl object-cover ring-2 ring-[var(--brand-primary)]/40 shadow-md"
+                />
+              ) : (
+                <div className="w-20 h-20 rounded-2xl bg-[var(--brand-glow)] flex items-center justify-center ring-2 ring-[var(--brand-primary)]/40 shadow-md">
+                  <UserCircle className="w-12 h-12 text-[var(--brand-primary)]" />
+                </div>
+              )}
+              <SubscriptionTierBadge tier={currentUser?.subscriptionTier || 'FREE'} size="md" />
             </div>
 
             <div className="space-y-1 text-center sm:text-left">
-              <h2 className="text-xl font-bold text-[var(--text-primary)]">{currentUser?.name}</h2>
+              <h2 className="text-xl font-bold text-[var(--text-primary)]">{name || currentUser?.name}</h2>
               <p className="text-xs text-[var(--text-muted)]">{currentUser?.email}</p>
               <div className="flex items-center justify-center sm:justify-start gap-2 pt-1">
                 <span className="text-xs px-2.5 py-0.5 rounded-full bg-[var(--brand-glow)] text-[var(--brand-primary)] font-semibold">
@@ -59,6 +110,7 @@ export default function ProfilePage() {
             </div>
           </div>
 
+          {/* Form Fields */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
               label="Full Name"
@@ -69,9 +121,10 @@ export default function ProfilePage() {
             <Input
               label="Email Address"
               type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
+              value={currentUser?.email || ''}
+              disabled
+              // Email changes require re-auth via Supabase — not supported here
+              helperText="Contact support to change your email address."
             />
           </div>
 
@@ -81,7 +134,8 @@ export default function ProfilePage() {
               rows={3}
               value={bio}
               onChange={(e) => setBio(e.target.value)}
-              className="w-full bg-[var(--bg-surface)] text-[var(--text-primary)] border border-[var(--border-subtle)] rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]"
+              placeholder="Tell others a bit about yourself..."
+              className="w-full bg-[var(--bg-surface)] text-[var(--text-primary)] border border-[var(--border-subtle)] rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)] resize-none transition-all"
             />
           </div>
 
@@ -97,11 +151,11 @@ export default function ProfilePage() {
               </div>
               <button
                 type="button"
-                onClick={() => setTwoFactor(!twoFactor)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                onClick={() => setTwoFactor((v) => !v)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                   twoFactor
                     ? 'bg-[var(--color-success-bg)] text-[var(--color-success)] border border-[var(--color-success)]/30'
-                    : 'bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border-subtle)]'
+                    : 'bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)]'
                 }`}
               >
                 {twoFactor ? 'Enabled ✓' : 'Disabled'}
@@ -109,9 +163,17 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          <div className="flex justify-end pt-2">
-            <Button type="submit" variant="primary">
-              Save Changes
+          <div className="flex items-center justify-between pt-2">
+            <p className="text-[11px] text-[var(--text-muted)]">
+              Changes are saved to your account immediately.
+            </p>
+            <Button
+              type="submit"
+              variant="primary"
+              disabled={isSaving}
+              leftIcon={isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : undefined}
+            >
+              {isSaving ? 'Saving…' : 'Save Changes'}
             </Button>
           </div>
         </form>

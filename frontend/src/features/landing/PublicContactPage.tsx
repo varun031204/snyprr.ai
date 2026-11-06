@@ -6,6 +6,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { ThemeToggle } from '../../components/ui/ThemeToggle';
 import { Logo } from '../../components/ui/Logo';
+import { submitContactForm } from '../../services/api/formspreeService';
 
 const CATEGORIES = [
     { value: 'GENERAL', label: 'General Inquiry' },
@@ -24,15 +25,25 @@ export default function PublicContactPage() {
     const [message, setMessage] = useState('');
     const [isSubmitting, setSubmitting] = useState(false);
     const [submitted, setSubmitted] = useState(false);
+    const [submitError, setSubmitError] = useState<string | null>(null);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setSubmitting(true);
-        // TODO: replace with real API call when backend is ready
-        // await fetch('/api/contact', { method: 'POST', body: JSON.stringify({ name, email, category, subject, message }) });
-        await new Promise((res) => setTimeout(res, 800));
+        setSubmitError(null);
+
+        const result = await submitContactForm({
+            name, email, category, subject, message,
+            _source: 'public-contact-page',
+        });
+
         setSubmitting(false);
-        setSubmitted(true);
+
+        if (result.ok) {
+            setSubmitted(true);
+        } else {
+            setSubmitError(result.error ?? 'Something went wrong. Please try again.');
+        }
     };
 
     return (
@@ -149,9 +160,14 @@ export default function PublicContactPage() {
                                         to access priority support.
                                     </span>
                                 </p>
-                                <Button type="submit" variant="primary" size="md" isLoading={isSubmitting} leftIcon={<Send className="w-4 h-4" />}>
-                                    Send Message
-                                </Button>
+                                <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                                    {submitError && (
+                                        <p className="text-xs text-[var(--color-danger)] text-right">{submitError}</p>
+                                    )}
+                                    <Button type="submit" variant="primary" size="md" isLoading={isSubmitting} leftIcon={<Send className="w-4 h-4" />}>
+                                        Send Message
+                                    </Button>
+                                </div>
                             </div>
                         </form>
                     </GlassCard>

@@ -201,6 +201,34 @@ export const Sidebar: React.FC = () => {
           })}
         </nav>
 
+        {/* Dev Role Switcher — lets you toggle between User / Trader dashboards */}
+        {import.meta.env.DEV && (
+          <div className="px-2 py-2 border-t border-[var(--border-subtle)]">
+            <div className={`flex items-center gap-1 ${!sidebarOpen ? 'md:flex-col md:gap-0.5' : ''}`}>
+              <button
+                onClick={() => { useAuthStore.getState().switchRoleDemo('USER'); navigate('/dashboard'); }}
+                title="User Dashboard"
+                className={`flex-1 px-2 py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${activeRole === 'USER'
+                  ? 'bg-[var(--brand-glow)] text-[var(--brand-primary)] border border-[var(--brand-primary)]/30'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] border border-transparent'
+                  } ${!sidebarOpen ? 'md:px-0' : ''}`}
+              >
+                {sidebarOpen ? '👤 User' : '👤'}
+              </button>
+              <button
+                onClick={() => { useAuthStore.getState().switchRoleDemo('TRADER'); navigate('/trader/dashboard'); }}
+                title="Trader Dashboard"
+                className={`flex-1 px-2 py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${activeRole === 'TRADER'
+                  ? 'bg-[var(--brand-glow)] text-[var(--brand-primary)] border border-[var(--brand-primary)]/30'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] border border-transparent'
+                  } ${!sidebarOpen ? 'md:px-0' : ''}`}
+              >
+                {sidebarOpen ? '📈 Trader' : '📈'}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* User Profile & Actions Footer */}
         <div className="border-t border-[var(--border-subtle)] px-2 py-3 space-y-1 bg-[var(--bg-secondary)]/50">
           <Link

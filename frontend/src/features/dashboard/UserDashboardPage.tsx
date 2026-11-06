@@ -8,7 +8,7 @@ import { useMarketStore } from '../../state/useMarketStore';
 import { useTrialStore } from '../../state/useTrialStore';
 import { useNewsStore } from '../../state/useNewsStore';
 import { ZoneLinesChart } from '../../components/charts/ZoneLinesChart';
-import { AIAnalysisPanel } from '../../components/ai/AIAnalysisPanel';
+import { ChartWithAIPanel } from '../../components/charts/ChartWithAIPanel';
 import { CHART_ITEMS } from '../../constants';
 import { EconomicCalendarWidget } from '../../components/news/EconomicCalendar';
 import premDashboard from '../../assets/prem-dashboard.png';
@@ -218,36 +218,27 @@ export default function UserDashboardPage() {
       </div>
 
       {/* ── Chart + AI Panel ───────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-4 items-start relative z-10">
-
-        {/* Chart */}
-        <ZoneLinesChart
-          tvSymbol={activeAsset.symbol}
-          instrument={activeAsset.instrument}
-          prediction={signalsRevealed ? activePrediction : null}
-          height={580}
-          allowDrawing={true}
-        />
-
-        {/* AI Analysis Side Panel */}
-        <div className="xl:sticky xl:top-4">
-          <GlassCard
-            hoverEffect={false}
-            className="p-5 border border-[var(--border-subtle)] shadow-xl relative overflow-hidden"
-          >
-            <div className="absolute top-0 right-0 w-40 h-40 bg-[var(--brand-glow)] rounded-full blur-3xl opacity-20 pointer-events-none -mr-10 -mt-10" />
-            <div className="relative z-10">
-              <AIAnalysisPanel
-                instrument={activeAsset.instrument}
-                prediction={activePrediction}
-                isSubscribed={isSubscribed}
-                onUnlock={() => navigate('/subscriptions')}
-                onAnalysisStart={() => setSignalsRevealed(true)}
-                onReset={() => setSignalsRevealed(false)}
-              />
-            </div>
-          </GlassCard>
-        </div>
+      <div className="relative z-10">
+        <ChartWithAIPanel
+          chartHeight={680}
+          aiPanelProps={{
+            instrument: activeAsset.instrument,
+            prediction: activePrediction,
+            isSubscribed,
+            onUnlock: () => navigate('/subscriptions'),
+            onAnalysisStart: () => setSignalsRevealed(true),
+            onReset: () => setSignalsRevealed(false),
+          }}
+        >
+          {/* Mobile gets a shorter chart; desktop gets full height via ChartWithAIPanel */}
+          <ZoneLinesChart
+            tvSymbol={activeAsset.symbol}
+            instrument={activeAsset.instrument}
+            prediction={signalsRevealed ? activePrediction : null}
+            height={typeof window !== 'undefined' && window.innerWidth < 1024 ? 420 : 680}
+            allowDrawing={true}
+          />
+        </ChartWithAIPanel>
       </div>
 
       {/* ── Desk Performance Strip ─────────────────────────────────────────── */}

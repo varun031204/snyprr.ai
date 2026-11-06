@@ -9,6 +9,36 @@ export interface ToastItem {
   title?: string;
 }
 
+// ── Notification preferences ──────────────────────────────────────────────────
+
+export interface NotificationPrefs {
+  emailAlerts: boolean;
+  targetHitAlerts: boolean;
+  newFollowerAlerts: boolean;
+}
+
+const NOTIF_KEY = 'snyprr_notif_prefs';
+
+function getInitialNotifPrefs(): NotificationPrefs {
+  const defaults: NotificationPrefs = {
+    emailAlerts: true,
+    targetHitAlerts: true,
+    newFollowerAlerts: false,
+  };
+  if (typeof window === 'undefined') return defaults;
+  try {
+    const stored = window.localStorage.getItem(NOTIF_KEY);
+    if (stored) return { ...defaults, ...JSON.parse(stored) };
+  } catch { /* ignore */ }
+  return defaults;
+}
+
+function saveNotifPrefs(prefs: NotificationPrefs) {
+  try { window.localStorage.setItem(NOTIF_KEY, JSON.stringify(prefs)); } catch { /* ignore */ }
+}
+
+// ── Store interface ───────────────────────────────────────────────────────────
+
 interface UIState {
   theme: ThemeMode;
   sidebarOpen: boolean;
@@ -16,6 +46,7 @@ interface UIState {
   globalSearchOpen: boolean;
   activeModal: string | null;
   toasts: ToastItem[];
+  notifPrefs: NotificationPrefs;
   setTheme: (theme: ThemeMode) => void;
   toggleTheme: () => void;
   toggleSidebar: () => void;
@@ -28,6 +59,8 @@ interface UIState {
   closeModal: () => void;
   addToast: (toast: Omit<ToastItem, 'id'>) => void;
   removeToast: (id: string) => void;
+  /** Persist notification preferences to localStorage */
+  saveNotifPrefs: (prefs: Partial<NotificationPrefs>) => void;
 }
 
 const getInitialTheme = (): ThemeMode => {
@@ -49,6 +82,7 @@ export const useUIStore = create<UIState>((set, get) => ({
   globalSearchOpen: false,
   activeModal: null,
   toasts: [],
+  notifPrefs: getInitialNotifPrefs(),
 
   setTheme: (theme: ThemeMode) => {
     if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined') {
@@ -89,4 +123,10 @@ export const useUIStore = create<UIState>((set, get) => ({
 
   removeToast: (id: string) =>
     set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) })),
+
+  saveNotifPrefs: (prefs: Partial<NotificationPrefs>) => {
+    const updated = { ...get().notifPrefs, ...prefs };
+    saveNotifPrefs(updated);
+    set({ notifPrefs: updated });
+  },
 }));
