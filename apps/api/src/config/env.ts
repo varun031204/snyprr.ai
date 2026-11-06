@@ -27,11 +27,14 @@ const envSchema = z.object({
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
   DIRECT_URL: z.string().optional(),
   GEMINI_API_KEY: z.string().min(1, 'GEMINI_API_KEY is required'),
-  // Optional SMS — if not set, OTPs are logged to console (dev mode)
-  // Fast2SMS (India): set SMS_PROVIDER_KEY
-  // Twilio (global):  set TWILIO_ACCOUNT_SID + TWILIO_AUTH_TOKEN + TWILIO_PHONE_NUMBER
+  // OTP delivery — priority: Twilio SMS > Fast2SMS > Gmail email > console log
+  // Gmail (dev/staging — no SMS needed, OTP sent to registered email):
+  GMAIL_USER: z.string().email().optional(),
+  GMAIL_APP_PASSWORD: z.string().optional(),
+  // Fast2SMS (India SMS):
   SMS_PROVIDER_KEY: z.string().optional(),
   SMS_SENDER_ID: z.string().default('SNYPRR'),
+  // Twilio (global SMS):
   TWILIO_ACCOUNT_SID: z.string().optional(),
   TWILIO_AUTH_TOKEN: z.string().optional(),
   TWILIO_PHONE_NUMBER: z.string().optional(),

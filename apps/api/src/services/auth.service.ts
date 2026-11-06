@@ -21,6 +21,7 @@
 import { db as pool } from '../db/pool.js';
 import crypto from 'crypto';
 import bcrypt from 'bcrypt';
+import nodemailer from 'nodemailer';
 
 const OTP_EXPIRE_MINUTES = 15;
 const MAX_ATTEMPTS = 5;
@@ -29,7 +30,6 @@ const BCRYPT_ROUNDS = 10;
 
 // ── OTP generation ─────────────────────────────────────────────────────────────
 function generateOtp(): string {
-  // Cryptographically secure 6-digit code (000000–999999)
   return String(crypto.randomInt(0, 1_000_000)).padStart(6, '0');
 }
 
@@ -37,19 +37,29 @@ function normalizePhone(raw: string): string {
   return raw.replace(/\D/g, '');
 }
 
-// ── SMS dispatch ───────────────────────────────────────────────────────────────
-// Supports Fast2SMS (India) and Twilio (global) via env vars.
-// If neither is configured, OTP is logged to server console (dev/test only).
-async function sendSmsOtp(phone: string, otp: string): Promise<void> {
+// ── Email transporter (Nodemailer + Gmail) ─────────────────────────────────────
+// Create once, reuse across requests
+function getEmailTransporter() {
+  const user = process.env.GMAIL_USER;
+  const pass = process.env.GMAIL_APP_PASSWORD;
+  if (!user || !pass) return null;
+  return nodemailer.createTransport({
+    service: 'gmail',
+    auth: { user, pass },
+  });
+}
+
+// ── OTP delivery — tries each channel in order ─────────────────────────────────
+// Priority: Twilio SMS → Fast2SMS → Gmail email → console log (dev fallback)
+async function sendOtp(phone: string, email: string, otp: string): Promise<void> {
   const message = `Your Snyprr.ai verification code is ${otp}. Valid for ${OTP_EXPIRE_MINUTES} minutes. Do not share it.`;
 
-  // ── Twilio ──────────────────────────────────────────────────────────────────
+  // ── 1. Twilio SMS ──────────────────────────────────────────────────────────
   if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
     const sid = process.env.TWILIO_ACCOUNT_SID;
     const token = process.env.TWILIO_AUTH_TOKEN;
-    const from = process.env.TWILIO_PHONE_NUMBER;  // e.g. +1XXXXXXXXXX
-    if (!from) throw new Error('TWILIO_PHONE_NUMBER env var is required');
-
+    const from = process.env.TWILIO_PHONE_NUMBER;
+    if (!from) throw new Error('TWILIO_PHONE_NUMBER env var is required when TWILIO_ACCOUNT_SID is set');
     const formData = new URLSearchParams({
       To: phone.startsWith('+') ? phone : `+${phone}`,
       From: from,
@@ -63,24 +73,21 @@ async function sendSmsOtp(phone: string, otp: string): Promise<void> {
     });
     if (!res.ok) {
       const body = await res.json().catch(() => ({})) as any;
-      throw new Error(`Twilio SMS failed (${res.status}): ${body.message ?? 'unknown error'}`);
+      throw new Error(`Twilio SMS failed (${res.status}): ${body.message ?? 'unknown'}`);
     }
     return;
   }
 
-  // Fast2SMS (India) ────────────────────────────────────────────────────────
+  // ── 2. Fast2SMS (India) ────────────────────────────────────────────────────
   if (process.env.SMS_PROVIDER_KEY) {
     const apiKey = process.env.SMS_PROVIDER_KEY;
     const senderId = process.env.SMS_SENDER_ID ?? 'SNYPRR';
-    // Use Quick SMS route (route=q) — works without website verification.
-    // OTP route (route=otp) requires Fast2SMS website verification (code 996).
     const localPhone = phone.startsWith('91') && phone.length === 12 ? phone.slice(2) : phone;
-    const message = `Your Snyprr.ai verification code is ${otp}. Valid for ${OTP_EXPIRE_MINUTES} minutes. Do not share it.`;
     const url = `https://www.fast2sms.com/dev/bulkV2?authorization=${apiKey}&route=q&numbers=${localPhone}&message=${encodeURIComponent(message)}&flash=0&sender_id=${senderId}`;
     const res = await fetch(url);
     if (!res.ok) {
       const body = await res.text().catch(() => '');
-      throw new Error(`Fast2SMS delivery failed (${res.status}): ${body.slice(0, 120)}`);
+      throw new Error(`Fast2SMS failed (${res.status}): ${body.slice(0, 120)}`);
     }
     const json = await res.json().catch(() => ({})) as any;
     if (json.return === false) {
@@ -89,9 +96,39 @@ async function sendSmsOtp(phone: string, otp: string): Promise<void> {
     return;
   }
 
-  // ── Dev fallback: print to server console ───────────────────────────────────
-  // OTP is NEVER returned to the client or logged in a way that reaches the browser
-  console.info(`[DEV SMS OTP] Phone: +${phone.slice(0, -4).replace(/\d/g, '*')}${phone.slice(-4)} | Code: ${otp}`);
+  // ── 3. Gmail via Nodemailer (dev/staging — no SMS provider needed) ─────────
+  const transporter = getEmailTransporter();
+  if (transporter) {
+    const maskedPhone = `+${phone.slice(0, -4).replace(/\d/g, '•')}${phone.slice(-4)}`;
+    await transporter.sendMail({
+      from: `"Snyprr.ai" <${process.env.GMAIL_USER}>`,
+      to: email,
+      subject: 'Your Snyprr.ai Mobile Verification Code',
+      html: `
+        <div style="font-family:Inter,sans-serif;max-width:480px;margin:0 auto;padding:24px">
+          <h2 style="color:#8b5cf6;margin-bottom:8px">Mobile Verification</h2>
+          <p style="color:#6b7280;margin-bottom:24px">
+            Your verification code for mobile number <strong>${maskedPhone}</strong>:
+          </p>
+          <div style="background:#f3f4f6;border-radius:12px;padding:20px;text-align:center;margin-bottom:24px">
+            <span style="font-size:36px;font-weight:800;letter-spacing:12px;color:#111827;font-family:monospace">
+              ${otp}
+            </span>
+          </div>
+          <p style="color:#6b7280;font-size:14px">
+            Valid for <strong>${OTP_EXPIRE_MINUTES} minutes</strong>. Do not share this code.
+          </p>
+          <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0">
+          <p style="color:#9ca3af;font-size:12px">Snyprr.ai — Paper trading & predictions platform</p>
+        </div>
+      `,
+    });
+    console.info(`[OTP] Sent via Gmail to ${email} for phone ${phone.slice(0, -4).replace(/\d/g, '•')}${phone.slice(-4)}`);
+    return;
+  }
+
+  // ── 4. Console fallback (last resort — dev only) ───────────────────────────
+  console.info(`[DEV OTP] Phone: +${phone.slice(0, -4).replace(/\d/g, '•')}${phone.slice(-4)} | Code: ${otp} | Email: ${email}`);
 }
 // ── Initiate registration ──────────────────────────────────────────────────────
 export async function initiateRegistration(params: {
@@ -146,7 +183,7 @@ export async function initiateRegistration(params: {
   );
 
   // Send the OTP
-  await sendSmsOtp(phone, otp);
+  await sendOtp(phone, params.email, otp);
 
   return { registrationToken };
 }
@@ -238,7 +275,7 @@ export async function resendPhoneOtp(params: {
     [otpHash, params.registrationToken]
   );
 
-  await sendSmsOtp(session.phone, otp);
+  await sendOtp(session.phone, session.email, otp);
 }
 
 // ── Get session info (for frontend display) ────────────────────────────────────
