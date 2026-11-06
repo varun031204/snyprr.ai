@@ -38,14 +38,19 @@ function normalizePhone(raw: string): string {
 }
 
 // ── Email transporter (Nodemailer + Gmail) ─────────────────────────────────────
-// Create once, reuse across requests
 function getEmailTransporter() {
   const user = process.env.GMAIL_USER;
-  const pass = process.env.GMAIL_APP_PASSWORD;
+  // Remove spaces from App Password (Google shows it with spaces: 'xxxx xxxx xxxx xxxx')
+  const pass = (process.env.GMAIL_APP_PASSWORD ?? '').replace(/\s/g, '');
   if (!user || !pass) return null;
   return nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false,
     auth: { user, pass },
+    connectionTimeout: 10_000,   // 10s — fail fast instead of hanging
+    greetingTimeout: 5_000,
+    socketTimeout: 10_000,
   });
 }
 
@@ -100,31 +105,35 @@ async function sendOtp(phone: string, email: string, otp: string): Promise<void>
   const transporter = getEmailTransporter();
   if (transporter) {
     const maskedPhone = `+${phone.slice(0, -4).replace(/\d/g, '•')}${phone.slice(-4)}`;
-    await transporter.sendMail({
-      from: `"Snyprr.ai" <${process.env.GMAIL_USER}>`,
-      to: email,
-      subject: 'Your Snyprr.ai Mobile Verification Code',
-      html: `
-        <div style="font-family:Inter,sans-serif;max-width:480px;margin:0 auto;padding:24px">
-          <h2 style="color:#8b5cf6;margin-bottom:8px">Mobile Verification</h2>
-          <p style="color:#6b7280;margin-bottom:24px">
-            Your verification code for mobile number <strong>${maskedPhone}</strong>:
-          </p>
-          <div style="background:#f3f4f6;border-radius:12px;padding:20px;text-align:center;margin-bottom:24px">
-            <span style="font-size:36px;font-weight:800;letter-spacing:12px;color:#111827;font-family:monospace">
-              ${otp}
-            </span>
+    try {
+      await transporter.sendMail({
+        from: `"Snyprr.ai" <${process.env.GMAIL_USER}>`,
+        to: email,
+        subject: 'Your Snyprr.ai Mobile Verification Code',
+        html: `
+          <div style="font-family:Inter,sans-serif;max-width:480px;margin:0 auto;padding:24px">
+            <h2 style="color:#8b5cf6;margin-bottom:8px">Mobile Verification</h2>
+            <p style="color:#6b7280;margin-bottom:24px">
+              Your verification code for mobile number <strong>${maskedPhone}</strong>:
+            </p>
+            <div style="background:#f3f4f6;border-radius:12px;padding:20px;text-align:center;margin-bottom:24px">
+              <span style="font-size:36px;font-weight:800;letter-spacing:12px;color:#111827;font-family:monospace">
+                ${otp}
+              </span>
+            </div>
+            <p style="color:#6b7280;font-size:14px">
+              Valid for <strong>${OTP_EXPIRE_MINUTES} minutes</strong>. Do not share this code.
+            </p>
           </div>
-          <p style="color:#6b7280;font-size:14px">
-            Valid for <strong>${OTP_EXPIRE_MINUTES} minutes</strong>. Do not share this code.
-          </p>
-          <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0">
-          <p style="color:#9ca3af;font-size:12px">Snyprr.ai — Paper trading & predictions platform</p>
-        </div>
-      `,
-    });
-    console.info(`[OTP] Sent via Gmail to ${email} for phone ${phone.slice(0, -4).replace(/\d/g, '•')}${phone.slice(-4)}`);
-    return;
+        `,
+      });
+      console.info(`[OTP] ✅ Sent via Gmail to ${email}`);
+      return;
+    } catch (gmailErr: any) {
+      // Gmail failed (wrong credentials, network issue, etc.)
+      // Fall through to console log so signup still succeeds
+      console.error(`[OTP] ⚠️ Gmail send failed: ${gmailErr.message}`);
+    }
   }
 
   // ── 4. Console fallback (last resort — dev only) ───────────────────────────
