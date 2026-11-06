@@ -68,13 +68,15 @@ async function sendSmsOtp(phone: string, otp: string): Promise<void> {
     return;
   }
 
-  // ── Fast2SMS (India) ────────────────────────────────────────────────────────
+  // Fast2SMS (India) ────────────────────────────────────────────────────────
   if (process.env.SMS_PROVIDER_KEY) {
     const apiKey = process.env.SMS_PROVIDER_KEY;
     const senderId = process.env.SMS_SENDER_ID ?? 'SNYPRR';
-    // Fast2SMS OTP route — strips country code for Indian numbers
+    // Use Quick SMS route (route=q) — works without website verification.
+    // OTP route (route=otp) requires Fast2SMS website verification (code 996).
     const localPhone = phone.startsWith('91') && phone.length === 12 ? phone.slice(2) : phone;
-    const url = `https://www.fast2sms.com/dev/bulkV2?authorization=${apiKey}&route=otp&numbers=${localPhone}&variables_values=${otp}&flash=0&sender_id=${senderId}`;
+    const message = `Your Snyprr.ai verification code is ${otp}. Valid for ${OTP_EXPIRE_MINUTES} minutes. Do not share it.`;
+    const url = `https://www.fast2sms.com/dev/bulkV2?authorization=${apiKey}&route=q&numbers=${localPhone}&message=${encodeURIComponent(message)}&flash=0&sender_id=${senderId}`;
     const res = await fetch(url);
     if (!res.ok) {
       const body = await res.text().catch(() => '');
