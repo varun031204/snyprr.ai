@@ -92,35 +92,6 @@ export async function markEmailVerified(req: Request, res: Response, next: NextF
 }
 
 // POST /api/auth/check-email
-// Check if email is already registered. Returns { exists: boolean }.
-// Generic response to prevent enumeration — but we do return exists=true
-// so the frontend can show "already registered" without needing to call signUp.
-export async function checkEmail(req: Request, res: Response, next: NextFunction) {
-  try {
-    const { email } = req.body;
-    if (!email?.trim()) return res.status(400).json({ error: 'email is required' });
-
-    // Check in profiles table (confirmed users)
-    const { db } = await import('../db/pool.js');
-    const result = await db.query(
-      'SELECT id FROM public.profiles WHERE email = $1 LIMIT 1',
-      [email.trim().toLowerCase()]
-    );
-
-    res.json({ exists: result.rows.length > 0 });
-  } catch (err) { next(err); }
-}
-export async function getSessionInfo(req: Request, res: Response, next: NextFunction) {
-  try {
-    const token = req.query.token as string;
-    if (!token) return res.status(400).json({ error: 'token query param required' });
-    const info = await authService.getSessionInfo(token);
-    if (!info) return res.status(404).json({ error: 'Session not found or expired' });
-    res.json({ data: info });
-  } catch (err) { next(err); }
-}
-
-// POST /api/auth/check-email
 // Returns whether an email address has a registered account.
 // Rate-limited tightly to prevent enumeration abuse.
 export async function checkEmail(req: Request, res: Response, next: NextFunction) {
@@ -131,5 +102,16 @@ export async function checkEmail(req: Request, res: Response, next: NextFunction
     }
     const exists = await authService.checkEmailExists(email);
     res.json({ exists });
+  } catch (err) { next(err); }
+}
+
+// GET /api/auth/session-info?token=...
+export async function getSessionInfo(req: Request, res: Response, next: NextFunction) {
+  try {
+    const token = req.query.token as string;
+    if (!token) return res.status(400).json({ error: 'token query param required' });
+    const info = await authService.getSessionInfo(token);
+    if (!info) return res.status(404).json({ error: 'Session not found or expired' });
+    res.json({ data: info });
   } catch (err) { next(err); }
 }
