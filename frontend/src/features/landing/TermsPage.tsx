@@ -168,9 +168,11 @@ export default function TermsPage() {
                         <Link to="/contact-us" className="text-[var(--brand-primary)] hover:underline">Contact us</Link>
                         {' · '}
                         <Link to="/privacy" className="text-[var(--brand-primary)] hover:underline">Privacy Policy</Link>
+                        {' · '}
+                        <Link to="/refund" className="text-[var(--brand-primary)] hover:underline">Refund Policy</Link>
                     </p>
                     <Link to="/signup">
-                        <Button variant="primary" size="md">Get Started — 14 Days Free</Button>
+                        <Button variant="primary" size="md">Get Started — Free Trial</Button>
                     </Link>
                 </div>
 
