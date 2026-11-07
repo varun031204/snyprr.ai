@@ -221,8 +221,8 @@ function PricingSection() {
   const pricingTiers = [
     {
       id: 'free_trial',
-      name: '7-Day Free Trial',
-      description: 'Try the full platform for 7 days at zero cost',
+      name: '15-Day Free Trial',
+      description: 'Try the full platform for 15 days at zero cost',
       badge: 'Free',
       isPopular: false,
       isFree: true,
@@ -280,7 +280,7 @@ function PricingSection() {
         <p className="text-xs font-medium text-[var(--brand-primary)] uppercase tracking-widest mb-2">Plans &amp; Pricing</p>
         <h2 className="text-2xl md:text-3xl font-bold text-[var(--text-primary)]">Simple, Transparent Pricing</h2>
         <p className="text-[var(--text-muted)] mt-3 text-sm max-w-xl mx-auto">
-          Choose the plan that works for you. Start with a 7-day free trial, full access, no credit card required.
+          Choose the plan that works for you. Start with a 15-day free trial, full access, no credit card required.
         </p>
       </div>
 
@@ -291,7 +291,7 @@ function PricingSection() {
       >
         <Gift className="w-5 h-5 text-[var(--brand-primary)] flex-shrink-0 animate-bounce" />
         <p className="text-xs sm:text-sm font-semibold text-[var(--text-primary)]">
-          <span className="text-[var(--brand-primary)] font-bold">7-Day Free Trial</span> on all plans. Full access, zero risk, cancel anytime.
+          <span className="text-[var(--brand-primary)] font-bold">15-Day Free Trial</span> on all plans. Full access, zero risk, cancel anytime.
         </p>
       </div>
 
@@ -361,11 +361,11 @@ function PricingSection() {
                 {/* Price — fixed-height block so all cards align */}
                 <div className="h-[112px] flex flex-col justify-start">
                   {plan.isFree ? (
-                    /* Free trial always shows ₹0 / 7 days regardless of toggle */
+                    /* Free trial always shows ₹0 / 15 days regardless of toggle */
                     <>
                       <div className="flex items-baseline gap-1.5">
                         <span className="text-4xl font-extrabold font-mono-num text-[var(--text-primary)]">₹0</span>
-                        <span className="text-sm text-[var(--text-muted)]">for 7 days</span>
+                        <span className="text-sm text-[var(--text-muted)]">for 15 days</span>
                       </div>
                       <p className="text-[11px] font-semibold text-[var(--color-success)] mt-3 flex items-center gap-1.5">
                         <ShieldCheck className="w-3.5 h-3.5" /> No credit card required
@@ -379,7 +379,7 @@ function PricingSection() {
                         <span className="text-sm text-[var(--text-muted)]">/ month</span>
                       </div>
                       <p className="text-[11px] font-semibold text-[var(--color-success)] mt-3 flex items-center gap-1.5">
-                        <ShieldCheck className="w-3.5 h-3.5" /> 7-Day Free Trial (₹0 due today)
+                        <ShieldCheck className="w-3.5 h-3.5" /> 15-Day Free Trial (₹0 due today)
                       </p>
                     </>
                   ) : (

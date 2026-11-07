@@ -165,7 +165,7 @@ export default function ContactPage() {
                 <option value="TECHNICAL">Technical Bug or Issue</option>
                 <option value="GENERAL">General Platform Inquiry</option>
                 <option value="VERIFICATION">Trader Verification Application</option>
-                <option value="SUBSCRIPTION">7-Day Trial &amp; Subscription</option>
+                <option value="SUBSCRIPTION">15-Day Trial &amp; Subscription</option>
                 <option value="FEEDBACK">Feature Request & Feedback</option>
               </select>
             </div>

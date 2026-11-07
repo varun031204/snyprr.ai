@@ -67,8 +67,8 @@ export default function RefundPage() {
                 <div className="grid sm:grid-cols-3 gap-4">
                     <HighlightCard
                         icon="🎁"
-                        title="7-Day Free Trial"
-                        desc="Every new account gets a full 7-day free trial. No charge until the trial ends."
+                        title="15-Day Free Trial"
+                        desc="Every new account gets a full 15-day free trial. No charge until the trial ends."
                     />
                     <HighlightCard
                         icon="⏰"
@@ -84,7 +84,7 @@ export default function RefundPage() {
 
                 <Section title="1. Free Trial">
                     <p>
-                        All new Snyprr.ai accounts receive a <strong className="text-[var(--text-primary)]">7-day free trial</strong> with full access to the platform.
+                        All new Snyprr.ai accounts receive a <strong className="text-[var(--text-primary)]">15-day free trial</strong> with full access to the platform.
                         No payment information is required to start the trial.
                     </p>
                     <p>

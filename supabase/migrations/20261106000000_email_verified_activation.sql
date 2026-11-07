@@ -52,11 +52,11 @@ BEGIN
     SET account_status = 'ACTIVE', updated_at = now()
     WHERE id = NEW.id AND account_status = 'PENDING_VERIFICATION';
 
-    -- Start 7-day free trial (matches existing subscription logic)
+    -- Start 15-day free trial (matches existing subscription logic)
     SELECT id INTO v_plan_id FROM public.subscription_plans WHERE name = 'Free Trial';
     IF v_plan_id IS NOT NULL THEN
       INSERT INTO public.user_subscriptions (user_id, plan_id, status, started_at, expires_at)
-      VALUES (NEW.id, v_plan_id, 'ACTIVE', now(), now() + interval '7 days')
+      VALUES (NEW.id, v_plan_id, 'ACTIVE', now(), now() + interval '15 days')
       ON CONFLICT DO NOTHING;
     END IF;
 

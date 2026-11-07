@@ -64,7 +64,7 @@ The platform **can be used for demonstration** to clients. It is **not ready for
 - **News page** — Real headlines from cryptocurrency.cv (300+ sources)
 - **Economic calendar** — ForexFactory data via backend proxy
 - **Ticker prices** — Live from `data-api.binance.vision` via backend proxy
-- **Subscriptions page** — INR pricing, 7-day trial, correct features
+- **Subscriptions page** — INR pricing, 15-day trial, correct features
 - **Chatbot** — Snyprr AI branding, email escalation for unanswered queries
 - **CORS** — Only allows configured origins, not wildcard
 

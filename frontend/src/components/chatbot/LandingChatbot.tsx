@@ -114,7 +114,7 @@ const KNOWLEDGE_BASE: {
     {
       keywords: ['free', 'trial', 'free tier', 'zero cost'],
       response: {
-        text: "🎁 **Yes!** Snyprr.ai has a generous **Free** plan to start tracking verified ideas right now. Paid plans (Standard & Premium) also come with a risk-free **14-Day Free Trial**.",
+        text: "🎁 **Yes!** Snyprr.ai has a generous **Free** plan to start tracking verified ideas right now. Paid plans (Standard & Premium) also come with a risk-free **15-Day Free Trial**.",
         action: { label: 'Create Free Account', path: '/signup' },
         suggestions: ['Explore Pricing Section', 'Who are the traders?'],
       },
