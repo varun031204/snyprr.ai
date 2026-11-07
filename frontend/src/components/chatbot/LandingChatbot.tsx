@@ -6,6 +6,7 @@ import {
   TrendingUp, CreditCard, Users, CheckCircle2, ThumbsUp, ThumbsDown,
   Copy, Check, Volume2, VolumeX, BarChart2, Zap, ArrowUpRight, Mail, Loader2
 } from 'lucide-react';
+import { submitContactMessage } from '../../services/api/contactService';
 
 interface ChatAction {
   label: string;
@@ -366,46 +367,53 @@ export const LandingChatbot: React.FC = () => {
   };
 
   /**
-   * Escalate an unanswered query to the support team via email.
-   * Opens the user's email client with a pre-filled message to support.
-   * Resolution is delivered via email only — the chatbot does not attempt
-   * to answer questions that are not in its pre-fed knowledge base.
+  /**
+   * Escalate an unanswered query to the support team.
+   * Submits to POST /api/contact so it's stored in the DB and
+   * the support team receives an email notification.
    */
-  const handleEscalateSubmit = () => {
+  const handleEscalateSubmit = async () => {
     const email = escalateEmail.trim();
     const message = escalateMessage.trim();
     if (!email || !message) return;
 
-    // Basic email validation
     const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
     if (!emailValid) return;
 
     setEscalateSubmitting(true);
 
-    // Build a mailto: link that pre-fills the support email with the user's
-    // question. This requires no backend and genuinely sends the query to
-    // the support inbox for human resolution via email.
-    const subject = `Support Query: ${message.slice(0, 60)}${message.length > 60 ? '...' : ''}`;
-    const body = `Query from user: ${email}\n\nQuestion:\n${message}\n\n---\nSent via Snyprr AI Chatbot escalation`;
-    const mailtoUrl = `mailto:support@snyprr.ai?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    const result = await submitContactMessage({
+      name: email.split('@')[0], // use email prefix as name fallback
+      email,
+      category: 'GENERAL',
+      subject: `Chatbot Query: ${message.slice(0, 80)}${message.length > 80 ? '...' : ''}`,
+      message,
+      source: 'chatbot',
+    });
 
-    // Open in a new window/tab so the chatbot stays open
-    window.open(mailtoUrl, '_blank');
+    setEscalateSubmitting(false);
 
-    setTimeout(() => {
-      setEscalateSubmitting(false);
+    if (result.success) {
       setEscalateDone(true);
-
-      // Add a confirmation bot message
       const confirmMsg: Message = {
         id: `bot-escalate-${Date.now()}`,
         role: 'bot',
-        text: `✅ Your query has been escalated to our support team.\n\nYou'll receive a response at **${email}** via email. Our team typically replies within 24 hours.\n\nResolution will be provided via email only.`,
+        text: `✅ Your query has been sent to our support team.\n\nYou'll receive a response at **${email}** within 2 hours. Our team will review and get back to you directly.`,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         suggestions: ['Check live BTC signal', 'View pricing plans', 'What is TradeBeast?'],
       };
       setMessages((prev) => [...prev, confirmMsg]);
-    }, 800);
+    } else {
+      // Show error in a new bot message
+      const errMsg: Message = {
+        id: `bot-escalate-err-${Date.now()}`,
+        role: 'bot',
+        text: `❌ Sorry, we couldn't send your message right now. Please try again or email us directly at **support@snyprr.ai**.`,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        suggestions: ['Try again', 'What is TradeBeast?'],
+      };
+      setMessages((prev) => [...prev, errMsg]);
+    }
   };
 
   const handleClear = () => {

@@ -8,6 +8,7 @@ import {
   MessageSquare, LineChart, Wrench, Mail, Loader2, CheckCircle2,
 } from 'lucide-react';
 import { useUIStore } from '../../state/useUIStore';
+import { submitContactMessage } from '../../services/api/contactService';
 
 interface Message {
   id: string;
@@ -309,11 +310,11 @@ export const AIAssistantDrawer: React.FC = () => {
   };
 
   /**
-   * Escalate an unanswered query to the support team via email.
-   * Opens the user's email client with a pre-filled message to support.
-   * Resolution is delivered via email only.
+   * Escalate an unanswered query to the support team.
+   * Submits to POST /api/contact so it's stored in the DB and
+   * the support team receives an email notification.
    */
-  const handleEscalateSubmit = () => {
+  const handleEscalateSubmit = async () => {
     const email = escalateEmail.trim();
     const message = escalateMessage.trim();
     if (!email || !message) return;
@@ -323,25 +324,37 @@ export const AIAssistantDrawer: React.FC = () => {
 
     setEscalateSubmitting(true);
 
-    const subject = `Support Query: ${message.slice(0, 60)}${message.length > 60 ? '...' : ''}`;
-    const body = `Query from user: ${email}\n\nQuestion:\n${message}\n\n---\nSent via Snyprr AI Chatbot escalation`;
-    const mailtoUrl = `mailto:support@snyprr.ai?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    const result = await submitContactMessage({
+      name: email.split('@')[0],
+      email,
+      category: 'GENERAL',
+      subject: `AI Assistant Query: ${message.slice(0, 80)}${message.length > 80 ? '...' : ''}`,
+      message,
+      source: 'ai-assistant',
+    });
 
-    window.open(mailtoUrl, '_blank');
+    setEscalateSubmitting(false);
 
-    setTimeout(() => {
-      setEscalateSubmitting(false);
+    if (result.success) {
       setEscalateDone(true);
-
       const confirmMsg: Message = {
         id: `ai-escalate-${Date.now()}`,
         sender: 'ai',
-        text: `✅ Your query has been escalated to our support team.\n\nYou'll receive a response at **${email}** via email. Our team typically replies within 24 hours.\n\nResolution will be provided via email only.`,
+        text: `✅ Your query has been sent to our support team.\n\nYou'll receive a response at **${email}** within 2 hours. Our team will review and get back to you directly.`,
         timestamp: 'Just now',
         chips: ['Analyze BTC setup', 'Explain SMC strategy', 'View active signals'],
       };
       setMessages((p) => [...p, confirmMsg]);
-    }, 800);
+    } else {
+      const errMsg: Message = {
+        id: `ai-escalate-err-${Date.now()}`,
+        sender: 'ai',
+        text: `❌ Sorry, couldn't send your message right now. Please try again or email **support@snyprr.ai** directly.`,
+        timestamp: 'Just now',
+        chips: ['Try again'],
+      };
+      setMessages((p) => [...p, errMsg]);
+    }
   };
 
   const formatText = (text: string) => text.split('\n').map((line, i) => {
