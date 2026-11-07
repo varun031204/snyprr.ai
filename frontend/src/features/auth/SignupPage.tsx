@@ -5,7 +5,7 @@
  */
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Eye, EyeOff, AlertCircle, CheckCircle2, Mail, Lock, User } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff, AlertCircle, CheckCircle2, Mail, Lock, User, Phone } from 'lucide-react';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { Button } from '../../components/ui/Button';
 import { useAuthStore } from '../../state/useAuthStore';
@@ -42,6 +42,7 @@ export default function SignupPage() {
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPw, setConfirmPw] = useState('');
   const [terms, setTerms] = useState(false);
@@ -59,6 +60,8 @@ export default function SignupPage() {
     if (!name.trim()) e.name = 'Full name is required';
     if (!email.trim()) e.email = 'Email is required';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) e.email = 'Invalid email format';
+    if (!phone.trim()) e.phone = 'Contact number is required';
+    else if (!/^[+]?[\d\s\-()]{10,15}$/.test(phone.trim())) e.phone = 'Enter a valid phone number (10-15 digits)';
     if (!password) e.password = 'Password is required';
     else if (password.length < 8) e.password = 'At least 8 characters';
     else if (str && str.score < 3) e.password = 'Password too weak — ' + str.tip;
@@ -96,7 +99,7 @@ export default function SignupPage() {
       } catch { /* non-fatal — proceed to Supabase which will catch it */ }
 
       // ── 2. Call Supabase signUp ─────────────────────────────────────────
-      const { needsOtp } = await signUp(email.trim().toLowerCase(), password, name.trim());
+      const { needsOtp } = await signUp(email.trim().toLowerCase(), password, name.trim(), phone.trim());
       if (needsOtp) {
         navigate(`/verify-otp?email=${encodeURIComponent(email.trim().toLowerCase())}`);
       } else {
@@ -161,6 +164,20 @@ export default function SignupPage() {
                 className={`w-full pl-10 pr-4 py-2.5 rounded-xl bg-[var(--bg-secondary)] border text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-primary)] transition-all ${errors.email ? 'border-[var(--color-danger)]' : 'border-[var(--border-subtle)] focus:border-[var(--brand-primary)]'}`} />
             </div>
             {errors.email && <p className="text-xs text-[var(--color-danger)] flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.email}</p>}
+          </div>
+
+          {/* Phone Number */}
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
+              Contact Number <span className="text-[var(--color-danger)]">*</span>
+            </label>
+            <div className="relative">
+              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
+              <input type="tel" value={phone} onChange={e => { setPhone(e.target.value); setErrors(p => ({ ...p, phone: '' })); }}
+                placeholder="+91 98765 43210" autoComplete="tel"
+                className={`w-full pl-10 pr-4 py-2.5 rounded-xl bg-[var(--bg-secondary)] border text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-primary)] transition-all ${errors.phone ? 'border-[var(--color-danger)]' : 'border-[var(--border-subtle)] focus:border-[var(--brand-primary)]'}`} />
+            </div>
+            {errors.phone && <p className="text-xs text-[var(--color-danger)] flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.phone}</p>}
           </div>
 
           {/* Password */}

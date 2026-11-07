@@ -59,6 +59,7 @@ function toFrontendUser(p: BackendProfile): User {
     avatar: p.avatar_url ?? undefined,
     role,
     subscriptionTier: p.subscription?.plan?.name?.toUpperCase() as User['subscriptionTier'],
+    phone: p.phone ?? undefined,
     bio: p.bio ?? undefined,
     isVerified: p.account_status === 'ACTIVE',
     twoFactorEnabled: false,
@@ -108,7 +109,7 @@ class ProfilesUserService implements IUserApi {
     return { success: true, data: { isSaved: false }, timestamp: new Date().toISOString() };
   }
 
-  async updateProfile(data: { full_name?: string; username?: string; avatar_url?: string | null; bio?: string | null }): Promise<ApiResponse<User>> {
+  async updateProfile(data: { full_name?: string; username?: string; avatar_url?: string | null; bio?: string | null; phone?: string | null }): Promise<ApiResponse<User>> {
     const raw = await httpPatch<{ data: BackendProfile }>('/api/profiles/me', data);
     return {
       success: true,

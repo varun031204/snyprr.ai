@@ -17,10 +17,11 @@ DECLARE
   v_role_id uuid;
 BEGIN
   -- Create profile as PENDING — no trial, no role until email verified
-  INSERT INTO public.profiles (id, email, full_name, account_status)
+  INSERT INTO public.profiles (id, email, phone, full_name, account_status)
   VALUES (
     new.id,
     new.email,
+    public.normalize_phone(coalesce(new.raw_user_meta_data->>'phone', '')),
     new.raw_user_meta_data->>'full_name',
     'PENDING_VERIFICATION'
   )
