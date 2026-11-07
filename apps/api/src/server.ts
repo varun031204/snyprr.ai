@@ -4,7 +4,26 @@ import { db } from './db/pool.js';
 
 const PORT = env.PORT || 4000;
 
-const server = app.listen(PORT, () => {
+// ── Auto-expire subscriptions on startup and every hour ───────────────────────
+async function expireSubscriptions() {
+  try {
+    const result = await db.query(`
+      UPDATE public.user_subscriptions
+      SET status = 'EXPIRED'
+      WHERE status = 'ACTIVE'
+        AND expires_at IS NOT NULL
+        AND expires_at < now()
+      RETURNING id;
+    `);
+    if (result.rowCount && result.rowCount > 0) {
+      console.log(`[Subscriptions] Expired ${result.rowCount} subscription(s)`);
+    }
+  } catch (err: any) {
+    console.error('[Subscriptions] Expiry check failed:', err.message);
+  }
+}
+
+const server = app.listen(PORT, async () => {
   console.log('====================================================');
   console.log(`🚀 TradeBeast Phase 2 API Server Running on Port ${PORT}`);
   console.log(`🌐 Base URL: http://localhost:${PORT}`);
@@ -12,6 +31,11 @@ const server = app.listen(PORT, () => {
   console.log(`🔌 Database Status: http://localhost:${PORT}/health/db`);
   console.log(`📡 Supabase Endpoint: ${env.SUPABASE_URL}`);
   console.log('====================================================');
+
+  // Run expiry check on startup
+  await expireSubscriptions();
+  // Then every hour
+  setInterval(expireSubscriptions, 60 * 60 * 1000);
 });
 
 // ── Graceful shutdown ──────────────────────────────────────────────────────
@@ -26,7 +50,7 @@ const handleShutdown = async (signal: string) => {
 };
 
 process.on('SIGTERM', () => handleShutdown('SIGTERM'));
-process.on('SIGINT',  () => handleShutdown('SIGINT'));
+process.on('SIGINT', () => handleShutdown('SIGINT'));
 
 // ── Global error safety nets ───────────────────────────────────────────────
 // An unhandled rejection or uncaught exception outside the Express request

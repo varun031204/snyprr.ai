@@ -120,24 +120,43 @@ class SubscriptionsService implements ISubscriptionApi {
     try {
       const raw = await httpGetPublic<{ data: BackendPlan[] }>('/api/subscriptions/plans');
       const backendPlans = raw.data ?? [];
-      // Backend returns plans without features or ₹ pricing — use local definitions
+
       if (backendPlans.length === 0) {
         return { success: true, data: [FREE_TRIAL_PLAN, ...LOCAL_PLANS], timestamp: new Date().toISOString() };
       }
-      // Merge backend plan IDs with local feature/pricing data
-      const merged = LOCAL_PLANS.map((local) => {
-        const backend = backendPlans.find(
-          (b) => b.name.toLowerCase() === local.name.toLowerCase(),
+
+      // Build merged plans: group by display name (Standard / Premium),
+      // combining monthly + yearly pricing from the DB into one card each.
+      const findPlan = (keyword: string, interval: string) =>
+        backendPlans.find(b =>
+          b.name.toLowerCase().includes(keyword.toLowerCase()) &&
+          b.billing_interval === interval
         );
-        return backend ? { ...local, id: backend.id } : local;
+
+      const freeTrial = backendPlans.find(b => b.billing_interval === 'FREE_TRIAL');
+
+      const buildPlan = (
+        local: SubscriptionPlan,
+        monthlyPlan: BackendPlan | undefined,
+        yearlyPlan: BackendPlan | undefined
+      ): SubscriptionPlan => ({
+        ...local,
+        id: monthlyPlan?.id ?? local.id,
+        priceMonthly: monthlyPlan?.price ?? local.priceMonthly,
+        priceYearly: yearlyPlan?.price ?? local.priceYearly,
       });
-      // Prepend the free trial plan (merge backend ID if available)
-      const backendFreeTrial = backendPlans.find(
-        (b) => b.name.toLowerCase().includes('7-day') || b.billing_interval === 'FREE_TRIAL',
-      );
-      const freePlan = backendFreeTrial
-        ? { ...FREE_TRIAL_PLAN, id: backendFreeTrial.id }
+
+      const merged: SubscriptionPlan[] = LOCAL_PLANS.map(local => {
+        const keyword = local.name; // 'Standard' or 'Premium'
+        const monthlyPlan = findPlan(keyword, 'MONTHLY');
+        const yearlyPlan = findPlan(keyword, 'YEARLY');
+        return buildPlan(local, monthlyPlan, yearlyPlan);
+      });
+
+      const freePlan: SubscriptionPlan = freeTrial
+        ? { ...FREE_TRIAL_PLAN, id: freeTrial.id }
         : FREE_TRIAL_PLAN;
+
       return { success: true, data: [freePlan, ...merged], timestamp: new Date().toISOString() };
     } catch {
       // Backend unreachable — serve local plans

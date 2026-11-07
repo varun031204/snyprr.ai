@@ -551,14 +551,14 @@ export const ZoneLinesChart: React.FC<Props> = ({
       handleScale: {
         mouseWheel: false,  // we handle wheel ourselves for better zoom control
         pinch: true,
-        axisPressedMouseMove: { time: true, price: false },
+        axisPressedMouseMove: { time: true, price: true },  // allow drag on price axis
         axisDoubleClickReset: { time: true, price: true },
       },
       handleScroll: {
         mouseWheel: false,  // we handle wheel ourselves
         pressedMouseMove: true,  // drag-to-pan via built-in
         horzTouchDrag: true,
-        vertTouchDrag: false,  // disable vertical touch drag to avoid conflicts
+        vertTouchDrag: false,
       },
     });
     const series = chart.addSeries(CandlestickSeries, {
@@ -670,10 +670,20 @@ export const ZoneLinesChart: React.FC<Props> = ({
       const ts = chart.timeScale();
       const r = ts.getVisibleLogicalRange();
       if (!r) return;
-
       const span = r.to - r.from;
 
-      // Horizontal scroll (trackpad swipe, or Shift+wheel) → pan time axis
+      // Ctrl/Cmd + wheel → scroll the PRICE axis up/down
+      if (e.ctrlKey || e.metaKey) {
+        const ps = chart.priceScale('right');
+        const pr = ps.getVisibleRange();
+        if (!pr) return;
+        const step = (e.deltaY / 100) * (pr.to - pr.from) * 0.15;
+        ps.applyOptions({ autoScale: false });
+        ps.setVisibleRange({ from: pr.from + step, to: pr.to + step });
+        return;
+      }
+
+      // Shift + wheel OR horizontal trackpad swipe → pan time axis
       if (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
         const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
         const pan = (delta / 80) * Math.max(1, span * 0.1);
@@ -681,8 +691,7 @@ export const ZoneLinesChart: React.FC<Props> = ({
         return;
       }
 
-      // Plain vertical scroll → zoom time axis around cursor position (TradingView behaviour)
-      // Positive deltaY = scroll down = zoom out; negative = zoom in
+      // Plain vertical scroll → zoom time axis around center
       const zoomFactor = e.deltaY > 0 ? 1.1 : 0.9;
       const center = (r.to + r.from) / 2;
       const newSpan = Math.max(5, span * zoomFactor);
@@ -690,8 +699,7 @@ export const ZoneLinesChart: React.FC<Props> = ({
         from: center - newSpan / 2,
         to: center + newSpan / 2,
       });
-      // NOTE: we deliberately do NOT touch the price scale here.
-      // autoScale stays true so the price axis always fits the visible candles.
+      // autoScale stays true during time-zoom — price axis always fits visible candles
     };
     container.addEventListener('wheel', onWheel, { passive: false });
     container.addEventListener('dblclick', () => {
