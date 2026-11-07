@@ -123,8 +123,8 @@ export default function UserDashboardPage() {
 
   const isSubscribed =
     isTrialActive ||
-    currentUser?.subscriptionTier === 'PRO' ||
-    currentUser?.subscriptionTier === 'VIP';
+    currentUser?.subscriptionTier === 'STANDARD' ||
+    currentUser?.subscriptionTier === 'PREMIUM';
 
   const allPredictions = predsData?.data ?? [];
 

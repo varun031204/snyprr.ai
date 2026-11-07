@@ -4,11 +4,10 @@
  * Computes trial state from the user's account creation date.
  *
  * Business rules:
- * - Every new user gets a FREE 7-day PRO trial starting from their createdAt date.
+ * - Every new user gets a FREE 7-day Standard trial starting from their createdAt date.
  * - Days 5–7: warning period — banner shown urging upgrade.
  * - Day 8+: trial expired — user drops to FREE tier, locked out of AI analysis.
  */
-
 import { create } from 'zustand';
 
 const TRIAL_DURATION_DAYS = 7;

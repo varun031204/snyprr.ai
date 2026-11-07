@@ -57,7 +57,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         twoFactorEnabled: false,
         createdAt: new Date().toISOString(),
         permissions: ROLE_PERMISSIONS['USER'],
-        subscriptionTier: 'PRO',
+        subscriptionTier: 'STANDARD',
         avatar: '',
       };
       set({

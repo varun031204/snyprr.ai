@@ -32,7 +32,7 @@ export const supabase = createClient(
     auth: {
       persistSession: !isSupabasePlaceholder,
       autoRefreshToken: !isSupabasePlaceholder,
-      detectSessionInUrl: false,
+      detectSessionInUrl: true,
     },
   },
 );

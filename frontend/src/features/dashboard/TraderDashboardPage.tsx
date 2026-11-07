@@ -50,8 +50,8 @@ export default function TraderDashboardPage() {
 
   const isSubscribed =
     isTrialActive ||
-    currentUser?.subscriptionTier === 'PRO' ||
-    currentUser?.subscriptionTier === 'VIP';
+    currentUser?.subscriptionTier === 'STANDARD' ||
+    currentUser?.subscriptionTier === 'PREMIUM';
 
   const { data, isLoading } = usePredictions({ page: 1, pageSize: 50 });
   const predictions = data?.data || [];

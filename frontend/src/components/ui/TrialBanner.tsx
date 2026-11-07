@@ -24,7 +24,7 @@ export function TrialBanner() {
     if (activeRole !== 'USER') return null;
 
     // Already on a paid tier — hide
-    if (currentUser?.subscriptionTier === 'PRO' || currentUser?.subscriptionTier === 'VIP') return null;
+    if (currentUser?.subscriptionTier === 'STANDARD' || currentUser?.subscriptionTier === 'PREMIUM') return null;
 
     // Trial still running and not in warning window — hide
     if (isTrialActive && !isInWarningPeriod) return null;

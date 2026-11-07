@@ -39,7 +39,9 @@ const AdminSubscriptionsPage = lazy(() => import('../../features/admin/AdminSubs
 const AdminAuditLogsPage = lazy(() => import('../../features/admin/AdminAuditLogsPage'));
 const AdminSettingsPage = lazy(() => import('../../features/admin/AdminSettingsPage'));
 const ContactPage = lazy(() => import('../../features/contact/ContactPage'));
+const AdminContactPage = lazy(() => import('../../features/admin/AdminContactPage'));
 const ForgotPasswordPage = lazy(() => import('../../features/auth/ForgotPasswordPage'));
+const ResetPasswordPage = lazy(() => import('../../features/auth/ResetPasswordPage'));
 const AboutPage = lazy(() => import('../../features/landing/AboutPage'));
 const TestimonialsPage = lazy(() => import('../../features/landing/TestimonialsPage'));
 const PublicContactPage = lazy(() => import('../../features/landing/PublicContactPage'));
@@ -152,6 +154,16 @@ const router = createBrowserRouter([
         ),
       },
       {
+        path: '/reset-password',
+        element: (
+          <AuthLayout>
+            <Suspense fallback={<PageLoader />}>
+              <ResetPasswordPage />
+            </Suspense>
+          </AuthLayout>
+        ),
+      },
+      {
         path: '/verify-otp',
         element: (
           <AuthLayout>
@@ -240,6 +252,7 @@ const router = createBrowserRouter([
               { path: '/admin/subscriptions', element: <AdminSubscriptionsPage /> },
               { path: '/admin/analytics', element: <AnalyticsPage /> },
               { path: '/admin/audit-logs', element: <AdminAuditLogsPage /> },
+              { path: '/admin/contact', element: <Suspense fallback={<PageLoader />}><AdminContactPage /></Suspense> },
               { path: '/admin/settings', element: <AdminSettingsPage /> },
             ],
           },

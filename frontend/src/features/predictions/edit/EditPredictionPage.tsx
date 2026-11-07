@@ -263,7 +263,7 @@ export default function EditPredictionPage() {
                 >
                   <option value="PUBLIC">🌐 Public (All Users)</option>
                   <option value="SUBSCRIBERS_ONLY">⭐ Subscribers Only</option>
-                  <option value="EXCLUSIVE">💎 Exclusive VIP Tier</option>
+                  <option value="EXCLUSIVE">💎 Exclusive Premium Tier</option>
                 </select>
               </div>
             </div>

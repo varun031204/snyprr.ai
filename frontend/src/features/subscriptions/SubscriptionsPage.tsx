@@ -21,7 +21,7 @@ export default function SubscriptionsPage() {
   const { currentUser } = useAuthStore();
 
   const isPaidSubscriber =
-    currentUser?.subscriptionTier === 'PRO' || currentUser?.subscriptionTier === 'VIP';
+    currentUser?.subscriptionTier === 'STANDARD' || currentUser?.subscriptionTier === 'PREMIUM';
 
   const plans = data?.data || [];
 

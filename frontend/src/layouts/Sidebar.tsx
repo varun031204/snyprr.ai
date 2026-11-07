@@ -4,7 +4,7 @@ import {
   LayoutDashboard, TrendingUp, Users,
   BarChart2, BookOpen, Settings, LogOut, ShieldCheck,
   Menu, PenSquare, UserCircle,
-  CreditCard, Briefcase, Code2, Newspaper, Sparkles
+  CreditCard, Briefcase, Code2, Newspaper, Sparkles, MessageSquare
 } from 'lucide-react';
 import { useAuthStore } from '../state/useAuthStore';
 import { useUIStore } from '../state/useUIStore';
@@ -40,6 +40,7 @@ const adminNav: NavItem[] = [
   { label: 'Traders', path: '/admin/traders', icon: <ShieldCheck className="w-5 h-5" /> },
   { label: 'Predictions', path: '/admin/predictions', icon: <TrendingUp className="w-5 h-5" /> },
   { label: 'Subscriptions', path: '/admin/subscriptions', icon: <CreditCard className="w-5 h-5" /> },
+  { label: 'Contact Messages', path: '/admin/contact', icon: <MessageSquare className="w-5 h-5" /> },
   { label: 'Analytics', path: '/admin/analytics', icon: <BarChart2 className="w-5 h-5" /> },
   { label: 'Audit Logs', path: '/admin/audit-logs', icon: <BookOpen className="w-5 h-5" /> },
 ];

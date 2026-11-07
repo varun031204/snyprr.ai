@@ -103,9 +103,9 @@ const KNOWLEDGE_BASE: {
       },
     },
     {
-      keywords: ['price', 'pricing', 'cost', 'plan', 'subscription', 'pro', 'vip', 'fee', 'charge', 'expensive'],
+      keywords: ['price', 'pricing', 'cost', 'plan', 'subscription', 'pro', 'vip', 'standard', 'premium', 'fee', 'charge', 'expensive'],
       response: {
-        text: "💎 **Subscription Plans**:\n• **Free**: Essential prediction tracking & basic analytics.\n• **Pro ($49/mo)**: Top 15% analysts, live zone lines & push alerts.\n• **VIP ($149/mo)**: Unlimited predictions, 1-on-1 desk access & priority dev support.\n\nSwitch to the **Plans** tab above for an interactive calculator!",
+        text: "💎 **Subscription Plans**:\n• **Free**: Essential prediction tracking & basic analytics.\n• **Standard (₹999/mo)**: Chart analysis, AI assistant, paper trading & more.\n• **Premium (₹1499/mo)**: Everything in Standard plus 1-on-1 sessions, priority support & advanced analytics.\n\nSwitch to the **Plans** tab above for an interactive calculator!",
         action: { label: 'Explore Pricing Section', href: '#pricing' },
         suggestions: ['Is there a free trial?', 'How do I start?'],
       },
@@ -113,7 +113,7 @@ const KNOWLEDGE_BASE: {
     {
       keywords: ['free', 'trial', 'free tier', 'zero cost'],
       response: {
-        text: "🎁 **Yes!** Trade Beast has a generous **Free Tier** to start tracking verified ideas right now. Premium plans also come with a risk-free **30-Day Trial**.",
+        text: "🎁 **Yes!** Snyprr.ai has a generous **Free** plan to start tracking verified ideas right now. Paid plans (Standard & Premium) also come with a risk-free **14-Day Free Trial**.",
         action: { label: 'Create Free Account', path: '/signup' },
         suggestions: ['Explore Pricing Section', 'Who are the traders?'],
       },
@@ -902,7 +902,7 @@ export const LandingChatbot: React.FC = () => {
               {/* Free Tier */}
               <div className="p-3 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] flex items-center justify-between">
                 <div>
-                  <h5 className="text-xs font-bold text-[var(--text-primary)]">Free Tier</h5>
+                  <h5 className="text-xs font-bold text-[var(--text-primary)]">Free</h5>
                   <p className="text-[10px] text-[var(--text-muted)]">Essential prediction tracking</p>
                 </div>
                 <div className="text-right">
@@ -919,21 +919,21 @@ export const LandingChatbot: React.FC = () => {
                 </div>
               </div>
 
-              {/* Pro Tier */}
+              {/* Standard Tier */}
               <div className="p-3 rounded-2xl bg-[var(--brand-glow)]/20 border border-[var(--brand-primary)]/50 flex items-center justify-between relative overflow-hidden">
                 <div className="absolute top-0 right-0 bg-[var(--brand-primary)] text-white text-[8px] font-extrabold px-2 py-0.5 rounded-bl-lg uppercase">
                   Popular
                 </div>
                 <div>
                   <h5 className="text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5">
-                    <span>Pro Trader</span>
+                    <span>Standard</span>
                     <Sparkles className="w-3 h-3 text-[var(--brand-primary)]" />
                   </h5>
-                  <p className="text-[10px] text-[var(--text-muted)]">Top 15% analysts & SL/TP alerts</p>
+                  <p className="text-[10px] text-[var(--text-muted)]">Chart analysis, AI assistant & more</p>
                 </div>
                 <div className="text-right">
                   <span className="text-sm font-extrabold text-[var(--brand-primary)]">
-                    {annualBilling ? '$39' : '$49'}
+                    {annualBilling ? '₹917' : '₹999'}
                     <span className="text-[10px] text-[var(--text-muted)] font-normal">/mo</span>
                   </span>
                   <button
@@ -949,15 +949,15 @@ export const LandingChatbot: React.FC = () => {
                 </div>
               </div>
 
-              {/* VIP Tier */}
+              {/* Premium Tier */}
               <div className="p-3 rounded-2xl bg-[var(--bg-surface)] border border-amber-500/30 flex items-center justify-between">
                 <div>
-                  <h5 className="text-xs font-bold text-amber-400">VIP Analyst Pass</h5>
-                  <p className="text-[10px] text-[var(--text-muted)]">1-on-1 desk & unlimited predictions</p>
+                  <h5 className="text-xs font-bold text-amber-400">Premium</h5>
+                  <p className="text-[10px] text-[var(--text-muted)]">1-on-1 sessions & priority support</p>
                 </div>
                 <div className="text-right">
                   <span className="text-sm font-extrabold text-amber-400">
-                    {annualBilling ? '$119' : '$149'}
+                    {annualBilling ? '₹1,333' : '₹1,499'}
                     <span className="text-[10px] text-[var(--text-muted)] font-normal">/mo</span>
                   </span>
                   <button
@@ -968,7 +968,7 @@ export const LandingChatbot: React.FC = () => {
                     }}
                     className="block text-[10px] font-bold text-amber-400 hover:underline mt-0.5"
                   >
-                    View VIP →
+                    View Premium →
                   </button>
                 </div>
               </div>

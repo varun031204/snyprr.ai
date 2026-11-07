@@ -101,7 +101,7 @@ export default function TermsPage() {
 
                 <Section title="4. Subscription Tiers & Access">
                     <p>
-                        Snyprr.ai offers multiple subscription tiers (FREE, PRO, VIP). Access to AI Analysis signals, detailed breakdowns,
+                        Snyprr.ai offers multiple subscription tiers (Free, Standard, Premium). Access to AI Analysis signals, detailed breakdowns,
                         and premium features is gated by subscription tier. Tier differences are clearly indicated within the platform.
                     </p>
                     <p>

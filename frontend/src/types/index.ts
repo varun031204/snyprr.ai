@@ -24,7 +24,7 @@ export interface User {
   name: string;
   avatar?: string;
   role: UserRole;
-  subscriptionTier?: 'FREE' | 'PRO' | 'VIP';
+  subscriptionTier?: 'FREE' | 'STANDARD' | 'PREMIUM';
   bio?: string;
   isVerified: boolean;
   twoFactorEnabled: boolean;

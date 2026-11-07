@@ -28,11 +28,19 @@ const resendLimiter = rateLimit({
   standardHeaders: true, legacyHeaders: false,
 });
 
-router.post('/initiate', initiateLimiter, ac.initiateRegistration);
-router.post('/verify-phone', verifyLimiter, ac.verifyPhone);
-router.post('/resend-phone', resendLimiter, ac.resendPhone);
-router.post('/mark-email-verified', ac.markEmailVerified);
-router.get('/session-info', ac.getSessionInfo);
-router.post('/check-email', verifyLimiter, ac.checkEmail);
+// Email existence check — tight to prevent enumeration
+const checkEmailLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,  // 15 minutes
+  max: 10,
+  message: { error: 'Too many requests. Please try again later.' },
+  standardHeaders: true, legacyHeaders: false,
+});
+
+router.post('/initiate',            initiateLimiter,    ac.initiateRegistration);
+router.post('/verify-phone',        verifyLimiter,      ac.verifyPhone);
+router.post('/resend-phone',        resendLimiter,      ac.resendPhone);
+router.post('/mark-email-verified',                     ac.markEmailVerified);
+router.post('/check-email',         checkEmailLimiter,  ac.checkEmail);
+router.get('/session-info',                             ac.getSessionInfo);
 
 export default router;

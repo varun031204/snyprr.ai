@@ -106,8 +106,8 @@ export default function PaperTradingPage() {
 
   const isSubscribed =
     isTrialActive ||
-    currentUser?.subscriptionTier === 'PRO' ||
-    currentUser?.subscriptionTier === 'VIP';
+    currentUser?.subscriptionTier === 'STANDARD' ||
+    currentUser?.subscriptionTier === 'PREMIUM';
 
   const [chartSymbol, setChartSymbol] = useState('BINANCE:BTCUSDT');
   const [draftLevels, setDraftLevels] = useState<PaperTradeDraftLevels | null>(null);

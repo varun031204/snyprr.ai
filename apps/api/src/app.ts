@@ -16,6 +16,7 @@ import aiRouter from './routes/ai.routes.js';
 import marketRouter from './routes/market.routes.js';
 import paperTradingRouter from './routes/paperTrading.routes.js';
 import authRouter from './routes/auth.routes.js';
+import contactRouter from './routes/contact.routes.js';
 
 export const app = express();
 
@@ -149,6 +150,7 @@ app.use('/api/admin', adminRouter);
 app.use('/api/ai', aiRouter);
 app.use('/api/market', marketRouter);
 app.use('/api/paper', paperTradingRouter);
+app.use('/api/contact', contactRouter);
 
 // 404 handler
 app.use((_req, res) => {

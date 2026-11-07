@@ -6,7 +6,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { ThemeToggle } from '../../components/ui/ThemeToggle';
 import { Logo } from '../../components/ui/Logo';
-import { submitContactForm } from '../../services/api/formspreeService';
+import { submitContactMessage } from '../../services/api/contactService';
 
 const CATEGORIES = [
     { value: 'GENERAL', label: 'General Inquiry' },
@@ -32,14 +32,14 @@ export default function PublicContactPage() {
         setSubmitting(true);
         setSubmitError(null);
 
-        const result = await submitContactForm({
+        const result = await submitContactMessage({
             name, email, category, subject, message,
-            _source: 'public-contact-page',
+            source: 'public',
         });
 
         setSubmitting(false);
 
-        if (result.ok) {
+        if (result.success) {
             setSubmitted(true);
         } else {
             setSubmitError(result.error ?? 'Something went wrong. Please try again.');

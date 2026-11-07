@@ -119,3 +119,17 @@ export async function getSessionInfo(req: Request, res: Response, next: NextFunc
     res.json({ data: info });
   } catch (err) { next(err); }
 }
+
+// POST /api/auth/check-email
+// Returns whether an email address has a registered account.
+// Rate-limited tightly to prevent enumeration abuse.
+export async function checkEmail(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { email } = req.body;
+    if (!email?.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ error: 'A valid email is required' });
+    }
+    const exists = await authService.checkEmailExists(email);
+    res.json({ exists });
+  } catch (err) { next(err); }
+}

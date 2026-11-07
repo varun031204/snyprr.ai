@@ -213,7 +213,7 @@ export const Topbar: React.FC = () => {
               <div className="px-4 py-2.5 border-b border-[var(--border-subtle)] mb-1 space-y-1.5">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{currentUser?.name}</p>
-                  <SubscriptionTierBadge tier={currentUser?.subscriptionTier || 'PRO'} size="sm" />
+                  <SubscriptionTierBadge tier={currentUser?.subscriptionTier || 'STANDARD'} size="sm" />
                 </div>
                 <p className="text-xs text-[var(--text-muted)] truncate">{currentUser?.email}</p>
               </div>

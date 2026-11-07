@@ -325,3 +325,22 @@ export async function markEmailVerified(registrationToken: string): Promise<void
 export async function cleanExpiredSessions(): Promise<void> {
   await pool.query('DELETE FROM public.phone_otp_requests WHERE expires_at < now()');
 }
+
+// ── Check if an email is registered ───────────────────────────────────────────
+// Used by the forgot-password flow to give a clear "no account" message.
+// We query auth.users via the service-role admin client (bypasses RLS).
+export async function checkEmailExists(email: string): Promise<boolean> {
+  const { supabaseAdmin } = await import('../config/supabaseClient.js');
+  const { data, error } = await supabaseAdmin
+    .from('profiles')
+    .select('id')
+    .eq('email', email.toLowerCase().trim())
+    .maybeSingle();
+
+  if (error) {
+    // On unexpected error, fail open — let Supabase handle it silently
+    console.error('[Auth] checkEmailExists error:', error.message);
+    return true;
+  }
+  return data !== null;
+}

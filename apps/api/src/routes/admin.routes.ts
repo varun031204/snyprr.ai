@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { AdminController } from '../controllers/admin.controller.js';
 import { requireAuth } from '../middleware/auth.middleware.js';
 import { requireRole } from '../middleware/rbac.middleware.js';
+import { listContacts, updateContactStatus } from '../controllers/contact.controller.js';
 
 const router = Router();
 
@@ -15,5 +16,9 @@ router.get('/users', AdminController.listUsers);
 router.post('/users/:id/roles', AdminController.assignRole);
 router.delete('/users/:id/roles', AdminController.removeRole);
 router.patch('/users/:id/status', AdminController.updateUserStatus);
+
+// Contact / support messages
+router.get('/contact', listContacts);
+router.patch('/contact/:id', updateContactStatus);
 
 export default router;

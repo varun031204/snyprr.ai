@@ -6,7 +6,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { useAuthStore } from '../../state/useAuthStore';
 import { useUIStore } from '../../state/useUIStore';
-import { submitContactForm } from '../../services/api/formspreeService';
+import { submitContactMessage } from '../../services/api/contactService';
 
 export default function ContactPage() {
   const { currentUser, activeRole } = useAuthStore();
@@ -21,28 +21,26 @@ export default function ContactPage() {
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Fix: subject included in deps to avoid stale-closure warning; the guard
-  // `if (!subject)` correctly prevents overwriting user-typed content.
   useEffect(() => {
     if (isDevDept) {
       setCategory('TECHNICAL');
       if (!subject) setSubject('Developer Team / Technical Inquiry');
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isDevDept]); // intentionally omits `subject` — only auto-fills on first switch
+  }, [isDevDept]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    const result = await submitContactForm({
+    const result = await submitContactMessage({
       name, email, category, subject, message,
-      _source: isDevDept ? 'developer-contact-page' : 'support-contact-page',
+      source: isDevDept ? 'developer' : 'in-app',
     });
 
     setIsSubmitting(false);
 
-    if (result.ok) {
+    if (result.success) {
       addToast({
         type: 'success',
         title: isDevDept ? 'Developer Ticket Dispatched 🛠️' : 'Message Dispatched 🚀',

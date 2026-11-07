@@ -90,6 +90,7 @@ function mapPlanNameToTier(planName: string | undefined | null): AiTier {
   const tierMap: Record<string, AiTier> = {
     basic: 'BASIC',
     pro: 'PRO',
+    standard: 'PRO',
     premium: 'PREMIUM',
     vip: 'PREMIUM',
   };
