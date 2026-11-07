@@ -28,10 +28,11 @@ const resendLimiter = rateLimit({
   standardHeaders: true, legacyHeaders: false,
 });
 
-router.post('/initiate',            initiateLimiter,  ac.initiateRegistration);
-router.post('/verify-phone',        verifyLimiter,    ac.verifyPhone);
-router.post('/resend-phone',        resendLimiter,    ac.resendPhone);
-router.post('/mark-email-verified',                   ac.markEmailVerified);
-router.get('/session-info',                           ac.getSessionInfo);
+router.post('/initiate', initiateLimiter, ac.initiateRegistration);
+router.post('/verify-phone', verifyLimiter, ac.verifyPhone);
+router.post('/resend-phone', resendLimiter, ac.resendPhone);
+router.post('/mark-email-verified', ac.markEmailVerified);
+router.get('/session-info', ac.getSessionInfo);
+router.post('/check-email', verifyLimiter, ac.checkEmail);
 
 export default router;

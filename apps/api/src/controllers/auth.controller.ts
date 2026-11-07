@@ -51,8 +51,8 @@ export async function verifyPhone(req: Request, res: Response, next: NextFunctio
     res.json({ verified: true, message: 'Phone number verified successfully' });
   } catch (err: any) {
     const code = err.message?.split(':')[0];
-    const msg  = err.message?.replace(/^[A-Z_]+: /, '');
-    if (['INVALID_TOKEN','EXPIRED','TOO_MANY_ATTEMPTS','WRONG_OTP'].includes(code)) {
+    const msg = err.message?.replace(/^[A-Z_]+: /, '');
+    if (['INVALID_TOKEN', 'EXPIRED', 'TOO_MANY_ATTEMPTS', 'WRONG_OTP'].includes(code)) {
       return res.status(422).json({ error: msg });
     }
     next(err);
@@ -70,8 +70,8 @@ export async function resendPhone(req: Request, res: Response, next: NextFunctio
     res.json({ message: 'Verification code resent to your phone' });
   } catch (err: any) {
     const code = err.message?.split(':')[0];
-    const msg  = err.message?.replace(/^[A-Z_]+: /, '');
-    if (['INVALID_TOKEN','EXPIRED','COOLDOWN'].includes(code)) {
+    const msg = err.message?.replace(/^[A-Z_]+: /, '');
+    if (['INVALID_TOKEN', 'EXPIRED', 'COOLDOWN'].includes(code)) {
       return res.status(422).json({ error: msg });
     }
     next(err);
@@ -91,7 +91,25 @@ export async function markEmailVerified(req: Request, res: Response, next: NextF
   } catch (err) { next(err); }
 }
 
-// GET /api/auth/session-info?token=...
+// POST /api/auth/check-email
+// Check if email is already registered. Returns { exists: boolean }.
+// Generic response to prevent enumeration — but we do return exists=true
+// so the frontend can show "already registered" without needing to call signUp.
+export async function checkEmail(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { email } = req.body;
+    if (!email?.trim()) return res.status(400).json({ error: 'email is required' });
+
+    // Check in profiles table (confirmed users)
+    const { db } = await import('../db/pool.js');
+    const result = await db.query(
+      'SELECT id FROM public.profiles WHERE email = $1 LIMIT 1',
+      [email.trim().toLowerCase()]
+    );
+
+    res.json({ exists: result.rows.length > 0 });
+  } catch (err) { next(err); }
+}
 export async function getSessionInfo(req: Request, res: Response, next: NextFunction) {
   try {
     const token = req.query.token as string;

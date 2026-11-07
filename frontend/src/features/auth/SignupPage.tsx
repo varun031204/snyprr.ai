@@ -38,7 +38,7 @@ const STR_LABEL: Record<Strength, string> = {
 
 export default function SignupPage() {
   const navigate = useNavigate();
-  const { signUp, isLoading, authError, clearError } = useAuthStore();
+  const { signUp, isLoading: storeLoading, authError, clearError } = useAuthStore();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -48,6 +48,9 @@ export default function SignupPage() {
   const [showPw, setShowPw] = useState(false);
   const [showCpw, setShowCpw] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = useState(false);
+
+  const isLoading = storeLoading || submitting;
 
   const str = password ? pwStrength(password) : null;
 
@@ -72,7 +75,27 @@ export default function SignupPage() {
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
 
+    setSubmitting(true);
     try {
+      // ── 1. Pre-check if email is already registered ────────────────────
+      const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:4000';
+      try {
+        const checkRes = await fetch(`${API_BASE}/api/auth/check-email`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: email.trim().toLowerCase() }),
+        });
+        if (checkRes.ok) {
+          const { exists } = await checkRes.json();
+          if (exists) {
+            setErrors(p => ({ ...p, email: 'This email is already registered. Please sign in instead.' }));
+            setSubmitting(false);
+            return;
+          }
+        }
+      } catch { /* non-fatal — proceed to Supabase which will catch it */ }
+
+      // ── 2. Call Supabase signUp ─────────────────────────────────────────
       const { needsOtp } = await signUp(email.trim().toLowerCase(), password, name.trim());
       if (needsOtp) {
         navigate(`/verify-otp?email=${encodeURIComponent(email.trim().toLowerCase())}`);
@@ -81,6 +104,8 @@ export default function SignupPage() {
       }
     } catch {
       // authError set by store
+    } finally {
+      setSubmitting(false);
     }
   };
 

@@ -196,6 +196,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return { needsOtp: false };
     }
 
+    // Supabase returns data.user=null with no error when the email is already
+    // registered (confirmed or unconfirmed). Treat this as a duplicate.
+    if (!data.user) {
+      const message = 'An account with this email already exists. Please sign in instead.';
+      set({ isLoading: false, authError: message });
+      throw new Error(message);
+    }
+
     // No session returned — email confirmation is ON. User needs to enter
     // the OTP code sent to their email.
     set({ isLoading: false });
