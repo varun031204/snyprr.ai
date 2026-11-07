@@ -4,15 +4,15 @@
  * Computes trial state from the user's account creation date.
  *
  * Business rules:
- * - Every new user gets a FREE 14-day PRO trial starting from their createdAt date.
- * - Days 10–14: warning period — banner shown urging upgrade.
- * - Day 15+: trial expired — user drops to FREE tier, locked out of AI analysis.
+ * - Every new user gets a FREE 7-day PRO trial starting from their createdAt date.
+ * - Days 5–7: warning period — banner shown urging upgrade.
+ * - Day 8+: trial expired — user drops to FREE tier, locked out of AI analysis.
  */
 
 import { create } from 'zustand';
 
-const TRIAL_DURATION_DAYS = 14;
-const WARNING_THRESHOLD_DAYS = 5; // Show warning when ≤ 5 days left
+const TRIAL_DURATION_DAYS = 7;
+const WARNING_THRESHOLD_DAYS = 2; // Show warning when ≤ 2 days left
 
 export interface TrialState {
     /** Days remaining in trial (0 means expired) */
@@ -30,7 +30,7 @@ export interface TrialState {
 }
 
 export const useTrialStore = create<TrialState>((set) => ({
-    trialDaysLeft: TRIAL_DURATION_DAYS,
+    trialDaysLeft: 7,
     isTrialActive: true,
     isTrialExpired: false,
     isInWarningPeriod: false,

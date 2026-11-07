@@ -2,8 +2,8 @@
 -- Migration: 20261106000000_14day_free_trial.sql
 --
 -- Changes:
---   1. Insert a "14-Day Free Trial" subscription plan (₹0, 14 days).
---   2. Update the handle_new_user trigger to activate the 14-day free
+--   1. Insert a "7-Day Free Trial" subscription plan (₹0, 7 days).
+--   2. Update the handle_new_user trigger to activate the 7-day free
 --      trial (instead of the old 1-month trial) for every new signup.
 --
 -- The existing "Free Trial" plan (1 month) is deactivated so it no
@@ -17,11 +17,11 @@ set is_active = false
 where name = 'Free Trial'
   and billing_interval = 'FREE_TRIAL';
 
--- 2. Insert the new 14-Day Free Trial plan
+-- 2. Insert the new 7-Day Free Trial plan
 insert into public.subscription_plans (name, description, price, currency, billing_interval, is_active)
 values (
-  '14-Day Free Trial',
-  '14-day free access granted automatically on signup. Full platform access, no credit card required.',
+  '7-Day Free Trial',
+  '7-day free access granted automatically on signup. Full platform access, no credit card required.',
   0,
   'INR',
   'FREE_TRIAL',
@@ -29,8 +29,8 @@ values (
 )
 on conflict do nothing;
 
--- 3. Update handle_new_user trigger to use the 14-Day Free Trial plan
---    and store the trial for exactly 14 days.
+-- 3. Update handle_new_user trigger to use the 7-Day Free Trial plan
+--    and store the trial for exactly 7 days.
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -55,15 +55,15 @@ begin
   insert into public.user_roles (user_id, role_id) values (new.id, v_role_id)
   on conflict do nothing;
 
-  -- Activate 14-day free trial subscription
+  -- Activate 7-day free trial subscription
   select id into v_plan_id
   from public.subscription_plans
-  where name = '14-Day Free Trial'
+  where name = '7-Day Free Trial'
     and is_active = true
   limit 1;
 
   insert into public.user_subscriptions (user_id, plan_id, status, started_at, expires_at)
-  values (new.id, v_plan_id, 'ACTIVE', now(), now() + interval '14 days');
+  values (new.id, v_plan_id, 'ACTIVE', now(), now() + interval '7 days');
 
   return new;
 end;

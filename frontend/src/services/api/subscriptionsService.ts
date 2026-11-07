@@ -44,8 +44,8 @@ interface BackendSubscription {
 
 const FREE_TRIAL_PLAN: SubscriptionPlan = {
   id: 'free_trial',
-  name: '14-Day Free Trial',
-  description: 'Try the full platform for 14 days at zero cost',
+  name: '7-Day Free Trial',
+  description: 'Try the full platform for 7 days at zero cost',
   priceMonthly: 0,
   priceYearly: 0,
   badge: 'Free',
@@ -133,7 +133,7 @@ class SubscriptionsService implements ISubscriptionApi {
       });
       // Prepend the free trial plan (merge backend ID if available)
       const backendFreeTrial = backendPlans.find(
-        (b) => b.name.toLowerCase().includes('14-day') || b.billing_interval === 'FREE_TRIAL',
+        (b) => b.name.toLowerCase().includes('7-day') || b.billing_interval === 'FREE_TRIAL',
       );
       const freePlan = backendFreeTrial
         ? { ...FREE_TRIAL_PLAN, id: backendFreeTrial.id }
