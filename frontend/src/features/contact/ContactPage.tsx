@@ -187,8 +187,12 @@ export default function ContactPage() {
               onChange={(e) => setMessage(e.target.value)}
               placeholder="Please describe your question or issue in detail..."
               required
+              minLength={10}
               className="w-full bg-[var(--bg-surface)] text-xs text-[var(--text-primary)] border border-[var(--border-subtle)] rounded-xl p-3.5 focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]"
             />
+            {message.length > 0 && message.length < 10 && (
+              <p className="text-[10px] text-[var(--color-danger)]">Please enter at least 10 characters ({message.length}/10)</p>
+            )}
           </div>
 
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-[var(--border-subtle)]">

@@ -147,8 +147,12 @@ export default function PublicContactPage() {
                                     onChange={(e) => setMessage(e.target.value)}
                                     placeholder="Describe your question or request in detail..."
                                     required
+                                    minLength={10}
                                     className="w-full bg-[var(--bg-surface)] text-sm text-[var(--text-primary)] border border-[var(--border-subtle)] rounded-xl p-3.5 focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)] resize-none transition-all"
                                 />
+                                {message.length > 0 && message.length < 10 && (
+                                    <p className="text-[10px] text-[var(--color-danger)] -mt-1">Please enter at least 10 characters ({message.length}/10)</p>
+                                )}
                             </div>
                             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-4 border-t border-[var(--border-subtle)]">
                                 <p className="text-xs text-[var(--text-muted)] flex items-start gap-1.5">

@@ -8,7 +8,7 @@ const submitSchema = z.object({
   email:    z.string().email().max(200),
   category: z.enum(['GENERAL','TECHNICAL','SUBSCRIPTION','PARTNERSHIP','VERIFICATION','FEEDBACK','DEV_TEAM']),
   subject:  z.string().min(1).max(200).trim(),
-  message:  z.string().min(10).max(5000).trim(),
+  message:  z.string().min(1).max(5000).trim(),
   source:   z.string().max(50).default('public'),
 });
 
