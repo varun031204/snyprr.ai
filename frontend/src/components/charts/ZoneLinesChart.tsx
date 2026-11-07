@@ -548,8 +548,18 @@ export const ZoneLinesChart: React.FC<Props> = ({
         // Preserve scroll position on resize — prevents the view from jumping
         lockVisibleTimeRangeOnResize: true,
       },
-      handleScale: { mouseWheel: true, pinch: true, axisPressedMouseMove: { time: true, price: true }, axisDoubleClickReset: { time: true, price: true } },
-      handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: true },
+      handleScale: {
+        mouseWheel: false,  // we handle wheel ourselves for better zoom control
+        pinch: true,
+        axisPressedMouseMove: { time: true, price: false },
+        axisDoubleClickReset: { time: true, price: true },
+      },
+      handleScroll: {
+        mouseWheel: false,  // we handle wheel ourselves
+        pressedMouseMove: true,  // drag-to-pan via built-in
+        horzTouchDrag: true,
+        vertTouchDrag: false,  // disable vertical touch drag to avoid conflicts
+      },
     });
     const series = chart.addSeries(CandlestickSeries, {
       upColor: '#22c55e', downColor: '#ef4444', borderUpColor: '#22c55e', borderDownColor: '#ef4444', wickUpColor: '#22c55e', wickDownColor: '#ef4444',
@@ -656,14 +666,38 @@ export const ZoneLinesChart: React.FC<Props> = ({
     });
 
     const onWheel = (e: WheelEvent) => {
-      e.preventDefault(); e.stopPropagation();
-      if (e.ctrlKey || e.metaKey) { const ts = chart.timeScale(); const r = ts.getVisibleLogicalRange(); if (!r) return; const f = e.deltaY > 0 ? 1.12 : 0.88, c = (r.to + r.from) / 2, span = r.to - r.from; ts.setVisibleLogicalRange({ from: c - (span * f) / 2, to: c + (span * f) / 2 }); return; }
-      if (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) { const ts = chart.timeScale(); const r = ts.getVisibleLogicalRange(); if (!r) return; const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY; ts.setVisibleLogicalRange({ from: r.from + (d / 100) * Math.max(3, (r.to - r.from) * 0.18), to: r.to + (d / 100) * Math.max(3, (r.to - r.from) * 0.18) }); return; }
-      const ps = chart.priceScale('right'); const r = ps.getVisibleRange(); if (!r) return;
-      const step = (-e.deltaY / 100) * ((r.to - r.from) * 0.08); ps.applyOptions({ autoScale: false }); ps.setVisibleRange({ from: r.from + step, to: r.to + step });
+      e.preventDefault();
+      const ts = chart.timeScale();
+      const r = ts.getVisibleLogicalRange();
+      if (!r) return;
+
+      const span = r.to - r.from;
+
+      // Horizontal scroll (trackpad swipe, or Shift+wheel) → pan time axis
+      if (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+        const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+        const pan = (delta / 80) * Math.max(1, span * 0.1);
+        ts.setVisibleLogicalRange({ from: r.from + pan, to: r.to + pan });
+        return;
+      }
+
+      // Plain vertical scroll → zoom time axis around cursor position (TradingView behaviour)
+      // Positive deltaY = scroll down = zoom out; negative = zoom in
+      const zoomFactor = e.deltaY > 0 ? 1.1 : 0.9;
+      const center = (r.to + r.from) / 2;
+      const newSpan = Math.max(5, span * zoomFactor);
+      ts.setVisibleLogicalRange({
+        from: center - newSpan / 2,
+        to: center + newSpan / 2,
+      });
+      // NOTE: we deliberately do NOT touch the price scale here.
+      // autoScale stays true so the price axis always fits the visible candles.
     };
     container.addEventListener('wheel', onWheel, { passive: false });
-    container.addEventListener('dblclick', () => { chart.priceScale('right').applyOptions({ autoScale: true }); chart.timeScale().fitContent(); });
+    container.addEventListener('dblclick', () => {
+      chart.priceScale('right').applyOptions({ autoScale: true });
+      chart.timeScale().fitContent();
+    });
     return () => { container.removeEventListener('wheel', onWheel); ro.disconnect(); chart.remove(); chartRef.current = null; candleRef.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canvasH, getColors]);
@@ -692,10 +726,23 @@ export const ZoneLinesChart: React.FC<Props> = ({
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
 
     const startLive = (initialData: any[]) => {
+      // Reset price scale to auto-fit BEFORE loading new data.
+      // This is critical when switching instruments (BTC ~77k → ETH ~2.3k):
+      // without this, the price scale stays pinned to the previous instrument's
+      // range and the new candles render off-screen.
+      if (chartRef.current) {
+        chartRef.current.priceScale('right').applyOptions({ autoScale: true });
+      }
       s.setData(initialData);
       candleDataRef.current = initialData;
       if (initialData.length) lastCandleRef.current = initialData[initialData.length - 1];
-      chartRef.current?.timeScale().fitContent();
+      // fitContent after a short RAF so lightweight-charts has painted the data first
+      requestAnimationFrame(() => {
+        if (chartRef.current) {
+          chartRef.current.priceScale('right').applyOptions({ autoScale: true });
+          chartRef.current.timeScale().fitContent();
+        }
+      });
     };
 
     if (binanceSym) {
