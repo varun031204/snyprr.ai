@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import { optionalAuth } from '../middleware/auth.middleware.js';
-import { submitContact } from '../controllers/contact.controller.js';
+import { requireAuth, optionalAuth } from '../middleware/auth.middleware.js';
+import { submitContact, getMyContacts } from '../controllers/contact.controller.js';
 
 const router = Router();
 
@@ -16,5 +16,8 @@ const contactLimiter = rateLimit({
 
 // Public endpoint — optionalAuth attaches user ID if logged in
 router.post('/', contactLimiter, optionalAuth, submitContact);
+
+// Authenticated: user views their own past submissions
+router.get('/my', requireAuth, getMyContacts);
 
 export default router;

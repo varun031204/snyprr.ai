@@ -48,6 +48,17 @@ export async function listContacts(req: Request, res: Response, next: NextFuncti
   }
 }
 
+// GET /api/contact/my  — authenticated user's own submissions
+export async function getMyContacts(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.user) return res.status(401).json({ error: 'Authentication required' });
+    const messages = await contactService.getMyContacts(req.user.id);
+    res.json({ data: messages });
+  } catch (err) {
+    next(err);
+  }
+}
+
 // PATCH /api/admin/contact/:id  — admin only
 export async function updateContactStatus(req: Request, res: Response, next: NextFunction) {
   try {

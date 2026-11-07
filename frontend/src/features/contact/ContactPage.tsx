@@ -1,16 +1,37 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Mail, Headphones, Send, Clock, ShieldCheck, CheckCircle2, HelpCircle, Code2, Terminal } from 'lucide-react';
+import {
+  Mail, Headphones, Send, Clock, ShieldCheck, CheckCircle2,
+  HelpCircle, Code2, ChevronDown, ChevronUp, History,
+  RefreshCw, AlertCircle,
+} from 'lucide-react';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { Skeleton } from '../../components/ui/Skeleton';
 import { useAuthStore } from '../../state/useAuthStore';
 import { useUIStore } from '../../state/useUIStore';
+import { useQueryClient } from '@tanstack/react-query';
 import { submitContactMessage } from '../../services/api/contactService';
+import { useMyContacts } from '../../hooks/useContactQuery';
+import type { ContactMessage } from '../../services/api/contactService';
+
+const STATUS_CONFIG: Record<ContactMessage['status'], { label: string; cls: string }> = {
+  NEW:         { label: 'Received',    cls: 'bg-blue-500/15 text-blue-400 border-blue-500/30' },
+  IN_PROGRESS: { label: 'In Progress', cls: 'bg-amber-500/15 text-amber-400 border-amber-500/30' },
+  RESOLVED:    { label: 'Resolved',    cls: 'bg-[var(--color-success-bg)] text-[var(--color-success)] border-[var(--color-success)]/30' },
+  SPAM:        { label: 'Closed',      cls: 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)]' },
+};
+
+const CATEGORY_LABELS: Record<string, string> = {
+  GENERAL: 'General', TECHNICAL: 'Technical', SUBSCRIPTION: 'Subscription',
+  PARTNERSHIP: 'Partnership', VERIFICATION: 'Verification', FEEDBACK: 'Feedback', DEV_TEAM: 'Dev Team',
+};
 
 export default function ContactPage() {
   const { currentUser, activeRole } = useAuthStore();
   const { addToast } = useUIStore();
+  const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const isDevDept = searchParams.get('dept') === 'dev' || (activeRole === 'TRADER' && searchParams.get('dept') !== 'support');
 
@@ -20,6 +41,10 @@ export default function ContactPage() {
   const [subject, setSubject] = useState(isDevDept ? 'Developer Team / Technical Inquiry' : '');
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const { data: historyData, isLoading: historyLoading } = useMyContacts();
+  const history = historyData?.data ?? [];
 
   useEffect(() => {
     if (isDevDept) {
@@ -50,6 +75,8 @@ export default function ContactPage() {
       });
       setSubject('');
       setMessage('');
+      // Refresh history after successful submission
+      queryClient.invalidateQueries({ queryKey: ['myContacts'] });
     } else {
       addToast({
         type: 'danger',
@@ -182,6 +209,98 @@ export default function ContactPage() {
           </div>
         </form>
       </GlassCard>
+
+      {/* ── My Previous Queries ─────────────────────────────────────────── */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <History className="w-5 h-5 text-[var(--brand-primary)]" />
+            <h2 className="text-base font-bold text-[var(--text-primary)]">My Previous Queries</h2>
+            {history.length > 0 && (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-subtle)]">
+                {history.length}
+              </span>
+            )}
+          </div>
+          <button
+            onClick={() => queryClient.invalidateQueries({ queryKey: ['myContacts'] })}
+            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] transition-all"
+            title="Refresh"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {historyLoading ? (
+          <div className="space-y-2">
+            {[1, 2, 3].map((i) => <Skeleton key={i} className="h-14 rounded-2xl" />)}
+          </div>
+        ) : history.length === 0 ? (
+          <GlassCard hoverEffect={false} className="p-8 text-center space-y-2">
+            <AlertCircle className="w-8 h-8 text-[var(--text-muted)] mx-auto" />
+            <p className="text-sm text-[var(--text-muted)]">No queries yet. Your submitted messages will appear here.</p>
+          </GlassCard>
+        ) : (
+          <GlassCard hoverEffect={false} className="p-0 overflow-hidden">
+            <div className="divide-y divide-[var(--border-subtle)]">
+              {history.map((msg) => {
+                const isExpanded = expandedId === msg.id;
+                const cfg = STATUS_CONFIG[msg.status];
+                return (
+                  <div key={msg.id}>
+                    <div
+                      className="flex items-center gap-3 px-4 py-3.5 cursor-pointer hover:bg-[var(--bg-secondary)]/40 transition-colors"
+                      onClick={() => setExpandedId(isExpanded ? null : msg.id)}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{msg.subject}</p>
+                          <span className="text-[10px] text-[var(--text-muted)] bg-[var(--bg-secondary)] px-2 py-0.5 rounded-full flex-shrink-0">
+                            {CATEGORY_LABELS[msg.category] ?? msg.category}
+                          </span>
+                        </div>
+                        <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                          {new Date(msg.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${cfg.cls}`}>
+                          {cfg.label}
+                        </span>
+                        {isExpanded
+                          ? <ChevronUp className="w-4 h-4 text-[var(--text-muted)]" />
+                          : <ChevronDown className="w-4 h-4 text-[var(--text-muted)]" />
+                        }
+                      </div>
+                    </div>
+
+                    {isExpanded && (
+                      <div className="px-8 pb-4 space-y-3 bg-[var(--bg-secondary)]/20">
+                        <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-sm text-[var(--text-secondary)] whitespace-pre-wrap leading-relaxed">
+                          {msg.message}
+                        </div>
+                        {msg.status === 'RESOLVED' && msg.admin_notes && (
+                          <div className="p-3 rounded-xl bg-[var(--color-success-bg)] border border-[var(--color-success)]/25 space-y-1">
+                            <p className="text-[10px] font-bold text-[var(--color-success)] uppercase tracking-wider flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3" /> Support Response
+                            </p>
+                            <p className="text-xs text-[var(--text-secondary)] leading-relaxed">{msg.admin_notes}</p>
+                          </div>
+                        )}
+                        {msg.status === 'IN_PROGRESS' && (
+                          <div className="p-3 rounded-xl bg-amber-500/8 border border-amber-500/20">
+                            <p className="text-xs text-amber-400 font-medium">Our team is currently reviewing your query. We'll respond shortly.</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </GlassCard>
+        )}
+      </div>
     </div>
   );
 }

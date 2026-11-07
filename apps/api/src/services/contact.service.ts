@@ -163,3 +163,17 @@ export async function updateContactStatus(
   if (error) throw new AppError(`Failed to update contact message: ${error.message}`, 500);
   return data;
 }
+
+// ── User: get own submissions ─────────────────────────────────────────────────
+export async function getMyContacts(userId: string) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabaseAdmin as any)
+    .from('contact_messages')
+    .select('id, category, subject, message, status, admin_notes, source, created_at, updated_at')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  if (error) throw new AppError(`Failed to fetch your messages: ${error.message}`, 500);
+  return data ?? [];
+}

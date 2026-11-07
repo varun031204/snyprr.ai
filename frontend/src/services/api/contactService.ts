@@ -73,7 +73,10 @@ export async function submitContactMessage(
   }
 }
 
-// ── Admin: list contact messages ──────────────────────────────────────────────
+// ── Authenticated user: get their own submissions ────────────────────────────
+export async function getMyContactMessages() {
+  return httpGet<{ data: ContactMessage[] }>('/api/contact/my');
+}
 export interface ListContactParams {
   status?: string;
   category?: string;
