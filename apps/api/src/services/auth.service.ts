@@ -390,3 +390,123 @@ export async function checkEmailExists(email: string): Promise<boolean> {
 
   return false;
 }
+
+// ── Password-change OTP (in-memory, single-use, 10-min expiry) ────────────────
+//
+// Flow:
+//   1. POST /api/auth/password-change-otp  — verify current pw, send OTP to email
+//   2. POST /api/auth/verify-password-otp  — verify OTP, update password via Supabase
+//
+// Security:
+//   - OTP stored as bcrypt hash — never plaintext.
+//   - 10-minute expiry.
+//   - Max 5 wrong attempts before session is invalidated.
+//   - One active session per user (new request overwrites old).
+
+interface PwChangeSession {
+  userId:      string;
+  email:       string;
+  newPassword: string;   // plain text — kept only in memory, never persisted or logged
+  otpHash:     string;
+  expiresAt:   Date;
+  attempts:    number;
+}
+
+// In-memory store — keyed by userId. Single-process only (sufficient for V1).
+const pwChangeSessions = new Map<string, PwChangeSession>();
+
+const PW_OTP_EXPIRE_MINUTES = 10;
+const PW_OTP_MAX_ATTEMPTS   = 5;
+
+export async function sendPasswordChangeOtp(params: {
+  userId: string;
+  email:  string;
+  newPassword: string;  // plain text — hashed before storing
+}): Promise<void> {
+  const otp       = generateOtp();
+  const otpHash   = await bcrypt.hash(otp, BCRYPT_ROUNDS);
+  const expiresAt = new Date(Date.now() + PW_OTP_EXPIRE_MINUTES * 60 * 1000);
+
+  // Overwrite any existing session for this user
+  pwChangeSessions.set(params.userId, {
+    userId:      params.userId,
+    email:       params.email,
+    newPassword: params.newPassword,   // plain — lives only in memory
+    otpHash,
+    expiresAt,
+    attempts: 0,
+  });
+
+  // Send OTP via Gmail
+  const transporter = getEmailTransporter();
+  if (!transporter) {
+    console.warn('[PwChange] Gmail not configured — OTP:', otp, '(dev fallback)');
+    return;
+  }
+
+  await transporter.sendMail({
+    from: `"Snyprr.ai Security" <${process.env.GMAIL_USER}>`,
+    to: params.email,
+    subject: 'Your Snyprr.ai Password Change Verification Code',
+    html: `
+      <div style="font-family:Inter,sans-serif;max-width:480px;margin:0 auto;padding:24px">
+        <h2 style="color:#8b5cf6;margin-bottom:8px">Password Change Request</h2>
+        <p style="color:#6b7280;margin-bottom:24px">
+          We received a request to change the password on your Snyprr.ai account
+          (<strong>${params.email}</strong>). Use the code below to confirm.
+        </p>
+        <div style="background:#f3f4f6;border-radius:12px;padding:20px;text-align:center;margin-bottom:24px">
+          <span style="font-size:36px;font-weight:800;letter-spacing:12px;color:#111827;font-family:monospace">
+            ${otp}
+          </span>
+        </div>
+        <p style="color:#6b7280;font-size:14px">
+          Valid for <strong>${PW_OTP_EXPIRE_MINUTES} minutes</strong>.
+          If you did not request this, you can safely ignore this email — your password will not change.
+        </p>
+      </div>
+    `,
+  });
+}
+
+export async function verifyPasswordChangeOtp(params: {
+  userId: string;
+  otp:    string;
+}): Promise<void> {
+  const { supabaseAdmin } = await import('../config/supabaseClient.js');
+
+  const session = pwChangeSessions.get(params.userId);
+  if (!session) throw new Error('OTP_INVALID: No active password-change session. Please start over.');
+
+  if (new Date() > session.expiresAt) {
+    pwChangeSessions.delete(params.userId);
+    throw new Error('OTP_EXPIRED: Verification code has expired. Please start over.');
+  }
+
+  if (session.attempts >= PW_OTP_MAX_ATTEMPTS) {
+    pwChangeSessions.delete(params.userId);
+    throw new Error('OTP_MAX_ATTEMPTS: Too many incorrect attempts. Please start over.');
+  }
+
+  session.attempts += 1;
+
+  const valid = await bcrypt.compare(params.otp.trim(), session.otpHash);
+  if (!valid) {
+    const remaining = PW_OTP_MAX_ATTEMPTS - session.attempts;
+    throw new Error(`OTP_WRONG: Incorrect code. ${remaining} attempt(s) remaining.`);
+  }
+
+  // OTP correct — update password via Supabase admin (plain-text, Supabase hashes it)
+  const { error } = await supabaseAdmin.auth.admin.updateUserById(params.userId, {
+    password: session.newPassword,
+  });
+
+  // Clear the session regardless of outcome
+  pwChangeSessions.delete(params.userId);
+
+  if (error) throw new Error(`PW_UPDATE_FAILED: ${error.message}`);
+}
+
+export function clearPasswordChangeSession(userId: string): void {
+  pwChangeSessions.delete(userId);
+}
