@@ -1,9 +1,8 @@
-import { TrendingUp, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, AlertCircle } from 'lucide-react';
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
-import { GlassCard } from '../../components/ui/GlassCard';
 import { useAuthStore } from '../../state/useAuthStore';
 import { Logo } from '../../components/ui/Logo';
 
@@ -27,12 +26,10 @@ export default function LoginPage() {
       await login(email, password);
       navigate('/dashboard');
     } catch (err: unknown) {
-      // Supabase returns "Email not confirmed" when account exists but OTP not done
       const msg = (err as { message?: string })?.message ?? '';
       if (msg.toLowerCase().includes('email not confirmed') || msg.toLowerCase().includes('not confirmed')) {
         navigate(`/verify-otp?email=${encodeURIComponent(email)}`);
       }
-      // Otherwise authError is set by the store and shown below
     }
   };
 
@@ -40,17 +37,20 @@ export default function LoginPage() {
 
   return (
     <div className="w-full">
-      {/* Logo */}
+
+      {/* ── Heading — white text so it's visible over any video ── */}
       <div className="flex flex-col items-center mb-8 text-center">
         <Logo className="w-16 h-16 object-contain mb-4" />
-        <h1 className="text-2xl font-extrabold text-[var(--text-primary)]">Welcome back</h1>
-        <p className="text-sm text-[var(--text-muted)] mt-1">Sign in to your Snyprr.ai account</p>
+        <h1 className="text-2xl font-extrabold text-white drop-shadow">Welcome back</h1>
+        <p className="text-sm text-white/70 mt-1">Sign in to your Snyprr.ai account</p>
       </div>
 
-      <GlassCard className="w-full p-6" hoverEffect={false}>
+      {/* ── Glass card ── */}
+      <div className="w-full p-6 rounded-2xl border border-white/15 bg-white/10 backdrop-blur-xl shadow-2xl">
         <form onSubmit={handleLogin} className="flex flex-col gap-5">
+
           {displayError && (
-            <div className="flex items-center gap-2 p-3 rounded-xl bg-[var(--color-danger-bg)] border border-[var(--color-danger)]/30 text-[var(--color-danger)] text-sm">
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-red-500/20 border border-red-400/30 text-red-300 text-sm">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
               <span>{displayError}</span>
             </div>
@@ -64,6 +64,7 @@ export default function LoginPage() {
             onChange={(e) => { setEmail(e.target.value); setLocalError(''); }}
             autoComplete="email"
           />
+
           <Input
             label="Password"
             type={showPassword ? 'text' : 'password'}
@@ -88,9 +89,9 @@ export default function LoginPage() {
             Sign In
           </Button>
         </form>
-      </GlassCard>
+      </div>
 
-      <p className="text-center text-sm text-[var(--text-muted)] mt-6">
+      <p className="text-center text-sm text-white/60 mt-6">
         Don't have an account?{' '}
         <Link to="/signup" className="text-[var(--brand-primary)] font-medium hover:underline">
           Create account

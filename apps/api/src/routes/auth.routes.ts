@@ -36,11 +36,21 @@ const checkEmailLimiter = rateLimit({
   standardHeaders: true, legacyHeaders: false,
 });
 
-router.post('/initiate',            initiateLimiter,    ac.initiateRegistration);
-router.post('/verify-phone',        verifyLimiter,      ac.verifyPhone);
-router.post('/resend-phone',        resendLimiter,      ac.resendPhone);
-router.post('/mark-email-verified',                     ac.markEmailVerified);
-router.post('/check-email',         checkEmailLimiter,  ac.checkEmail);
-router.get('/session-info',                             ac.getSessionInfo);
+// Password change OTP — tight to prevent brute force
+const pwChangeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,  // 15 minutes
+  max: 5,
+  message: { error: 'Too many password change attempts. Please wait.' },
+  standardHeaders: true, legacyHeaders: false,
+});
+
+router.post('/initiate',               initiateLimiter,   ac.initiateRegistration);
+router.post('/verify-phone',           verifyLimiter,     ac.verifyPhone);
+router.post('/resend-phone',           resendLimiter,     ac.resendPhone);
+router.post('/mark-email-verified',                       ac.markEmailVerified);
+router.post('/check-email',            checkEmailLimiter, ac.checkEmail);
+router.post('/password-change-otp',    pwChangeLimiter,   ac.sendPasswordChangeOtp);
+router.post('/verify-password-otp',    pwChangeLimiter,   ac.verifyPasswordChangeOtp);
+router.get('/session-info',                               ac.getSessionInfo);
 
 export default router;
