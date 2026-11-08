@@ -1,10 +1,11 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { TrendingUp, ArrowRight, BarChart2, ShieldCheck, Quote, ChevronLeft, ChevronRight, Menu, X, Check, Sparkles, Gift, Target, Clock, Star } from 'lucide-react';
+import { TrendingUp, ArrowRight, BarChart2, ShieldCheck, Quote, ChevronLeft, ChevronRight, Menu, X, Check, Sparkles, Gift, Target, Clock, Star, Send, AlertCircle } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { ThemeToggle } from '../../components/ui/ThemeToggle';
 import { useSubscriptionPlans } from '../../hooks/useSubscriptionsQuery';
+import { submitContactMessage } from '../../services/api/contactService';
 
 import { LandingChatbot } from '../../components/chatbot/LandingChatbot';
 import heroVideo from '../../assets/hero.mp4';
@@ -220,8 +221,8 @@ function PricingSection() {
   const pricingTiers = [
     {
       id: 'free_trial',
-      name: '7-Day Free Trial',
-      description: 'Try the full platform for 7 days at zero cost',
+      name: '15-Day Free Trial',
+      description: 'Try the full platform for 15 days at zero cost',
       badge: 'Free',
       isPopular: false,
       isFree: true,
@@ -279,7 +280,7 @@ function PricingSection() {
         <p className="text-xs font-medium text-[var(--brand-primary)] uppercase tracking-widest mb-2">Plans &amp; Pricing</p>
         <h2 className="text-2xl md:text-3xl font-bold text-[var(--text-primary)]">Simple, Transparent Pricing</h2>
         <p className="text-[var(--text-muted)] mt-3 text-sm max-w-xl mx-auto">
-          Choose the plan that works for you. Start with a 7-day free trial, full access, no credit card required.
+          Choose the plan that works for you. Start with a 15-day free trial, full access, no credit card required.
         </p>
       </div>
 
@@ -290,7 +291,7 @@ function PricingSection() {
       >
         <Gift className="w-5 h-5 text-[var(--brand-primary)] flex-shrink-0 animate-bounce" />
         <p className="text-xs sm:text-sm font-semibold text-[var(--text-primary)]">
-          <span className="text-[var(--brand-primary)] font-bold">7-Day Free Trial</span> on all plans. Full access, zero risk, cancel anytime.
+          <span className="text-[var(--brand-primary)] font-bold">15-Day Free Trial</span> on all plans. Full access, zero risk, cancel anytime.
         </p>
       </div>
 
@@ -360,11 +361,11 @@ function PricingSection() {
                 {/* Price — fixed-height block so all cards align */}
                 <div className="h-[112px] flex flex-col justify-start">
                   {plan.isFree ? (
-                    /* Free trial always shows ₹0 / 7 days regardless of toggle */
+                    /* Free trial always shows ₹0 / 15 days regardless of toggle */
                     <>
                       <div className="flex items-baseline gap-1.5">
                         <span className="text-4xl font-extrabold font-mono-num text-[var(--text-primary)]">₹0</span>
-                        <span className="text-sm text-[var(--text-muted)]">for 7 days</span>
+                        <span className="text-sm text-[var(--text-muted)]">for 15 days</span>
                       </div>
                       <p className="text-[11px] font-semibold text-[var(--color-success)] mt-3 flex items-center gap-1.5">
                         <ShieldCheck className="w-3.5 h-3.5" /> No credit card required
@@ -378,7 +379,7 @@ function PricingSection() {
                         <span className="text-sm text-[var(--text-muted)]">/ month</span>
                       </div>
                       <p className="text-[11px] font-semibold text-[var(--color-success)] mt-3 flex items-center gap-1.5">
-                        <ShieldCheck className="w-3.5 h-3.5" /> 7-Day Free Trial (₹0 due today)
+                        <ShieldCheck className="w-3.5 h-3.5" /> 15-Day Free Trial (₹0 due today)
                       </p>
                     </>
                   ) : (
@@ -445,6 +446,127 @@ function PricingSection() {
         </p>
       </div>
     </section>
+  );
+}
+
+// ── Inline query form for the Help Center section ────────────────────────────
+function QueryForm() {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [subject, setSubject] = useState('');
+  const [message, setMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || !email.trim() || !subject.trim() || !message.trim()) return;
+    setIsSubmitting(true);
+    setError('');
+
+    const result = await submitContactMessage({
+      name, email, category: 'GENERAL', subject, message,
+      source: 'landing-help-center',
+    });
+
+    setIsSubmitting(false);
+
+    if (result.success) {
+      setSubmitted(true);
+      setName(''); setEmail(''); setSubject(''); setMessage('');
+    } else {
+      setError(result.error ?? 'Something went wrong. Please try again.');
+    }
+  };
+
+  if (submitted) {
+    return (
+      <div className="text-center space-y-4 py-4">
+        <div className="w-14 h-14 rounded-full bg-[var(--color-success-bg)] text-[var(--color-success)] flex items-center justify-center mx-auto">
+          <Check className="w-7 h-7" />
+        </div>
+        <p className="text-sm font-semibold text-[var(--text-primary)]">Message sent!</p>
+        <p className="text-xs text-[var(--text-muted)] max-w-sm mx-auto">
+          Our support team has received your question and will respond to your email within 2 hours.
+        </p>
+        <Button variant="outline" size="sm" onClick={() => setSubmitted(false)}>
+          Ask Another Question
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="grid sm:grid-cols-2 gap-4">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-medium text-[var(--text-secondary)]">Name</label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Your name"
+            required
+            className="w-full bg-[var(--bg-surface)] text-sm text-[var(--text-primary)] border border-[var(--border-subtle)] rounded-xl px-3.5 py-2.5 placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)] transition-all"
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-medium text-[var(--text-secondary)]">Email</label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            required
+            className="w-full bg-[var(--bg-surface)] text-sm text-[var(--text-primary)] border border-[var(--border-subtle)] rounded-xl px-3.5 py-2.5 placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)] transition-all"
+          />
+        </div>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs font-medium text-[var(--text-secondary)]">Subject</label>
+        <input
+          type="text"
+          value={subject}
+          onChange={(e) => setSubject(e.target.value)}
+          placeholder="Brief subject"
+          required
+          className="w-full bg-[var(--bg-surface)] text-sm text-[var(--text-primary)] border border-[var(--border-subtle)] rounded-xl px-3.5 py-2.5 placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)] transition-all"
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs font-medium text-[var(--text-secondary)]">Question</label>
+        <textarea
+          rows={4}
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          placeholder="Type your question here..."
+          required
+          minLength={1}
+          className="w-full bg-[var(--bg-surface)] text-sm text-[var(--text-primary)] border border-[var(--border-subtle)] rounded-xl p-3.5 placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)] resize-none transition-all"
+        />
+        {message.length > 0 && message.length < 10 && (
+          <p className="text-[10px] text-[var(--color-danger)]">Please enter at least 10 characters ({message.length}/10)</p>
+        )}
+      </div>
+      {error && (
+        <p className="text-xs text-[var(--color-danger)] flex items-center gap-1.5">
+          <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" /> {error}
+        </p>
+      )}
+      <div className="flex justify-end">
+        <Button
+          type="submit"
+          variant="primary"
+          size="md"
+          isLoading={isSubmitting}
+          leftIcon={<Send className="w-4 h-4" />}
+          disabled={!name.trim() || !email.trim() || !subject.trim() || (message.length > 0 && message.length < 10)}
+        >
+          Send Question
+        </Button>
+      </div>
+    </form>
   );
 }
 
@@ -748,6 +870,18 @@ export default function LandingPage() {
               <p className="text-xs text-[var(--text-muted)] leading-relaxed">{faq.a}</p>
             </GlassCard>
           ))}
+        </div>
+
+        {/* ── Submit a Question ── */}
+        <div className="max-w-2xl mx-auto mt-12">
+          <GlassCard hoverEffect={false} className="p-6 md:p-8 rounded-3xl">
+            <div className="text-center space-y-2 mb-6">
+              <h3 className="text-lg font-bold text-[var(--text-primary)]">Still have a question?</h3>
+              <p className="text-xs text-[var(--text-muted)]">Send us a message and our support team will get back to you within 2 hours.</p>
+            </div>
+
+            <QueryForm />
+          </GlassCard>
         </div>
       </section>
 

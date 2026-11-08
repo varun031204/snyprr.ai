@@ -44,8 +44,8 @@ interface BackendSubscription {
 
 const FREE_TRIAL_PLAN: SubscriptionPlan = {
   id: 'free_trial',
-  name: '7-Day Free Trial',
-  description: 'Try the full platform for 7 days at zero cost',
+  name: '15-Day Free Trial',
+  description: 'Try the full platform for 15 days at zero cost',
   priceMonthly: 0,
   priceYearly: 0,
   badge: 'Free',

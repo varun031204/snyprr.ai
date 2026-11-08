@@ -64,10 +64,16 @@ export async function submitContactMessage(
     if (res.ok) {
       return { success: true, id: json.id, message: json.message };
     }
-    return {
-      success: false,
-      error: json.message ?? json.error ?? `Submission failed (${res.status}). Please try again.`,
-    };
+
+    // Extract the most useful error message from Zod validation errors
+    let errorMsg = json.message ?? json.error ?? `Submission failed (${res.status}). Please try again.`;
+    if (json.details?.fieldErrors) {
+      const fields = Object.entries(json.details.fieldErrors as Record<string, string[]>);
+      if (fields.length > 0) {
+        errorMsg = fields.map(([field, msgs]) => `${field}: ${msgs[0]}`).join(', ');
+      }
+    }
+    return { success: false, error: errorMsg };
   } catch {
     return { success: false, error: 'Network error — please check your connection and try again.' };
   }

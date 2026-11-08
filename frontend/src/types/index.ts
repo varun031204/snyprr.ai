@@ -25,6 +25,7 @@ export interface User {
   avatar?: string;
   role: UserRole;
   subscriptionTier?: 'FREE' | 'STANDARD' | 'PREMIUM';
+  phone?: string;
   bio?: string;
   isVerified: boolean;
   twoFactorEnabled: boolean;

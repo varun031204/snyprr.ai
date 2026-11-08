@@ -163,32 +163,54 @@ export async function initiateRegistration(params: {
     throw new Error('DUPLICATE: An account with this phone number already exists');
   }
 
-  // Check for in-progress (non-expired) registration with same phone
-  const inProgress = await pool.query(
-    `SELECT id FROM public.phone_otp_requests
-     WHERE phone = $1 AND expires_at > now() AND phone_verified = false
-     LIMIT 1`,
-    [phone]
+  // Check for duplicate email in profiles (already-active users)
+  // Prevents a user from completing phone OTP only to fail at Supabase signUp
+  const normEmail = params.email.toLowerCase().trim();
+  const dupEmail = await pool.query(
+    'SELECT id FROM public.profiles WHERE email = $1 LIMIT 1',
+    [normEmail]
   );
-  if (inProgress.rows.length > 0) {
-    // Delete old session and allow fresh start (prevents long-term blocking)
-    await pool.query(
-      'DELETE FROM public.phone_otp_requests WHERE phone = $1',
-      [phone]
+  if (dupEmail.rows.length > 0) {
+    throw new Error('DUPLICATE: An account with this email address already exists');
+  }
+  // Also check auth.users directly in case profile row is missing
+  try {
+    const dupAuthEmail = await pool.query<{ exists: boolean }>(
+      `SELECT EXISTS(SELECT 1 FROM auth.users WHERE LOWER(email) = $1 LIMIT 1) AS exists`,
+      [normEmail]
     );
+    if (dupAuthEmail.rows[0]?.exists) {
+      throw new Error('DUPLICATE: An account with this email address already exists');
+    }
+  } catch (err: any) {
+    // Re-throw DUPLICATE errors; swallow auth schema access errors
+    if (err.message?.startsWith('DUPLICATE')) throw err;
   }
 
-  // Generate OTP and token
+  // Check for in-progress (non-expired) registration with same phone.
+  // Use an upsert (INSERT ... ON CONFLICT) so the replace is atomic —
+  // eliminates the race condition between DELETE and INSERT.
   const otp = generateOtp();
   const otpHash = await bcrypt.hash(otp, BCRYPT_ROUNDS);
   const registrationToken = crypto.randomUUID();
 
-  // Persist the session
+  // Upsert: if a row with this phone already exists, replace it atomically.
+  // This uses the UNIQUE constraint added by migration 20261107100000.
   await pool.query(
     `INSERT INTO public.phone_otp_requests
        (registration_token, phone, otp_hash, full_name, email, expires_at)
-     VALUES ($1, $2, $3, $4, $5, now() + interval '${OTP_EXPIRE_MINUTES} minutes')`,
-    [registrationToken, phone, otpHash, params.fullName.trim(), params.email.toLowerCase().trim()]
+     VALUES ($1, $2, $3, $4, $5, now() + interval '${OTP_EXPIRE_MINUTES} minutes')
+     ON CONFLICT (phone) DO UPDATE SET
+       registration_token = EXCLUDED.registration_token,
+       otp_hash           = EXCLUDED.otp_hash,
+       full_name          = EXCLUDED.full_name,
+       email              = EXCLUDED.email,
+       expires_at         = EXCLUDED.expires_at,
+       attempt_count      = 0,
+       phone_verified     = false,
+       email_verified     = false,
+       last_sent_at       = now()`,
+    [registrationToken, phone, otpHash, params.fullName.trim(), normEmail]
   );
 
   // Send the OTP
@@ -327,20 +349,44 @@ export async function cleanExpiredSessions(): Promise<void> {
 }
 
 // ── Check if an email is registered ───────────────────────────────────────────
-// Used by the forgot-password flow to give a clear "no account" message.
-// We query auth.users via the service-role admin client (bypasses RLS).
+// Used by the forgot-password flow and signup pre-check.
+// Checks BOTH profiles AND auth.users so orphaned auth.users rows
+// (profile missing due to trigger failure) are also caught.
 export async function checkEmailExists(email: string): Promise<boolean> {
   const { supabaseAdmin } = await import('../config/supabaseClient.js');
-  const { data, error } = await supabaseAdmin
+  const normalised = email.toLowerCase().trim();
+
+  // 1. Check profiles table (fast — indexed citext column handles case-insensitivity)
+  const { data: profileData, error: profileError } = await supabaseAdmin
     .from('profiles')
     .select('id')
-    .eq('email', email.toLowerCase().trim())
+    .eq('email', normalised)
     .maybeSingle();
 
-  if (error) {
-    // On unexpected error, fail open — let Supabase handle it silently
-    console.error('[Auth] checkEmailExists error:', error.message);
+  if (profileError) {
+    console.error('[Auth] checkEmailExists profiles error:', profileError.message);
+    // Fail closed — assume it exists to be safe
     return true;
   }
-  return data !== null;
+  if (profileData !== null) return true;
+
+  // 2. Check auth.users directly via the DB pool (service-role connection)
+  //    Catches the edge case where a profile row is missing but auth.users
+  //    still has the email (trigger failure, manual profile deletion, etc.)
+  try {
+    const result = await pool.query<{ exists: boolean }>(
+      `SELECT EXISTS(
+         SELECT 1 FROM auth.users
+         WHERE LOWER(email) = $1
+         LIMIT 1
+       ) AS exists`,
+      [normalised],
+    );
+    if (result.rows[0]?.exists) return true;
+  } catch (err: unknown) {
+    // auth schema might not be accessible via pool in some setups — non-fatal
+    console.error('[Auth] checkEmailExists auth.users error:', err instanceof Error ? err.message : 'unknown');
+  }
+
+  return false;
 }

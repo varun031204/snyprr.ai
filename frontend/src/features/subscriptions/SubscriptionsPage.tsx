@@ -36,8 +36,8 @@ export default function SubscriptionsPage() {
       await subscribeMutation.mutateAsync(selectedPlanId);
       addToast({
         type: 'success',
-        title: '7-Day Free Trial Started 🎉',
-        message: 'Your 7-day trial is now active with full access to all features.',
+        title: '15-Day Free Trial Started 🎉',
+        message: 'Your 15-day trial is now active with full access to all features.',
       });
       setIsCheckoutOpen(false);
     } catch {
@@ -102,7 +102,7 @@ export default function SubscriptionsPage() {
         <p className="text-xs font-medium text-[var(--brand-primary)] uppercase tracking-widest">Plans &amp; Pricing</p>
         <h1 className="text-3xl font-extrabold text-[var(--text-primary)]">Simple, Transparent Pricing</h1>
         <p className="text-sm text-[var(--text-muted)]">
-          Choose the plan that works for you. Start with a 7-day free trial, full access, no credit card required.
+          Choose the plan that works for you. Start with a 15-day free trial, full access, no credit card required.
         </p>
 
         {/* Billing Toggle */}
@@ -177,11 +177,11 @@ export default function SubscriptionsPage() {
                   {/* Price — fixed-height block so all cards align */}
                   <div className="h-[112px] flex flex-col justify-start">
                     {isFree ? (
-                      /* Free trial always ₹0 / 7 days regardless of billing toggle */
+                      /* Free trial always ₹0 / 15 days regardless of billing toggle */
                       <>
                         <div className="flex items-baseline gap-1.5">
                           <span className="text-4xl font-extrabold font-mono-num text-[var(--text-primary)]">₹0</span>
-                          <span className="text-sm text-[var(--text-muted)]">for 7 days</span>
+                          <span className="text-sm text-[var(--text-muted)]">for 15 days</span>
                         </div>
                         <p className="text-[11px] font-semibold text-[var(--color-success)] mt-3 flex items-center gap-1.5">
                           <ShieldCheck className="w-3.5 h-3.5" /> No credit card required
@@ -197,7 +197,7 @@ export default function SubscriptionsPage() {
                           <span className="text-sm text-[var(--text-muted)]">/ month</span>
                         </div>
                         <p className="text-[11px] font-semibold text-[var(--color-success)] mt-3 flex items-center gap-1.5">
-                          <ShieldCheck className="w-3.5 h-3.5" /> 7-Day Free Trial (₹0 due today)
+                          <ShieldCheck className="w-3.5 h-3.5" /> 15-Day Free Trial (₹0 due today)
                         </p>
                       </>
                     ) : (
@@ -256,7 +256,7 @@ export default function SubscriptionsPage() {
       <Modal
         isOpen={isCheckoutOpen}
         onClose={() => setIsCheckoutOpen(false)}
-        title={isFreeTrialSelected ? 'Start 7-Day Free Trial' : `Subscribe to ${selectedPlan?.name ?? ''}`}
+        title={isFreeTrialSelected ? 'Start 15-Day Free Trial' : `Subscribe to ${selectedPlan?.name ?? ''}`}
         maxWidth="md"
       >
         {selectedPlan && (
@@ -266,7 +266,7 @@ export default function SubscriptionsPage() {
                 <span className="text-sm font-semibold text-[var(--text-primary)]">{selectedPlan.name}</span>
                 {isFreeTrialSelected && (
                   <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-[var(--color-success-bg)] text-[var(--color-success)]">
-                    7 Days Free
+                    15 Days Free
                   </span>
                 )}
               </div>
@@ -276,7 +276,7 @@ export default function SubscriptionsPage() {
                 {isFreeTrialSelected ? (
                   <>
                     <div className="flex justify-between text-[var(--color-success)] font-semibold">
-                      <span>7-Day Free Trial:</span>
+                      <span>15-Day Free Trial:</span>
                       <span>₹0.00</span>
                     </div>
                     <div className="flex justify-between text-[var(--text-primary)] font-bold text-sm pt-1 border-t border-[var(--border-subtle)]">
@@ -311,7 +311,7 @@ export default function SubscriptionsPage() {
             <div className="p-3 rounded-xl border border-[var(--border-subtle)] text-xs text-[var(--text-muted)] flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-[var(--brand-primary)] flex-shrink-0" />
               {isFreeTrialSelected
-                ? 'Zero risk. Instant activation. No charges during your 7-day trial period.'
+                ? 'Zero risk. Instant activation. No charges during your 15-day trial period.'
                 : 'Your subscription will be activated immediately after confirmation.'}
             </div>
 
@@ -325,7 +325,7 @@ export default function SubscriptionsPage() {
                 isLoading={subscribeMutation.isPending}
                 leftIcon={<Zap className="w-4 h-4" />}
               >
-                {isFreeTrialSelected ? 'Activate 7-Day Free Trial' : 'Confirm & Subscribe'}
+                {isFreeTrialSelected ? 'Activate 15-Day Free Trial' : 'Confirm & Subscribe'}
               </Button>
             </div>
           </div>

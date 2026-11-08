@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   MessageCircle, X, Send, Bot, ChevronDown, RotateCcw,
   Sparkles, ArrowRight, ExternalLink, HelpCircle, ShieldCheck,
-  TrendingUp, CreditCard, Users, CheckCircle2, ThumbsUp, ThumbsDown,
+  CreditCard, Users, CheckCircle2, ThumbsUp, ThumbsDown,
   Copy, Check, Volume2, VolumeX, BarChart2, Zap, ArrowUpRight, Mail, Loader2
 } from 'lucide-react';
 import { submitContactMessage } from '../../services/api/contactService';
@@ -35,40 +35,6 @@ interface BotResponse {
   escalate?: boolean;
 }
 
-// Live signals for the Signals Tab
-const LIVE_SIGNALS = [
-  {
-    instrument: 'BTC/USDT',
-    direction: 'LONG',
-    buyingZone: '$91,800 - $92,500',
-    targetZone: '$101,000',
-    analyst: 'TradeBeast Desk',
-    winRate: '78.5%',
-    timeframe: '4h',
-    confluence: 'SMC Order Block & Bullish FVG',
-  },
-  {
-    instrument: 'ETH/USDT',
-    direction: 'LONG',
-    buyingZone: '$3,350 - $3,400',
-    targetZone: '$3,850',
-    analyst: 'TradeBeast Desk',
-    winRate: '78.5%',
-    timeframe: '4h',
-    confluence: 'Institutional Demand Shelf',
-  },
-  {
-    instrument: 'GOLD (XAU/USD)',
-    direction: 'LONG',
-    buyingZone: '$2,860 - $2,875',
-    targetZone: '$2,980',
-    analyst: 'Macro Alpha',
-    winRate: '81.2%',
-    timeframe: 'Daily',
-    confluence: 'Global Central Bank Accumulation',
-  },
-];
-
 const KNOWLEDGE_BASE: {
   keywords: string[];
   response: BotResponse;
@@ -76,8 +42,8 @@ const KNOWLEDGE_BASE: {
     {
       keywords: ['hi', 'hello', 'hey', 'greetings', 'start', 'morning', 'afternoon', 'evening'],
       response: {
-        text: "👋 Hey there! Welcome to **Trade Beast**.\n\nI'm **Snyprr AI**, your 24/7 interactive assistant. Ask me anything, or explore our interactive tabs above for **Live Signals** and **Plan Comparison**!",
-        suggestions: ['Check live BTC signal', 'Compare pricing plans', 'How does TradeBeast work?'],
+        text: "👋 Hey there! Welcome to **Snyprr.ai**.\n\nI'm **Snyprr AI**, your 24/7 interactive assistant. Ask me anything, or check out the **Plans** tab above for pricing!",
+        suggestions: ['Compare pricing plans', 'How does Snyprr.ai work?', 'What markets are covered?'],
       },
     },
     {
@@ -91,8 +57,8 @@ const KNOWLEDGE_BASE: {
     {
       keywords: ['signal', 'signals', 'live signal', 'current idea', 'btc setup', 'gold setup'],
       response: {
-        text: "⚡ **Live Market Signal Peek**:\n• **BTC/USDT**: LONG Zone $91,800 - $92,500 ➔ Target $101,000\n• **ETH/USDT**: LONG Zone $3,350 ➔ Target $3,850\n• **GOLD**: LONG Zone $2,860 ➔ Target $2,980\n\nSwitch to the **Live Signals** tab above for full confluences!",
-        action: { label: 'View All Live Predictions', path: '/predictions' },
+        text: "⚡ **Market Analysis**: Snyprr.ai publishes verified analyst setups with defined entry and exit zones.\n• **BTC/USDT**, **ETH/USDT**, **GOLD**, **SILVER** and more.\n\nSign up to view all published predictions with full confluences!",
+        action: { label: 'View All Predictions', path: '/predictions' },
         suggestions: ['How is win rate calculated?', 'Explore pricing plans'],
       },
     },
@@ -114,7 +80,7 @@ const KNOWLEDGE_BASE: {
     {
       keywords: ['free', 'trial', 'free tier', 'zero cost'],
       response: {
-        text: "🎁 **Yes!** Snyprr.ai has a generous **Free** plan to start tracking verified ideas right now. Paid plans (Standard & Premium) also come with a risk-free **14-Day Free Trial**.",
+        text: "🎁 **Yes!** Snyprr.ai has a generous **Free** plan to start tracking verified ideas right now. Paid plans (Standard & Premium) also come with a risk-free **15-Day Free Trial**.",
         action: { label: 'Create Free Account', path: '/signup' },
         suggestions: ['Explore Pricing Section', 'Who are the traders?'],
       },
@@ -246,16 +212,16 @@ export const LandingChatbot: React.FC = () => {
   const [open, setOpen] = useState(false);
   const [showTeaser, setShowTeaser] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [activeTab, setActiveTab] = useState<'chat' | 'signals' | 'plans'>('chat');
+  const [activeTab, setActiveTab] = useState<'chat' | 'plans'>('chat');
   const [annualBilling, setAnnualBilling] = useState(false);
 
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'init-0',
       role: 'bot',
-      text: "👋 Hi! I'm **Snyprr AI**, your real-time trading guide.\n\nAsk me anything below, or switch tabs above for **Live Signals** and **Interactive Plans**!",
+      text: "👋 Hi! I'm **Snyprr AI**, your real-time trading guide.\n\nAsk me anything below, or check out the **Plans** tab for pricing!",
       time: 'Just now',
-      suggestions: ['Check live BTC signal', 'Compare pricing plans', 'How does TradeBeast work?'],
+      suggestions: ['Compare pricing plans', 'How does Snyprr.ai work?', 'What markets are covered?'],
     },
   ]);
   const [input, setInput] = useState('');
@@ -400,7 +366,7 @@ export const LandingChatbot: React.FC = () => {
         role: 'bot',
         text: `✅ Your query has been sent to our support team.\n\nYou'll receive a response at **${email}** within 2 hours. Our team will review and get back to you directly.`,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        suggestions: ['Check live BTC signal', 'View pricing plans', 'What is TradeBeast?'],
+        suggestions: ['Compare pricing plans', 'What is Snyprr.ai?'],
       };
       setMessages((prev) => [...prev, confirmMsg]);
     } else {
@@ -426,7 +392,7 @@ export const LandingChatbot: React.FC = () => {
         role: 'bot',
         text: "✨ Conversation reset! What would you like to explore?",
         time: 'Just now',
-        suggestions: ['Check live BTC signal', 'Compare pricing plans', 'What markets are covered?'],
+        suggestions: ['Compare pricing plans', 'What markets are covered?'],
       },
     ]);
   };
@@ -554,16 +520,6 @@ export const LandingChatbot: React.FC = () => {
               <span>Chat</span>
             </button>
             <button
-              onClick={() => setActiveTab('signals')}
-              className={`flex-1 py-1 px-2 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${activeTab === 'signals'
-                ? 'bg-[var(--brand-primary)] text-white shadow-sm'
-                : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                }`}
-            >
-              <TrendingUp className="w-3.5 h-3.5" />
-              <span>Live Signals</span>
-            </button>
-            <button
               onClick={() => setActiveTab('plans')}
               className={`flex-1 py-1 px-2 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${activeTab === 'plans'
                 ? 'bg-[var(--brand-primary)] text-white shadow-sm'
@@ -581,12 +537,6 @@ export const LandingChatbot: React.FC = () => {
           <>
             {/* Quick Action Badges */}
             <div className="px-3 pt-2 pb-1 flex items-center gap-1.5 overflow-x-auto scrollbar-none border-b border-[var(--border-subtle)]/40 flex-shrink-0">
-              <button
-                onClick={() => handleSend('Check live BTC signal')}
-                className="text-[10px] font-semibold px-2 py-1 rounded-lg bg-[var(--brand-glow)]/40 hover:bg-[var(--brand-primary)] text-[var(--brand-primary)] hover:text-white border border-[var(--brand-primary)]/30 transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1"
-              >
-                <TrendingUp className="w-3 h-3" /> BTC Signal
-              </button>
               <button
                 onClick={() => handleSend('Compare pricing plans')}
                 className="text-[10px] font-semibold px-2 py-1 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--brand-glow)] text-[var(--text-secondary)] hover:text-[var(--brand-primary)] border border-[var(--border-subtle)] transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1"
@@ -813,77 +763,12 @@ export const LandingChatbot: React.FC = () => {
           </>
         )}
 
-        {/* Tab 2: Interactive Live Signals Peek */}
-        {activeTab === 'signals' && (
-          <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin">
-            <div className="flex items-center justify-between pb-1 border-b border-[var(--border-subtle)]">
-              <span className="text-[11px] font-bold text-[var(--text-primary)] flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-[var(--color-success)] animate-pulse" />
-                Live Verified Ideas
-              </span>
-              <span className="text-[10px] text-[var(--brand-primary)] font-semibold">Non-Custodial</span>
-            </div>
-
-            {LIVE_SIGNALS.map((sig, idx) => (
-              <div
-                key={idx}
-                className="p-3.5 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--brand-primary)]/40 transition-all space-y-2 group"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-[var(--text-primary)]">{sig.instrument}</span>
-                    <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-[var(--color-success-bg)] text-[var(--color-success)]">
-                      {sig.direction}
-                    </span>
-                  </div>
-                  <span className="text-[10px] text-[var(--text-muted)]">{sig.timeframe}</span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 text-[11px] pt-1 border-t border-[var(--border-subtle)]/60">
-                  <div>
-                    <span className="text-[10px] text-[var(--text-muted)] block">Buying Zone</span>
-                    <span className="font-semibold text-[var(--text-primary)]">{sig.buyingZone}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-[var(--text-muted)] block">Selling Zone</span>
-                    <span className="font-bold text-[var(--color-success)]">{sig.targetZone}</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between pt-1 text-[10px] text-[var(--text-muted)]">
-                  <span>{sig.analyst} ({sig.winRate} Win Rate)</span>
-                  <button
-                    onClick={() => {
-                      navigate('/predictions');
-                      setOpen(false);
-                    }}
-                    className="text-[var(--brand-primary)] font-bold flex items-center gap-0.5 hover:underline"
-                  >
-                    Analyze Chart <ArrowUpRight className="w-3 h-3" />
-                  </button>
-                </div>
-              </div>
-            ))}
-
-            <button
-              onClick={() => {
-                navigate('/predictions');
-                setOpen(false);
-              }}
-              className="w-full py-2.5 rounded-xl bg-[var(--brand-primary)] text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-md hover:opacity-90 transition-opacity cursor-pointer mt-2"
-            >
-              <span>Explore All 1,200+ Predictions</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
-
-        {/* Tab 3: Interactive Plans & Calculator */}
+        {/* Tab 2: Interactive Plans & Calculator */}
         {activeTab === 'plans' && (
           <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin">
             <div className="text-center space-y-1">
               <h4 className="text-xs font-extrabold text-[var(--text-primary)]">Choose Your Trading Tier</h4>
-              <p className="text-[10px] text-[var(--text-muted)]">30-day risk-free trial on all paid plans</p>
+              <p className="text-[10px] text-[var(--text-muted)]">15-day free trial on all plans</p>
             </div>
 
             {/* Monthly / Annual Toggle */}
@@ -907,14 +792,15 @@ export const LandingChatbot: React.FC = () => {
 
             {/* Plan Cards */}
             <div className="space-y-2.5">
-              {/* Free Tier */}
+              {/* Free Trial Tier */}
               <div className="p-3 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] flex items-center justify-between">
                 <div>
-                  <h5 className="text-xs font-bold text-[var(--text-primary)]">Free</h5>
-                  <p className="text-[10px] text-[var(--text-muted)]">Essential prediction tracking</p>
+                  <h5 className="text-xs font-bold text-[var(--text-primary)]">15-Day Free Trial</h5>
+                  <p className="text-[10px] text-[var(--text-muted)]">Full platform access, no card required</p>
                 </div>
                 <div className="text-right">
-                  <span className="text-sm font-extrabold text-[var(--text-primary)]">$0</span>
+                  <span className="text-sm font-extrabold text-[var(--text-primary)]">₹0</span>
+                  <span className="text-[10px] text-[var(--text-muted)] font-normal block">for 15 days</span>
                   <button
                     onClick={() => {
                       navigate('/signup');
@@ -922,7 +808,7 @@ export const LandingChatbot: React.FC = () => {
                     }}
                     className="block text-[10px] font-bold text-[var(--brand-primary)] hover:underline mt-0.5"
                   >
-                    Sign Up Free →
+                    Start Free →
                   </button>
                 </div>
               </div>

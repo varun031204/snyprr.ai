@@ -21,8 +21,8 @@
 | Testimonials prev/next | Button | Cycle testimonials | PASS |
 | Testimonials dots | Button | Jump to testimonial | PASS |
 | Billing toggle Monthly/Yearly | Button | Switch price display | PASS |
-| "Start 7-Day Free Trial" (Standard) | Button | Navigate to /signup | PASS |
-| "Start 7-Day Free Trial" (Premium) | Button | Navigate to /signup | PASS |
+| "Start 15-Day Free Trial" (Standard) | Button | Navigate to /signup | PASS |
+| "Start 15-Day Free Trial" (Premium) | Button | Navigate to /signup | PASS |
 | FAQ items (static) | Static | N/A | PASS |
 | "Ask Snyprr AI" teaser | Button | Open chatbot | PASS |
 | Chatbot toggle button | Button | Open/close widget | PASS |
@@ -127,7 +127,7 @@
 | Element | Expected Action | Status |
 |---------|-----------------|--------|
 | Monthly/Yearly toggle | Switch prices (INR) | PASS |
-| "Start 7-Day Free Trial" | Open checkout modal | PASS |
+| "Start 15-Day Free Trial" | Open checkout modal | PASS |
 | Modal: "Activate Trial" | Start trial (mock) | PASS — returns mock success |
 | Modal: Cancel | Close modal | PASS |
 | Trial active banner | Shows days remaining | PASS |

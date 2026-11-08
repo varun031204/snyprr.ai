@@ -86,7 +86,11 @@ const VOICE_TIERS: VoiceTier[] = [
   {
     filter: (v) => /^en[-_]US/i.test(v.lang),
   },
-  // Tier 5 — Any English voice (en-GB, en-AU, etc.) as a last resort
+  // Tier 5 — Google Hindi voice (best for Hinglish TTS)
+  {
+    filter: (v) => /Google.*Hindi|hi[-_]IN/i.test(v.name + v.lang),
+  },
+  // Tier 6 — Any English voice (en-GB, en-AU, etc.) as a last resort
   {
     filter: (v) => /^en/i.test(v.lang),
   },
@@ -330,7 +334,7 @@ export function useVoiceConversation({
     const rec = new SpeechRecognitionClass();
     rec.continuous      = false;
     rec.interimResults  = false;
-    rec.lang            = 'en-US';
+    rec.lang            = '';   // empty = browser auto-detects user's language (supports Hinglish/Hindi)
     rec.maxAlternatives = 1;
     recognitionRef.current = rec;
 
@@ -338,7 +342,11 @@ export function useVoiceConversation({
 
     rec.onresult = async (e: SpeechRecognitionResult) => {
       const transcript = e.results[0][0].transcript.trim();
+      const confidence = e.results[0][0].confidence;
+      // Reject very low-confidence results (< 0.3) to avoid garbage transcripts
+      // from background noise — but only when confidence is explicitly provided (> 0)
       if (!transcript || gotResult) return;
+      if (confidence > 0 && confidence < 0.3) return;
       gotResult = true;
 
       // Check for stop commands ("stop", "cancel", "sleep", "goodbye")
@@ -432,7 +440,7 @@ export function useVoiceConversation({
     const rec = new SpeechRecognitionClass();
     rec.continuous      = false;
     rec.interimResults  = false;
-    rec.lang            = 'en-US';
+    rec.lang            = '';   // empty = browser auto-detects user's language (supports Hinglish/Hindi)
     rec.maxAlternatives = 1;
     recognitionRef.current = rec;
     setIsWakeWordListening(true);

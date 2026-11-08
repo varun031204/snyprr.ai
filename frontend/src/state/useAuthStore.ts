@@ -16,7 +16,7 @@ interface AuthState {
   // Actions
   initialize: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, fullName?: string) => Promise<{ needsOtp: boolean }>;
+  signUp: (email: string, password: string, fullName?: string, phone?: string) => Promise<{ needsOtp: boolean }>;
   verifyOtp: (email: string, token: string) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
@@ -153,13 +153,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     // onAuthStateChange fires → _hydrateUser
   },
 
-  signUp: async (email: string, password: string, fullName?: string) => {
+  signUp: async (email: string, password: string, fullName?: string, phone?: string) => {
     set({ isLoading: true, authError: null });
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: fullName ? { full_name: fullName } : undefined,
+        data: {
+          ...(fullName ? { full_name: fullName } : {}),
+          ...(phone ? { phone } : {}),
+        },
         // emailRedirectTo not needed for OTP flow — Supabase sends 6-digit code
       },
     });
