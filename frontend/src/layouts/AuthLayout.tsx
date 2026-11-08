@@ -1,7 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
 import { ThemeToggle } from '../components/ui/ThemeToggle';
-import { Logo } from '../components/ui/Logo';
 import loginBg from '../assets/login-bg.mp4';
 
 export const AuthLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -21,16 +19,13 @@ export const AuthLayout: React.FC<{ children: React.ReactNode }> = ({ children }
       {/* ── Dark overlay so text stays readable ── */}
       <div className="absolute inset-0 bg-black/55 z-10" />
 
-      {/* ── Nav bar ── */}
-      <nav className="relative z-20 flex items-center justify-between px-8 py-4">
-        <Link to="/" className="flex items-center">
-          <Logo className="h-10 w-auto object-contain" />
-        </Link>
+      {/* ── Nav bar — theme toggle only ── */}
+      <nav className="relative z-20 flex items-center justify-end px-8 py-4">
         <ThemeToggle />
       </nav>
 
-      {/* ── Content — floats above video ── */}
-      <div className="flex-1 flex items-center justify-center p-6 relative z-20">
+      {/* ── Content — sits near the top, above video ── */}
+      <div className="flex-1 flex items-start justify-center pt-4 pb-6 px-6 relative z-20 overflow-y-auto">
         <div className="w-full max-w-md">
           {children}
         </div>

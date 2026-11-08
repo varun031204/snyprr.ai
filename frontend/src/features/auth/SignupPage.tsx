@@ -9,7 +9,6 @@ import { ArrowLeft, Eye, EyeOff, AlertCircle, CheckCircle2, Mail, Lock, User, Ph
 import { GlassCard } from '../../components/ui/GlassCard';
 import { Button } from '../../components/ui/Button';
 import { useAuthStore } from '../../state/useAuthStore';
-import { Logo } from '../../components/ui/Logo';
 
 // ── Password strength ───────────────────────────────────────────────────────────
 type Strength = 'weak' | 'fair' | 'good' | 'strong';
@@ -115,17 +114,19 @@ export default function SignupPage() {
   const displayError = authError;
 
   return (
-    <div className="w-full">
-      <button type="button" onClick={() => navigate('/login')}
-        className="flex items-center gap-1.5 mb-5 text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer group">
-        <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-        Back to Sign In
+    <div className="w-full flex flex-col items-stretch">
+
+      {/* Back — left aligned, goes to landing page */}
+      <button type="button" onClick={() => navigate('/')}
+        className="flex items-center gap-1.5 mb-4 text-sm text-white/70 hover:text-white transition-colors cursor-pointer group w-full text-left">
+        <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform flex-shrink-0" />
+        Back
       </button>
 
-      <div className="flex flex-col items-center mb-6 text-center">
-        <Logo className="w-14 h-14 object-contain mb-3" />
-        <h1 className="text-2xl font-extrabold text-[var(--text-primary)]">Create your account</h1>
-        <p className="text-sm text-[var(--text-muted)] mt-1">Join the Snyprr.ai prediction community</p>
+      {/* Heading — no logo */}
+      <div className="flex flex-col items-center mb-4 text-center">
+        <h1 className="text-2xl font-extrabold text-white drop-shadow">Create your account</h1>
+        <p className="text-sm text-white/70 mt-1">Join the Snyprr.ai prediction community</p>
       </div>
 
       {displayError && (
@@ -255,7 +256,7 @@ export default function SignupPage() {
         </form>
       </GlassCard>
 
-      <p className="text-center text-sm text-[var(--text-muted)] mt-5">
+      <p className="text-center text-sm text-white/60 mt-5">
         Already have an account?{' '}
         <Link to="/login" className="text-[var(--brand-primary)] font-medium hover:underline">Sign in</Link>
       </p>

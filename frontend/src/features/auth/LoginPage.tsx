@@ -1,4 +1,4 @@
-import { Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, AlertCircle, ArrowLeft } from 'lucide-react';
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '../../components/ui/Button';
@@ -36,7 +36,14 @@ export default function LoginPage() {
   const displayError = localError || authError;
 
   return (
-    <div className="w-full">
+    <div className="w-full flex flex-col items-stretch">
+
+      {/* Back — left aligned, goes to landing page */}
+      <button type="button" onClick={() => navigate('/')}
+        className="flex items-center gap-1.5 mb-4 text-sm text-white/70 hover:text-white transition-colors cursor-pointer group w-full text-left">
+        <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform flex-shrink-0" />
+        Back
+      </button>
 
       {/* ── Heading — white text so it's visible over any video ── */}
       <div className="flex flex-col items-center mb-8 text-center">
