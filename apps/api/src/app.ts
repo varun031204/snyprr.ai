@@ -36,6 +36,9 @@ app.use(
         env.FRONTEND_URL || 'http://localhost:5173',
         'http://localhost:5173',
         'http://localhost:3000',
+        // Production custom domain (snyprr.in — Hiox registrar → Vercel)
+        'https://snyprr.in',
+        'https://www.snyprr.in',
       ];
       if (allowed.some(a => origin.startsWith(a.replace(/\/$/, '')))) {
         return callback(null, true);
