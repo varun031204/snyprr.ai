@@ -603,6 +603,8 @@ export default function MyTradesPage() {
   const [closingPos, setClosingPos] = useState<PaperPosition | null>(null);
   const [bottomTab, setBottomTab] = useState<'positions' | 'history' | 'ledger'>('positions');
   const [chartHeight, setChartHeight] = useState(500);
+  // Mobile-only: which panel is active (chart, trade form, or positions)
+  const [mobilePanelTab, setMobilePanelTab] = useState<'chart' | 'trade' | 'positions'>('chart');
   const chartRef = useRef<HTMLDivElement>(null);
 
   // Read signal from the store (set by AI analysis panel "Test on Paper Trading")
@@ -724,42 +726,215 @@ export default function MyTradesPage() {
   return (
     <div className="-m-5 lg:-m-6">
 
-      {/* Chart + Order panel: full viewport height, no separate header bar */}
-      <div className="flex border-b border-[var(--border-subtle)]"
-        style={{ height: 'calc(100vh - 64px)', minHeight: '560px' }}>
+      {/* ── Instrument selector bar ───────────────────────────────────────────── */}
+      <div className="flex items-center gap-1 px-3 py-1.5 flex-shrink-0
+                      bg-[var(--bg-surface)] border-b border-[var(--border-subtle)]
+                      overflow-x-auto scrollbar-thin sticky top-0 z-20">
+        {CHART_ITEMS.map(({ instrument, label }) => {
+          const hasOpen = openPositions.some(p => p.instrument === instrument);
+          const isActive = activeInstrument === instrument;
+          return (
+            <button key={instrument} type="button" onClick={() => setActiveInstrument(instrument)}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold border
+                          whitespace-nowrap transition-all cursor-pointer flex-shrink-0 ${isActive
+                  ? 'bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] border-[var(--brand-primary)]'
+                  : 'bg-transparent text-[var(--text-muted)] border-transparent hover:text-[var(--text-primary)] hover:border-[var(--border-subtle)]'
+                }`}>
+              {label}
+              {hasOpen && <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isActive ? 'bg-[var(--brand-primary)]' : 'bg-[var(--color-success)]'}`} />}
+            </button>
+          );
+        })}
+        <span className="ml-auto flex-shrink-0 flex items-center gap-1 text-[10px] font-bold
+                         text-[var(--brand-primary)] px-2 py-0.5 rounded-full
+                         bg-[var(--brand-primary)]/10 border border-[var(--brand-primary)]/20">
+          <ShieldCheck className="w-3 h-3" /> PAPER
+        </span>
+      </div>
 
-        {/* Left column: instrument selector + chart stacked */}
-        <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
+      {/* ── MOBILE layout (< lg): tab-based stacked view ──────────────────────── */}
+      <div className="lg:hidden flex flex-col" style={{ minHeight: 'calc(100vh - 100px)' }}>
 
-          {/* Instrument selector — lives inside chart column, above the chart */}
-          <div className="flex items-center gap-1 px-3 py-1.5 flex-shrink-0
-                          bg-[var(--bg-surface)] border-b border-[var(--border-subtle)]
-                          overflow-x-auto scrollbar-thin">
-            {CHART_ITEMS.map(({ instrument, label }) => {
-              const hasOpen = openPositions.some(p => p.instrument === instrument);
-              const isActive = activeInstrument === instrument;
-              return (
-                <button key={instrument} type="button" onClick={() => setActiveInstrument(instrument)}
-                  className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold border
-                              whitespace-nowrap transition-all cursor-pointer flex-shrink-0 ${isActive
-                      ? 'bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] border-[var(--brand-primary)]'
-                      : 'bg-transparent text-[var(--text-muted)] border-transparent hover:text-[var(--text-primary)] hover:border-[var(--border-subtle)]'
+        {/* Mobile tab switcher */}
+        <div className="grid grid-cols-3 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]">
+          {([
+            { key: 'chart' as const, label: 'Chart', icon: <BarChart2 className="w-4 h-4" /> },
+            { key: 'trade' as const, label: 'Trade', icon: <Plus className="w-4 h-4" /> },
+            { key: 'positions' as const, label: 'Positions', icon: <History className="w-4 h-4" /> },
+          ] as const).map(({ key, label, icon }) => (
+            <button key={key} type="button" onClick={() => setMobilePanelTab(key)}
+              className={`flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-bold border-b-2 transition-all cursor-pointer ${mobilePanelTab === key
+                  ? 'text-[var(--brand-primary)] border-[var(--brand-primary)] bg-[var(--brand-primary)]/5'
+                  : 'text-[var(--text-muted)] border-transparent'
+                }`}>
+              {icon}
+              <span>{label}</span>
+              {key === 'positions' && openPositions.length > 0 && (
+                <span className="absolute mt-0.5 ml-4 w-4 h-4 rounded-full bg-[var(--brand-primary)] text-white text-[9px] font-bold flex items-center justify-center">
+                  {openPositions.length}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Chart panel */}
+        {mobilePanelTab === 'chart' && (
+          <div ref={chartRef} className="flex-1" style={{ height: 'calc(100vh - 155px)', minHeight: '340px' }}>
+            <ZoneLinesChart
+              tvSymbol={activeChartItem?.symbol}
+              instrument={activeInstrument}
+              prediction={chartOverlay}
+              height={chartHeight}
+              currentPrice={livePrice}
+              showTimeframeBar={true}
+              allowDrawing={false}
+            />
+          </div>
+        )}
+
+        {/* Trade panel */}
+        {mobilePanelTab === 'trade' && (
+          <div className="flex-1 overflow-y-auto">
+            {/* Live price bar */}
+            <div className="flex items-center justify-between px-4 py-2.5 bg-[var(--bg-surface)] border-b border-[var(--border-subtle)]">
+              <span className="text-xs text-[var(--text-muted)]">{activeInstrument}</span>
+              <div className="flex items-center gap-1.5">
+                {livePrice > 0 && <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-success)] animate-pulse" />}
+                <span className="text-sm font-extrabold font-mono-num text-[var(--text-primary)]">
+                  {livePrice > 0 ? `$${livePrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '—'}
+                </span>
+              </div>
+            </div>
+            <div className="h-full">
+              <OrderPanel
+                instrument={activeInstrument}
+                livePrice={livePrice}
+                balance={balance}
+                isSubmitting={openMut.isPending}
+                preset={orderPreset}
+                onSubmit={handleOrderSubmit}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Positions panel */}
+        {mobilePanelTab === 'positions' && (
+          <div className="flex-1 overflow-y-auto">
+            {/* Sub-tabs */}
+            <div className="flex border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2">
+              {[
+                { key: 'positions' as const, label: `Open (${openPositions.length})` },
+                { key: 'history' as const, label: `History (${closedPositions.length})` },
+              ].map(({ key, label }) => (
+                <button key={key} type="button" onClick={() => setBottomTab(key)}
+                  className={`px-3 py-2.5 text-xs font-semibold border-b-2 transition-all cursor-pointer ${bottomTab === key
+                      ? 'text-[var(--brand-primary)] border-[var(--brand-primary)]'
+                      : 'text-[var(--text-muted)] border-transparent'
                     }`}>
                   {label}
-                  {hasOpen && (
-                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isActive ? 'bg-[var(--brand-primary)]' : 'bg-[var(--color-success)]'}`} />
-                  )}
                 </button>
-              );
-            })}
-            <span className="ml-auto flex-shrink-0 flex items-center gap-1 text-[10px] font-bold
-                             text-[var(--brand-primary)] px-2 py-0.5 rounded-full
-                             bg-[var(--brand-primary)]/10 border border-[var(--brand-primary)]/20">
-              <ShieldCheck className="w-3 h-3" /> PAPER
-            </span>
-          </div>
+              ))}
+            </div>
 
-          {/* Chart fills all remaining height */}
+            {/* Open Positions — mobile card layout */}
+            {bottomTab === 'positions' && (
+              posLoading ? (
+                <div className="p-4 space-y-2">{[0, 1].map(i => <Skeleton key={i} className="h-20 rounded-xl" />)}</div>
+              ) : openPositions.length === 0 ? (
+                <div className="py-12 text-center space-y-2 px-4">
+                  <BarChart2 className="w-8 h-8 text-[var(--text-muted)] mx-auto opacity-40" />
+                  <p className="text-sm font-semibold text-[var(--text-primary)]">No open positions</p>
+                  <p className="text-xs text-[var(--text-muted)]">Go to Trade tab to place an order</p>
+                </div>
+              ) : (
+                <div className="p-3 space-y-3">
+                  {openPositions.map(pos => {
+                    const lp = directPrice > 0 && pos.instrument === activeInstrument ? directPrice : (allPrices[pos.instrument] ?? 0);
+                    const size = parseFloat(pos.size);
+                    const entry = parseFloat(pos.entry_price);
+                    const pnl = lp > 0 ? (pos.direction === 'LONG' ? (lp - entry) * size : (entry - lp) * size) : null;
+                    const pnlPct = pnl != null && parseFloat(pos.margin_usd) > 0 ? pnl / parseFloat(pos.margin_usd) * 100 : null;
+                    return (
+                      <div key={pos.id} className="p-3 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-sm text-[var(--text-primary)]">{pos.instrument}</span>
+                            <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${pos.direction === 'LONG' ? 'bg-[var(--color-success-bg)] text-[var(--color-success)]' : 'bg-[var(--color-danger-bg)] text-[var(--color-danger)]'}`}>
+                              {pos.direction}
+                            </span>
+                          </div>
+                          {pnl != null && (
+                            <span className={`text-sm font-bold font-mono-num ${pnlCls(pnl)}`}>
+                              {pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}
+                              {pnlPct != null && <span className="text-[10px] ml-1">({pnlPct >= 0 ? '+' : ''}{pnlPct.toFixed(1)}%)</span>}
+                            </span>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-[11px] font-mono">
+                          <div className="space-y-1">
+                            <div className="flex justify-between"><span className="text-[var(--text-muted)]">Entry</span><span className="font-semibold">${fP(entry, pos.instrument)}</span></div>
+                            <div className="flex justify-between"><span className="text-[var(--text-muted)]">Mark</span><span className="font-semibold">{lp > 0 ? `$${fP(lp, pos.instrument)}` : '—'}</span></div>
+                          </div>
+                          <div className="space-y-1">
+                            <div className="flex justify-between"><span className="text-[var(--text-muted)]">Size</span><span className="font-semibold">{fUsd(parseFloat(pos.notional_usd))}</span></div>
+                            <div className="flex justify-between"><span className="text-[var(--text-muted)]">Margin</span><span className="font-semibold">{fUsd(parseFloat(pos.margin_usd))}</span></div>
+                          </div>
+                        </div>
+                        {(pos.stop_loss || pos.take_profit_1) && (
+                          <div className="flex gap-3 text-[11px] font-mono">
+                            {pos.stop_loss && <span className="text-orange-400">SL: ${fP(parseFloat(pos.stop_loss), pos.instrument)}</span>}
+                            {pos.take_profit_1 && <span className="text-emerald-400">TP: ${fP(parseFloat(pos.take_profit_1), pos.instrument)}</span>}
+                          </div>
+                        )}
+                        <button type="button" onClick={() => setClosingPos(pos)}
+                          className="w-full py-2 rounded-xl bg-[var(--color-danger-bg)] text-[var(--color-danger)] border border-[var(--color-danger)]/30 text-xs font-bold hover:bg-[var(--color-danger)] hover:text-white transition-all cursor-pointer">
+                          Close Position
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )
+            )}
+
+            {/* History — mobile list */}
+            {bottomTab === 'history' && (
+              closedPositions.length === 0 ? (
+                <EmptyState text="No closed positions yet." />
+              ) : (
+                <div className="p-3 space-y-2">
+                  {closedPositions.map(pos => {
+                    const pnl = parseFloat(pos.realised_pnl ?? '0');
+                    return (
+                      <div key={pos.id} className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] text-xs">
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-[var(--text-primary)]">{pos.instrument}</span>
+                            <span className={`text-[9px] font-bold px-1 py-0.5 rounded ${pos.direction === 'LONG' ? 'bg-[var(--color-success-bg)] text-[var(--color-success)]' : 'bg-[var(--color-danger-bg)] text-[var(--color-danger)]'}`}>{pos.direction}</span>
+                          </div>
+                          <div className="text-[var(--text-muted)] font-mono">
+                            {pos.close_reason ?? pos.status} · {pos.closed_at ? new Date(pos.closed_at).toLocaleDateString() : '—'}
+                          </div>
+                        </div>
+                        <span className={`font-bold font-mono-num ${pnlCls(pnl)}`}>{pnl >= 0 ? '+' : ''}{fUsd(pnl)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ── DESKTOP layout (≥ lg): side-by-side chart + panel ─────────────────── */}
+      <div className="hidden lg:flex border-b border-[var(--border-subtle)]"
+        style={{ height: 'calc(100vh - 64px)', minHeight: '560px' }}>
+
+        {/* Left: instrument selector + chart */}
+        <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
           <div ref={chartRef} className="flex-1 min-h-0 overflow-hidden">
             <ZoneLinesChart
               tvSymbol={activeChartItem?.symbol}
@@ -773,7 +948,7 @@ export default function MyTradesPage() {
           </div>
         </div>
 
-        {/* Right column: order panel */}
+        {/* Right: order panel */}
         <div className="w-[285px] flex-shrink-0 border-l border-[var(--border-subtle)] overflow-hidden">
           <OrderPanel
             instrument={activeInstrument}
@@ -786,10 +961,8 @@ export default function MyTradesPage() {
         </div>
       </div>
 
-      {/* ── Positions / History / Ledger — visible on scroll ────────────────── */}
-      <div className="bg-[var(--bg-surface)]">
-
-        {/* Tab bar — sticky so it stays visible while scrolling the table */}
+      {/* ── Desktop: Positions / History / Ledger below chart ─────────────────── */}
+      <div className="hidden lg:block bg-[var(--bg-surface)]">
         <div className="sticky top-0 z-10 flex items-center border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4">
           {[
             { key: 'positions' as const, label: `Positions (${openPositions.length})`, icon: <BarChart2 className="w-3 h-3" /> },
@@ -798,8 +971,8 @@ export default function MyTradesPage() {
           ].map(({ key, label, icon }) => (
             <button key={key} type="button" onClick={() => setBottomTab(key)}
               className={`flex items-center gap-1.5 px-4 py-3 text-xs font-semibold border-b-2 transition-all cursor-pointer ${bottomTab === key
-                ? 'text-[var(--brand-primary)] border-[var(--brand-primary)]'
-                : 'text-[var(--text-muted)] border-transparent hover:text-[var(--text-primary)]'
+                  ? 'text-[var(--brand-primary)] border-[var(--brand-primary)]'
+                  : 'text-[var(--text-muted)] border-transparent hover:text-[var(--text-primary)]'
                 }`}>
               {icon}{label}
             </button>
@@ -807,7 +980,6 @@ export default function MyTradesPage() {
         </div>
 
         <div className="min-h-[180px]">
-          {/* ── Open Positions ── */}
           {bottomTab === 'positions' && (
             posLoading ? (
               <div className="p-4 space-y-2">{[0, 1].map(i => <Skeleton key={i} className="h-10 rounded-lg" />)}</div>
@@ -834,12 +1006,8 @@ export default function MyTradesPage() {
               </div>
             )
           )}
-
-          {/* ── Trade History ── */}
           {bottomTab === 'history' && (
-            closedPositions.length === 0 ? (
-              <EmptyState text="No closed positions yet." />
-            ) : (
+            closedPositions.length === 0 ? <EmptyState text="No closed positions yet." /> : (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[640px]">
                   <thead className="bg-[var(--bg-secondary)]">
@@ -854,12 +1022,8 @@ export default function MyTradesPage() {
               </div>
             )
           )}
-
-          {/* ── Account Ledger ── */}
           {bottomTab === 'ledger' && (
-            ledgerEntries.length === 0 ? (
-              <EmptyState text="No ledger entries yet." />
-            ) : (
+            ledgerEntries.length === 0 ? <EmptyState text="No ledger entries yet." /> : (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[560px]">
                   <thead className="bg-[var(--bg-secondary)]">
@@ -874,10 +1038,6 @@ export default function MyTradesPage() {
               </div>
             )
           )}
-        </div>
-
-        <div className="px-4 py-2 text-[9px] text-[var(--text-muted)] border-t border-[var(--border-subtle)]">
-          Simulated only · 0.05% fee · 0.05% slippage · SL/TP/Liquidation checked server-side every 15 s
         </div>
       </div>
 
