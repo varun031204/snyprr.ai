@@ -148,9 +148,9 @@ export async function initiateRegistration(params: {
 }): Promise<{ registrationToken: string }> {
   const phone = normalizePhone(params.phone);
 
-  // Validate phone length after normalization
-  if (!/^\d{10,15}$/.test(phone)) {
-    throw new Error('INVALID_PHONE: Phone number must be 10–15 digits');
+  // Validate phone — exactly 10 digits after normalization
+  if (!/^\d{10}$/.test(phone)) {
+    throw new Error('INVALID_PHONE: Phone number must be exactly 10 digits');
   }
 
   // Check for duplicate phone in profiles (already-active users)

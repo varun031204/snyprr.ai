@@ -61,7 +61,7 @@ export default function SignupPage() {
     if (!email.trim()) e.email = 'Email is required';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) e.email = 'Invalid email format';
     if (!phone.trim()) e.phone = 'Contact number is required';
-    else if (!/^[+]?[\d\s\-()]{10,15}$/.test(phone.trim())) e.phone = 'Enter a valid phone number (10-15 digits)';
+    else if (!/^\d{10}$/.test(phone.replace(/[\s\-()]/g, ''))) e.phone = 'Enter a valid 10-digit mobile number';
     if (!password) e.password = 'Password is required';
     else if (password.length < 8) e.password = 'At least 8 characters';
     else if (str && str.score < 3) e.password = 'Password too weak — ' + str.tip;
@@ -173,8 +173,8 @@ export default function SignupPage() {
             </label>
             <div className="relative">
               <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
-              <input type="tel" value={phone} onChange={e => { setPhone(e.target.value); setErrors(p => ({ ...p, phone: '' })); }}
-                placeholder="+91 98765 43210" autoComplete="tel"
+              <input type="tel" value={phone} onChange={e => { setPhone(e.target.value.replace(/\D/g, '')); setErrors(p => ({ ...p, phone: '' })); }}
+                placeholder="10-digit mobile number" autoComplete="tel" maxLength={10}
                 className={`w-full pl-10 pr-4 py-2.5 rounded-xl bg-[var(--bg-secondary)] border text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-primary)] transition-all ${errors.phone ? 'border-[var(--color-danger)]' : 'border-[var(--border-subtle)] focus:border-[var(--brand-primary)]'}`} />
             </div>
             {errors.phone && <p className="text-xs text-[var(--color-danger)] flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.phone}</p>}

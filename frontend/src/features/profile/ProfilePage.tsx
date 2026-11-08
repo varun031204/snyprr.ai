@@ -22,7 +22,8 @@ export default function ProfilePage() {
 
   const validatePhone = (val: string) => {
     if (!val.trim()) return '';          // phone is optional on profile edit
-    if (!/^[+]?[\d\s\-()]{10,15}$/.test(val.trim())) return 'Enter a valid phone number (10–15 digits)';
+    const digits = val.replace(/[\s\-()]/g, '');
+    if (!/^\d{10}$/.test(digits)) return 'Enter a valid 10-digit mobile number';
     return '';
   };
 
@@ -149,9 +150,10 @@ export default function ProfilePage() {
               <input
                 type="tel"
                 value={phone}
-                onChange={(e) => { setPhone(e.target.value); setPhoneError(''); }}
-                placeholder="+91 98765 43210"
+                onChange={(e) => { setPhone(e.target.value.replace(/\D/g, '')); setPhoneError(''); }}
+                placeholder="10-digit mobile number"
                 autoComplete="tel"
+                maxLength={10}
                 className={`w-full pl-10 pr-4 py-2.5 rounded-xl bg-[var(--bg-surface)] border text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)] transition-all ${
                   phoneError ? 'border-[var(--color-danger)]' : 'border-[var(--border-subtle)] focus:border-[var(--brand-primary)]'
                 }`}
