@@ -42,6 +42,7 @@ export interface SubmitContactParams {
   userId?: string | null;
   name: string;
   email: string;
+  phone?: string | null;
   category: string;
   subject: string;
   message: string;
@@ -54,14 +55,14 @@ export async function submitContact(params: SubmitContactParams): Promise<{ id: 
   const { data, error } = await (supabaseAdmin as any)
     .from('contact_messages')
     .insert({
-      user_id: params.userId ?? null,
-      name: params.name.trim(),
-      email: params.email.trim().toLowerCase(),
+      user_id:  params.userId ?? null,
+      name:     params.name.trim(),
+      email:    params.email.trim().toLowerCase(),
       category: params.category,
-      subject: params.subject.trim(),
-      message: params.message.trim(),
-      source: params.source,
-      status: 'NEW',
+      subject:  params.subject.trim(),
+      message:  params.message.trim(),
+      source:   params.source,
+      status:   'NEW',
     })
     .select('id')
     .single();
@@ -92,9 +93,10 @@ export async function submitContact(params: SubmitContactParams): Promise<{ id: 
 
           <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:24px">
             <tr><td style="padding:8px 12px;background:#1a1a24;border-radius:8px 8px 0 0;color:#9ca3af;width:110px">From</td><td style="padding:8px 12px;background:#1a1a24;color:#e5e7eb">${params.name} &lt;${params.email}&gt;</td></tr>
-            <tr><td style="padding:8px 12px;background:#141420;color:#9ca3af">Category</td><td style="padding:8px 12px;background:#141420;color:#e5e7eb">${categoryLabel}</td></tr>
-            <tr><td style="padding:8px 12px;background:#1a1a24;color:#9ca3af">Subject</td><td style="padding:8px 12px;background:#1a1a24;color:#e5e7eb">${params.subject}</td></tr>
-            <tr><td style="padding:8px 12px;background:#141420;border-radius:0 0 8px 8px;color:#9ca3af;vertical-align:top">Message</td><td style="padding:8px 12px;background:#141420;border-radius:0 0 8px 8px;color:#e5e7eb;white-space:pre-wrap">${params.message}</td></tr>
+            <tr><td style="padding:8px 12px;background:#141420;color:#9ca3af">Phone</td><td style="padding:8px 12px;background:#141420;color:#e5e7eb">${params.phone ?? '—'}</td></tr>
+            <tr><td style="padding:8px 12px;background:#1a1a24;color:#9ca3af">Category</td><td style="padding:8px 12px;background:#1a1a24;color:#e5e7eb">${categoryLabel}</td></tr>
+            <tr><td style="padding:8px 12px;background:#141420;color:#9ca3af">Subject</td><td style="padding:8px 12px;background:#141420;color:#e5e7eb">${params.subject}</td></tr>
+            <tr><td style="padding:8px 12px;background:#1a1a24;border-radius:0 0 8px 8px;color:#9ca3af;vertical-align:top">Message</td><td style="padding:8px 12px;background:#1a1a24;border-radius:0 0 8px 8px;color:#e5e7eb;white-space:pre-wrap">${params.message}</td></tr>
           </table>
 
           <a href="${adminUrl}" style="display:inline-block;padding:10px 20px;background:#8b5cf6;color:white;border-radius:10px;text-decoration:none;font-weight:600;font-size:13px">

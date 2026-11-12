@@ -6,6 +6,7 @@ import { parseUUIDParam } from '../utils/validation.js';
 const submitSchema = z.object({
   name:     z.string().min(1).max(100).trim(),
   email:    z.string().email().max(200),
+  phone:    z.string().regex(/^\d{10}$/, 'Phone must be exactly 10 digits').optional(),
   category: z.enum(['GENERAL','TECHNICAL','SUBSCRIPTION','PARTNERSHIP','VERIFICATION','FEEDBACK','DEV_TEAM']),
   subject:  z.string().min(1).max(200).trim(),
   message:  z.string().min(1).max(5000).trim(),

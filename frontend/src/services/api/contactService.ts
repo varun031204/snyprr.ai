@@ -10,6 +10,7 @@ import type { ApiResponse } from './types';
 export interface ContactFormPayload {
   name: string;
   email: string;
+  phone?: string;
   category: string;
   subject: string;
   message: string;
@@ -50,12 +51,13 @@ export async function submitContactMessage(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        name: payload.name,
-        email: payload.email,
+        name:     payload.name,
+        email:    payload.email,
+        phone:    payload.phone ?? undefined,
         category: payload.category,
-        subject: payload.subject,
-        message: payload.message,
-        source: payload.source ?? 'public',
+        subject:  payload.subject,
+        message:  payload.message,
+        source:   payload.source ?? 'public',
       }),
     });
 

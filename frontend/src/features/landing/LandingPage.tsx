@@ -453,6 +453,7 @@ function PricingSection() {
 function QueryForm() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -461,12 +462,13 @@ function QueryForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !email.trim() || !subject.trim() || !message.trim()) return;
+    if (!name.trim() || !email.trim() || !phone.trim() || !subject.trim() || !message.trim()) return;
+    if (!/^\d{10}$/.test(phone)) { setError('Contact number must be exactly 10 digits.'); return; }
     setIsSubmitting(true);
     setError('');
 
     const result = await submitContactMessage({
-      name, email, category: 'GENERAL', subject, message,
+      name, email, phone, category: 'GENERAL', subject, message,
       source: 'landing-help-center',
     });
 
@@ -474,7 +476,7 @@ function QueryForm() {
 
     if (result.success) {
       setSubmitted(true);
-      setName(''); setEmail(''); setSubject(''); setMessage('');
+      setName(''); setEmail(''); setPhone(''); setSubject(''); setMessage('');
     } else {
       setError(result.error ?? 'Something went wrong. Please try again.');
     }
@@ -501,7 +503,7 @@ function QueryForm() {
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid sm:grid-cols-2 gap-4">
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-[var(--text-secondary)]">Name</label>
+          <label className="text-xs font-medium text-[var(--text-secondary)]">Name <span className="text-[var(--color-danger)]">*</span></label>
           <input
             type="text"
             value={name}
@@ -512,7 +514,7 @@ function QueryForm() {
           />
         </div>
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-[var(--text-secondary)]">Email</label>
+          <label className="text-xs font-medium text-[var(--text-secondary)]">Email <span className="text-[var(--color-danger)]">*</span></label>
           <input
             type="email"
             value={email}
@@ -523,16 +525,33 @@ function QueryForm() {
           />
         </div>
       </div>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-xs font-medium text-[var(--text-secondary)]">Subject</label>
-        <input
-          type="text"
-          value={subject}
-          onChange={(e) => setSubject(e.target.value)}
-          placeholder="Brief subject"
-          required
-          className="w-full bg-[var(--bg-surface)] text-sm text-[var(--text-primary)] border border-[var(--border-subtle)] rounded-xl px-3.5 py-2.5 placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)] transition-all"
-        />
+      <div className="grid sm:grid-cols-2 gap-4">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-medium text-[var(--text-secondary)]">Contact Number <span className="text-[var(--color-danger)]">*</span></label>
+          <input
+            type="tel"
+            value={phone}
+            onChange={(e) => { setPhone(e.target.value.replace(/\D/g, '')); setError(''); }}
+            placeholder="10-digit mobile number"
+            required
+            maxLength={10}
+            className={`w-full bg-[var(--bg-surface)] text-sm text-[var(--text-primary)] border rounded-xl px-3.5 py-2.5 placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)] transition-all ${phone.length > 0 && phone.length < 10 ? 'border-[var(--color-danger)]' : 'border-[var(--border-subtle)]'}`}
+          />
+          {phone.length > 0 && phone.length < 10 && (
+            <p className="text-[10px] text-[var(--color-danger)]">{phone.length}/10 digits entered</p>
+          )}
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-medium text-[var(--text-secondary)]">Subject <span className="text-[var(--color-danger)]">*</span></label>
+          <input
+            type="text"
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+            placeholder="Brief subject"
+            required
+            className="w-full bg-[var(--bg-surface)] text-sm text-[var(--text-primary)] border border-[var(--border-subtle)] rounded-xl px-3.5 py-2.5 placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)] transition-all"
+          />
+        </div>
       </div>
       <div className="flex flex-col gap-1.5">
         <label className="text-xs font-medium text-[var(--text-secondary)]">Question</label>
@@ -561,7 +580,7 @@ function QueryForm() {
           size="md"
           isLoading={isSubmitting}
           leftIcon={<Send className="w-4 h-4" />}
-          disabled={!name.trim() || !email.trim() || !subject.trim() || (message.length > 0 && message.length < 10)}
+          disabled={!name.trim() || !email.trim() || phone.length !== 10 || !subject.trim() || (message.length > 0 && message.length < 10)}
         >
           Send Question
         </Button>
