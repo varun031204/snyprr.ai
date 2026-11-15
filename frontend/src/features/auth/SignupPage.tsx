@@ -9,6 +9,7 @@ import { ArrowLeft, Eye, EyeOff, AlertCircle, CheckCircle2, Mail, Lock, User, Ph
 import { GlassCard } from '../../components/ui/GlassCard';
 import { Button } from '../../components/ui/Button';
 import { useAuthStore } from '../../state/useAuthStore';
+import SEO from '../../components/seo/SEO';
 
 // ── Password strength ───────────────────────────────────────────────────────────
 type Strength = 'weak' | 'fair' | 'good' | 'strong';
@@ -115,8 +116,7 @@ export default function SignupPage() {
 
   return (
     <div className="w-full flex flex-col items-stretch">
-
-      {/* Back — left aligned, goes to landing page */}
+      <SEO title="Create Account" description="Create your free Snyprr.ai account. Get 15 days of full access — no credit card required." noindex />
       <button type="button" onClick={() => navigate('/')}
         className="flex items-center gap-1.5 mb-4 text-sm text-white/70 hover:text-white transition-colors cursor-pointer group w-full text-left">
         <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform flex-shrink-0" />

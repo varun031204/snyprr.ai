@@ -4,6 +4,7 @@ import { GlassCard } from '../../components/ui/GlassCard';
 import { Button } from '../../components/ui/Button';
 import { ThemeToggle } from '../../components/ui/ThemeToggle';
 import { Logo } from '../../components/ui/Logo';
+import SEO from '../../components/seo/SEO';
 
 const LAST_UPDATED = 'September 2026';
 
@@ -19,6 +20,11 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export default function TermsPage() {
     return (
         <div className="min-h-screen bg-[var(--bg-base)] text-[var(--text-primary)]">
+            <SEO
+                title="Terms & Conditions"
+                description="Snyprr.ai Terms & Conditions — please read before using our platform. For educational purposes only. Not financial advice."
+                canonical="/terms"
+            />
             <div className="fixed top-[-180px] left-1/2 -translate-x-1/2 w-[700px] h-[500px] rounded-full bg-[var(--brand-primary)]/8 blur-[150px] pointer-events-none" />
 
             {/* Navbar */}

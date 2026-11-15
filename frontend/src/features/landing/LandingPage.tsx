@@ -12,6 +12,7 @@ import heroVideo from '../../assets/hero.mp4';
 import { useAuthStore } from '../../state/useAuthStore';
 import { useUIStore } from '../../state/useUIStore';
 import { Logo } from '../../components/ui/Logo';
+import SEO from '../../components/seo/SEO';
 
 const stats = [
   { label: 'Desk Win Rate*', value: '76.4%', icon: <BarChart2 className="w-5 h-5" /> },
@@ -107,8 +108,8 @@ function TestimonialsCarousel() {
                 className={`flex flex-col ${position !== 1 ? 'hidden md:flex' : ''}`}
               >
                 <div className={`flex flex-col gap-4 relative overflow-hidden rounded-2xl p-6 h-full transition-all duration-500 ${isCenter
-                    ? 'scale-105 border-2 border-[var(--brand-primary)] shadow-[0_8px_40px_-8px_var(--brand-primary)] bg-[var(--bg-card)]'
-                    : 'scale-95 opacity-60 border border-[var(--border-subtle)] bg-[var(--bg-card)] hover:opacity-80 hover:scale-100'
+                  ? 'scale-105 border-2 border-[var(--brand-primary)] shadow-[0_8px_40px_-8px_var(--brand-primary)] bg-[var(--bg-card)]'
+                  : 'scale-95 opacity-60 border border-[var(--border-subtle)] bg-[var(--bg-card)] hover:opacity-80 hover:scale-100'
                   }`}>
                   {/* Gradient Overlay for center card */}
                   {isCenter && (
@@ -120,8 +121,8 @@ function TestimonialsCarousel() {
 
                   {/* Quote Icon */}
                   <Quote className={`absolute top-4 right-5 w-12 h-12 pointer-events-none transition-all duration-500 ${isCenter
-                      ? 'text-[var(--brand-primary)] opacity-20'
-                      : 'text-[var(--text-muted)] opacity-10'
+                    ? 'text-[var(--brand-primary)] opacity-20'
+                    : 'text-[var(--text-muted)] opacity-10'
                     }`} />
 
                   {/* Rating Stars */}
@@ -130,8 +131,8 @@ function TestimonialsCarousel() {
                       <Star
                         key={i}
                         className={`w-4 h-4 transition-all duration-300 ${i < t.rating
-                            ? 'text-amber-400 fill-amber-400 drop-shadow-[0_2px_4px_rgba(251,191,36,0.3)]'
-                            : 'text-[var(--border-subtle)]'
+                          ? 'text-amber-400 fill-amber-400 drop-shadow-[0_2px_4px_rgba(251,191,36,0.3)]'
+                          : 'text-[var(--border-subtle)]'
                           }`}
                       />
                     ))}
@@ -139,27 +140,27 @@ function TestimonialsCarousel() {
 
                   {/* Testimonial Text */}
                   <p className={`text-sm leading-relaxed flex-1 relative z-10 transition-all duration-500 ${isCenter
-                      ? 'text-[var(--text-primary)] font-medium'
-                      : 'text-[var(--text-muted)]'
+                    ? 'text-[var(--text-primary)] font-medium'
+                    : 'text-[var(--text-muted)]'
                     }`}>
                     "{t.text}"
                   </p>
 
                   {/* User Info */}
                   <div className={`flex items-center gap-3 pt-3 border-t relative z-10 transition-all duration-500 ${isCenter
-                      ? 'border-[var(--brand-primary)]/30'
-                      : 'border-[var(--border-subtle)]'
+                    ? 'border-[var(--brand-primary)]/30'
+                    : 'border-[var(--border-subtle)]'
                     }`}>
                     <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${t.color} flex items-center justify-center flex-shrink-0 transition-all duration-500 ${isCenter
-                        ? 'shadow-lg shadow-[var(--brand-primary)]/20'
-                        : 'opacity-70'
+                      ? 'shadow-lg shadow-[var(--brand-primary)]/20'
+                      : 'opacity-70'
                       }`}>
                       <span className="text-white text-sm font-extrabold">{t.initials}</span>
                     </div>
                     <div>
                       <p className={`text-xs font-bold transition-all duration-500 ${isCenter
-                          ? 'text-[var(--text-primary)]'
-                          : 'text-[var(--text-muted)]'
+                        ? 'text-[var(--text-primary)]'
+                        : 'text-[var(--text-muted)]'
                         }`}>
                         {t.name}
                       </p>
@@ -191,8 +192,8 @@ function TestimonialsCarousel() {
             onClick={() => goTo(i, i > current ? 'right' : 'left')}
             aria-label={`Go to testimonial ${i + 1}`}
             className={`rounded-full transition-all duration-500 ${i === current
-                ? 'w-8 h-2.5 bg-[var(--brand-primary)] shadow-[0_0_12px_var(--brand-primary)]'
-                : 'w-2.5 h-2.5 bg-[var(--border-subtle)] hover:bg-[var(--text-muted)] hover:scale-125'
+              ? 'w-8 h-2.5 bg-[var(--brand-primary)] shadow-[0_0_12px_var(--brand-primary)]'
+              : 'w-2.5 h-2.5 bg-[var(--border-subtle)] hover:bg-[var(--text-muted)] hover:scale-125'
               }`}
           />
         ))}
@@ -603,6 +604,11 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-base)] text-[var(--text-primary)] overflow-x-clip">
+      <SEO
+        canonical="/"
+        title={undefined}
+        description="Snyprr.ai — AI-powered market intelligence platform. Study analyst desk setups with defined zones, track historical outcomes, and learn technical analysis across crypto, forex, and commodities."
+      />
       {/* Ambient glows */}
       <div className="fixed top-[-180px] left-1/2 -translate-x-1/2 w-[800px] h-[600px] rounded-full bg-[var(--brand-primary)]/10 blur-[150px] pointer-events-none" />
       <div className="fixed bottom-[-150px] right-[-100px] w-[500px] h-[500px] rounded-full bg-[var(--brand-vivid)]/8 blur-[120px] pointer-events-none" />

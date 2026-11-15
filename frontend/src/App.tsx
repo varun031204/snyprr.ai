@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { HelmetProvider } from 'react-helmet-async';
 import { QueryProvider } from './app/providers/QueryProvider';
 import { ThemeProvider } from './app/providers/ThemeProvider';
 import { Router } from './app/router/Router';
@@ -21,13 +22,15 @@ const AuthInitializer: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
 const App: React.FC = () => {
   return (
-    <QueryProvider>
-      <ThemeProvider>
-        <AuthInitializer>
-          <Router />
-        </AuthInitializer>
-      </ThemeProvider>
-    </QueryProvider>
+    <HelmetProvider>
+      <QueryProvider>
+        <ThemeProvider>
+          <AuthInitializer>
+            <Router />
+          </AuthInitializer>
+        </ThemeProvider>
+      </QueryProvider>
+    </HelmetProvider>
   );
 };
 

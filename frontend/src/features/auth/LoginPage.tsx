@@ -5,6 +5,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { useAuthStore } from '../../state/useAuthStore';
 import { Logo } from '../../components/ui/Logo';
+import SEO from '../../components/seo/SEO';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -37,6 +38,7 @@ export default function LoginPage() {
 
   return (
     <div className="w-full flex flex-col items-stretch">
+      <SEO title="Sign In" description="Sign in to your Snyprr.ai account." noindex />
 
       {/* Back — left aligned, goes to landing page */}
       <button type="button" onClick={() => navigate('/')}

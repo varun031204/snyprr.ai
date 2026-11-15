@@ -21,6 +21,8 @@
     "lucide-react": "^1.39.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "react-helmet-async": "^2.0.5",
+    "react-is": "^19.3.1",
     "react-router-dom": "^7.18.3",
     "react-ts-tradingview-widgets": "^1.2.8",
     "recharts": "^3.10.1",

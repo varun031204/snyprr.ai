@@ -5,6 +5,7 @@ import { GlassCard } from '../../components/ui/GlassCard';
 import { Button } from '../../components/ui/Button';
 import { ThemeToggle } from '../../components/ui/ThemeToggle';
 import { Logo } from '../../components/ui/Logo';
+import SEO from '../../components/seo/SEO';
 
 const LAST_UPDATED = 'November 2026';
 
@@ -20,6 +21,11 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export default function PrivacyPage() {
     return (
         <div className="min-h-screen bg-[var(--bg-base)] text-[var(--text-primary)]">
+            <SEO
+                title="Privacy Policy"
+                description="Snyprr.ai Privacy Policy — how we collect, use, and protect your personal data."
+                canonical="/privacy"
+            />
             <div className="fixed top-[-180px] left-1/2 -translate-x-1/2 w-[700px] h-[500px] rounded-full bg-[var(--brand-primary)]/8 blur-[150px] pointer-events-none" />
 
             {/* Navbar */}

@@ -4,6 +4,7 @@ import { GlassCard } from '../../components/ui/GlassCard';
 import { Button } from '../../components/ui/Button';
 import { ThemeToggle } from '../../components/ui/ThemeToggle';
 import { Logo } from '../../components/ui/Logo';
+import SEO from '../../components/seo/SEO';
 
 const values = [
     { icon: <ShieldCheck className="w-6 h-6" />, title: 'Transparent Publishing', desc: 'Every setup is published with full entry zone, exit zone, and rationale. Outcomes are declared publicly and tracked historically.' },
@@ -17,6 +18,11 @@ const values = [
 export default function AboutPage() {
     return (
         <div className="min-h-screen bg-[var(--bg-base)] text-[var(--text-primary)]">
+            <SEO
+                title="About Us"
+                description="Learn about Snyprr.ai — our mission to bring transparent, data-driven market analysis to retail traders. Published desk setups, historical track records, and AI-powered intelligence."
+                canonical="/about"
+            />
             <div className="fixed top-[-180px] left-1/2 -translate-x-1/2 w-[800px] h-[500px] rounded-full bg-[var(--brand-primary)]/8 blur-[150px] pointer-events-none" />
 
             {/* ── Navbar ── */}

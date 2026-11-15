@@ -1,0 +1,27 @@
+User-agent: *
+
+# Public pages — allow indexing
+Allow: /
+Allow: /pricing
+Allow: /about
+Allow: /terms
+Allow: /privacy
+Allow: /refund
+
+# Auth & app pages — no indexing needed
+Disallow: /login
+Disallow: /signup
+Disallow: /verify-otp
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /dashboard
+Disallow: /admin
+Disallow: /trader
+Disallow: /signals
+Disallow: /paper-trading
+Disallow: /settings
+Disallow: /profile
+Disallow: /news
+Disallow: /ai-copilot
+
+Sitemap: https://snyprr.in/sitemap.xml
