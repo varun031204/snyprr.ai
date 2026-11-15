@@ -24,4 +24,4 @@ Disallow: /profile
 Disallow: /news
 Disallow: /ai-copilot
 
-Sitemap: https://snyprr.in/sitemap.xml
+Sitemap: https://www.snyprr.in/sitemap.xml

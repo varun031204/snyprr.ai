@@ -1,6 +1,6 @@
 import { Helmet } from 'react-helmet-async';
 
-const SITE_URL = 'https://snyprr.in';
+const SITE_URL = 'https://www.snyprr.in';
 const SITE_NAME = 'Snyprr.ai';
 const DEFAULT_OG_IMAGE = `${SITE_URL}/og-image.png`;
 
