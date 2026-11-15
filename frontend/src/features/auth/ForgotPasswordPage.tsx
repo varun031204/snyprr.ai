@@ -42,7 +42,14 @@ export default function ForgotPasswordPage() {
         }
 
         // ── Step 2: Send the Supabase password reset email ─────────────────
-        const redirectTo = `${window.location.origin}/reset-password`;
+        // Always use the canonical www domain so it matches the Supabase
+        // redirect URL allowlist regardless of which domain the user came from
+        // (snyprr.in redirects to www.snyprr.in, but window.location.origin
+        // may still report snyprr.in which Supabase strips the token from)
+        const isProd = window.location.hostname.includes('snyprr.in');
+        const redirectTo = isProd
+            ? 'https://www.snyprr.in/reset-password'
+            : `${window.location.origin}/reset-password`;
 
         const { error: supabaseError } = await supabase.auth.resetPasswordForEmail(
             email.trim(),
@@ -52,7 +59,12 @@ export default function ForgotPasswordPage() {
         setIsLoading(false);
 
         if (supabaseError) {
-            setError('Something went wrong sending the reset email. Please try again.');
+            const msg = supabaseError.message?.toLowerCase() ?? '';
+            if (msg.includes('rate limit') || msg.includes('too many') || supabaseError.status === 429) {
+                setError('Too many reset attempts. Please wait a few minutes before trying again.');
+            } else {
+                setError('Something went wrong sending the reset email. Please try again.');
+            }
             return;
         }
 
