@@ -182,8 +182,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         message = 'Too many signup attempts. Please wait a few minutes and try again.';
       } else if (lower.includes('already registered') || lower.includes('user already exists')) {
         message = 'An account with this email already exists. Please sign in instead.';
+      } else if (lower.includes('phone already registered') || lower.includes('mobile number already') || lower.includes('profiles_phone_key') || lower.includes('duplicate key') && lower.includes('phone')) {
+        message = 'This mobile number is already registered. Please sign in or use a different number.';
       } else if (lower.includes('smtp') || lower.includes('email') && lower.includes('send')) {
         message = 'Unable to send verification email. Please check your email address and try again, or contact support.';
+      } else if (lower.includes('database error saving new user') || lower.includes('database error')) {
+        message = 'This mobile number is already registered. Please sign in or use a different number.';
       }
       // Removed the SMTP catch-all so the real Supabase error is shown directly
 
