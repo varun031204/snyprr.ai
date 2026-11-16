@@ -5,7 +5,7 @@ import { GlassCard } from '../../../components/ui/GlassCard';
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
 import { SimpleChart } from '../../../components/charts/SimpleChart';
-import { INSTRUMENTS, TIMEFRAMES } from '../../../constants';
+import { INSTRUMENTS } from '../../../constants';
 import { useCreatePrediction } from '../../../hooks/usePredictionsQuery';
 import { useMarketStore } from '../../../state/useMarketStore';
 import { useAuthStore } from '../../../state/useAuthStore';
@@ -26,7 +26,6 @@ export default function CreatePredictionPage() {
   const [sellingZone, setSellingZone] = useState<string>('98500');
   const [stopLoss, setStopLoss] = useState<string>('89000');
   const [takeProfit, setTakeProfit] = useState<string>('97500');
-  const [timeframe, setTimeframe] = useState('4h');
   const [visibility, setVisibility] = useState<PredictionVisibility>('PUBLIC');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -94,7 +93,6 @@ export default function CreatePredictionPage() {
     setSellingZone((price * 1.06).toFixed(2));
     setStopLoss((price * 0.94).toFixed(2));
     setTakeProfit((price * 1.10).toFixed(2));
-    setTimeframe('4h');
     setVisibility('PUBLIC');
     setErrors({});
     addToast({
@@ -108,7 +106,7 @@ export default function CreatePredictionPage() {
     setErrors({});
     const selectedInst = INSTRUMENTS.find((i) => i.symbol === instrument);
     const category = selectedInst?.category || 'CRYPTO';
-    const autoTitle = `${instrument} ${direction} (${timeframe})`;
+    const autoTitle = `${instrument} ${direction}`;
 
     const parsedStopLoss = parseFloat(stopLoss) || 0;
     const parsedTakeProfit = parseFloat(takeProfit) || 0;
@@ -122,11 +120,10 @@ export default function CreatePredictionPage() {
       sellingZone: parsedSelling,
       stopLoss: parsedStopLoss,
       takeProfit: parsedTakeProfit,
-      timeframe,
       strategy: 'Key Price Zones',
-      analysis: `Forecast for ${instrument} (${timeframe}).\n- Buying Wall: ${parsedBuying.toLocaleString()}\n- Selling Wall: ${parsedSelling.toLocaleString()}\n- Stop Loss: ${parsedStopLoss.toLocaleString()}\n- Take Profit: ${parsedTakeProfit.toLocaleString()}`,
+      analysis: `Forecast for ${instrument}.\n- Buying Wall: ${parsedBuying.toLocaleString()}\n- Selling Wall: ${parsedSelling.toLocaleString()}\n- Stop Loss: ${parsedStopLoss.toLocaleString()}\n- Take Profit: ${parsedTakeProfit.toLocaleString()}`,
       visibility,
-      tags: [instrument.split('/')[0], direction, timeframe],
+      tags: [instrument.split('/')[0], direction],
     };
 
     // Validate with Zod
@@ -218,8 +215,8 @@ export default function CreatePredictionPage() {
               </span>
             </div>
 
-            {/* Instrument, Direction, Timeframe, Audience Visibility */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5">
+            {/* Instrument, Direction, Audience Visibility */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5">
               <div>
                 <label className="text-xs font-medium text-[var(--text-secondary)] block mb-1.5">
                   Instrument
@@ -245,41 +242,24 @@ export default function CreatePredictionPage() {
                   <button
                     type="button"
                     onClick={() => handleDirectionChange('LONG')}
-                    className={`flex items-center justify-center gap-1.5 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                      direction === 'LONG'
-                        ? 'bg-[var(--color-success)] text-white shadow-md'
-                        : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                    }`}
+                    className={`flex items-center justify-center gap-1.5 py-1.5 text-xs font-bold rounded-lg transition-all ${direction === 'LONG'
+                      ? 'bg-[var(--color-success)] text-white shadow-md'
+                      : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                      }`}
                   >
                     <TrendingUp className="w-3.5 h-3.5" /> LONG
                   </button>
                   <button
                     type="button"
                     onClick={() => handleDirectionChange('SHORT')}
-                    className={`flex items-center justify-center gap-1.5 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                      direction === 'SHORT'
-                        ? 'bg-[var(--color-danger)] text-white shadow-md'
-                        : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                    }`}
+                    className={`flex items-center justify-center gap-1.5 py-1.5 text-xs font-bold rounded-lg transition-all ${direction === 'SHORT'
+                      ? 'bg-[var(--color-danger)] text-white shadow-md'
+                      : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                      }`}
                   >
                     <TrendingDown className="w-3.5 h-3.5" /> SHORT
                   </button>
                 </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-medium text-[var(--text-secondary)] block mb-1.5">
-                  Timeframe
-                </label>
-                <select
-                  value={timeframe}
-                  onChange={(e) => setTimeframe(e.target.value)}
-                  className="w-full bg-[var(--bg-surface)] text-[var(--text-primary)] border border-[var(--border-subtle)] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)] cursor-pointer font-medium"
-                >
-                  {TIMEFRAMES.map((tf) => (
-                    <option key={tf} value={tf}>{tf}</option>
-                  ))}
-                </select>
               </div>
 
               <div>
@@ -375,11 +355,10 @@ export default function CreatePredictionPage() {
 
             {/* Validation Banner */}
             <div
-              className={`flex items-center gap-2 p-3 rounded-xl border text-xs ${
-                metrics.isValid
-                  ? 'bg-[var(--color-success-bg)] text-[var(--color-success)] border-[var(--color-success)]/30'
-                  : 'bg-[var(--color-danger-bg)] text-[var(--color-danger)] border-[var(--color-danger)]/30'
-              }`}
+              className={`flex items-center gap-2 p-3 rounded-xl border text-xs ${metrics.isValid
+                ? 'bg-[var(--color-success-bg)] text-[var(--color-success)] border-[var(--color-success)]/30'
+                : 'bg-[var(--color-danger-bg)] text-[var(--color-danger)] border-[var(--color-danger)]/30'
+                }`}
             >
               {metrics.isValid ? (
                 <CheckCircle2 className="w-4 h-4 flex-shrink-0" />

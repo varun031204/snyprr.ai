@@ -52,16 +52,16 @@ export interface Props {
 // ─── Verdict config ─────────────────────────────────────────────────────────
 
 const VERDICT_CONFIG = {
-  BULLISH: {
-    label: 'Bullish',
+  LONG: {
+    label: 'Long',
     color: 'text-[var(--color-success)]',
     bg: 'bg-[var(--color-success-bg)]',
     border: 'border-[var(--color-success)]/30',
     dot: 'bg-[var(--color-success)]',
     icon: TrendingUp,
   },
-  BEARISH: {
-    label: 'Bearish',
+  SHORT: {
+    label: 'Short',
     color: 'text-[var(--color-danger)]',
     bg: 'bg-[var(--color-danger-bg)]',
     border: 'border-[var(--color-danger)]/30',
@@ -430,7 +430,7 @@ export function AIAnalysisPanel({
               <div className="flex-1 min-w-0">
                 <p className={`text-sm font-extrabold leading-none ${verdictCfg.color}`}>{verdictCfg.label}</p>
                 <p className="text-[10px] text-[var(--text-muted)] mt-0.5 font-medium">
-                  {instrument}{prediction?.timeframe ? ` · ${prediction.timeframe}` : ''}
+                  {instrument}
                   {prediction?.direction ? ` · ${prediction.direction}` : ''}
                 </p>
               </div>
@@ -449,7 +449,7 @@ export function AIAnalysisPanel({
               <div className="flex items-start gap-2">
                 <div className={`w-1 rounded-full flex-shrink-0 mt-0.5 self-stretch ${verdictCfg.dot}`} style={{ minHeight: 32 }} />
                 <div className="space-y-1 flex-1">
-                  <p className={`text-xs font-bold ${verdictCfg.color}`}>{verdictCfg.label} Bias</p>
+                  <p className={`text-xs font-bold ${verdictCfg.color}`}>{verdictCfg.label} Signal</p>
                   <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">{analysis.sentiment}</p>
                 </div>
               </div>
@@ -508,6 +508,12 @@ export function AIAnalysisPanel({
               <div>
                 <SectionHeader icon={Brain} title="AI Insights" />
                 <div className="grid grid-cols-2 gap-1.5">
+                  {analysis.entry && (
+                    <div className="col-span-2 p-2.5 rounded-xl bg-[var(--brand-primary)]/10 border border-[var(--brand-primary)]/25 text-center">
+                      <p className="text-[9px] font-bold text-[var(--brand-primary)] mb-0.5 uppercase tracking-wide">Entry</p>
+                      <p className="text-xs font-extrabold font-mono text-[var(--brand-primary)]">{analysis.entry}</p>
+                    </div>
+                  )}
                   {prediction.buyingZone != null && (
                     <div className="p-2.5 rounded-xl bg-[var(--color-success-bg)] border border-[var(--color-success)]/20 text-center">
                       <p className="text-[9px] font-bold text-[var(--color-success)] mb-0.5 uppercase tracking-wide">Buy Zone</p>

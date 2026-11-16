@@ -764,8 +764,8 @@ export default function MyTradesPage() {
           ] as const).map(({ key, label, icon }) => (
             <button key={key} type="button" onClick={() => setMobilePanelTab(key)}
               className={`flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-bold border-b-2 transition-all cursor-pointer ${mobilePanelTab === key
-                  ? 'text-[var(--brand-primary)] border-[var(--brand-primary)] bg-[var(--brand-primary)]/5'
-                  : 'text-[var(--text-muted)] border-transparent'
+                ? 'text-[var(--brand-primary)] border-[var(--brand-primary)] bg-[var(--brand-primary)]/5'
+                : 'text-[var(--text-muted)] border-transparent'
                 }`}>
               {icon}
               <span>{label}</span>
@@ -787,7 +787,7 @@ export default function MyTradesPage() {
               prediction={chartOverlay}
               height={chartHeight}
               currentPrice={livePrice}
-              showTimeframeBar={true}
+              showTimeframeBar={false}
               allowDrawing={false}
             />
           </div>
@@ -830,8 +830,8 @@ export default function MyTradesPage() {
               ].map(({ key, label }) => (
                 <button key={key} type="button" onClick={() => setBottomTab(key)}
                   className={`px-3 py-2.5 text-xs font-semibold border-b-2 transition-all cursor-pointer ${bottomTab === key
-                      ? 'text-[var(--brand-primary)] border-[var(--brand-primary)]'
-                      : 'text-[var(--text-muted)] border-transparent'
+                    ? 'text-[var(--brand-primary)] border-[var(--brand-primary)]'
+                    : 'text-[var(--text-muted)] border-transparent'
                     }`}>
                   {label}
                 </button>
@@ -942,7 +942,7 @@ export default function MyTradesPage() {
               prediction={chartOverlay}
               height={chartHeight}
               currentPrice={livePrice}
-              showTimeframeBar={true}
+              showTimeframeBar={false}
               allowDrawing={true}
             />
           </div>
@@ -971,8 +971,8 @@ export default function MyTradesPage() {
           ].map(({ key, label, icon }) => (
             <button key={key} type="button" onClick={() => setBottomTab(key)}
               className={`flex items-center gap-1.5 px-4 py-3 text-xs font-semibold border-b-2 transition-all cursor-pointer ${bottomTab === key
-                  ? 'text-[var(--brand-primary)] border-[var(--brand-primary)]'
-                  : 'text-[var(--text-muted)] border-transparent hover:text-[var(--text-primary)]'
+                ? 'text-[var(--brand-primary)] border-[var(--brand-primary)]'
+                : 'text-[var(--text-muted)] border-transparent hover:text-[var(--text-primary)]'
                 }`}>
               {icon}{label}
             </button>

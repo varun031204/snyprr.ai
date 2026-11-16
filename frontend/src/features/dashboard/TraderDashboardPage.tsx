@@ -2,8 +2,8 @@ import { useState, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   TrendingUp, TrendingDown, CheckCircle2, Clock,
-  BarChart2, Code2, Sparkles, ChevronDown,
-  RotateCcw, X,
+  BarChart2, Code2, Sparkles,
+  RotateCcw,
 } from 'lucide-react';
 import { StatCard } from '../../components/ui/StatCard';
 import { GlassCard } from '../../components/ui/GlassCard';
@@ -19,22 +19,6 @@ import { AIAnalysisPanel } from '../../components/ai/AIAnalysisPanel';
 import { useTrialStore } from '../../state/useTrialStore';
 import { CHART_ITEMS } from '../../constants';
 import type { Prediction, PredictionDirection } from '../../types';
-
-const TIMEFRAME_OPTIONS = [
-  { value: '1m', label: '1m' },
-  { value: '3m', label: '3m' },
-  { value: '5m', label: '5m' },
-  { value: '15m', label: '15m' },
-  { value: '30m', label: '30m' },
-  { value: '1h', label: '1h' },
-  { value: '2h', label: '2h' },
-  { value: '4h', label: '4h' },
-  { value: '6h', label: '6h' },
-  { value: '12h', label: '12h' },
-  { value: '1d', label: '1d' },
-  { value: '3d', label: '3d' },
-  { value: '1w', label: '1w' },
-];
 
 export default function TraderDashboardPage() {
   const { currentUser } = useAuthStore();
@@ -64,10 +48,6 @@ export default function TraderDashboardPage() {
   // Form state
   const [panelInstrument, setPanelInstrument] = useState('BTC/USDT');
   const [direction, setDirection] = useState<PredictionDirection>('LONG');
-  const [timeframe, setTimeframe] = useState('1h');
-  const [isCustomTimeframe, setIsCustomTimeframe] = useState(false);
-  const [customTimeValue, setCustomTimeValue] = useState('45');
-  const [customTimeUnit, setCustomTimeUnit] = useState<'m' | 'h' | 'd'>('m');
   const [buyingZone, setBuyingZone] = useState('89725');
   const [sellingZone, setSellingZone] = useState('98050');
   const [stopLoss, setStopLoss] = useState('88000');
@@ -77,10 +57,6 @@ export default function TraderDashboardPage() {
   const [isPublishing, setIsPublishing] = useState(false);
   const [analysis, setAnalysis] = useState('');
   const [entryPrice, setEntryPrice] = useState('');
-
-  const effectiveTimeframe = isCustomTimeframe
-    ? `${customTimeValue.trim() || '1'}${customTimeUnit}`
-    : timeframe;
 
   const chartPrediction = useMemo(() => {
     return predictions.find(
@@ -141,8 +117,6 @@ export default function TraderDashboardPage() {
   const handleResetForm = () => {
     updatePricesForInstrument(panelInstrument, 'LONG');
     setDirection('LONG');
-    setTimeframe('1h');
-    setIsCustomTimeframe(false);
     setAnalysis('');
     addToast({ type: 'info', title: 'Form Reset', message: `Reset parameters for ${panelInstrument}.` });
   };
@@ -162,7 +136,7 @@ export default function TraderDashboardPage() {
     setIsPublishing(true);
     try {
       await createMutation.mutateAsync({
-        title: `${panelInstrument} ${direction} (${effectiveTimeframe}) - Key Price Zones`,
+        title: `${panelInstrument} ${direction} - Key Price Zones`,
         instrument: panelInstrument,
         category: panelInstrument === 'GOLD' || panelInstrument === 'SILVER' ? 'COMMODITIES' : 'CRYPTO',
         direction,
@@ -172,12 +146,11 @@ export default function TraderDashboardPage() {
         takeProfit: tp1Num,
         takeProfit2: tp2Num || undefined,
         takeProfit3: tp3Num || undefined,
-        timeframe: effectiveTimeframe,
         strategy: 'Key Price Zones',
-        analysis: analysis.trim() || `Trade setup for ${panelInstrument} (${effectiveTimeframe}).\n- Buying Wall: ${buyNum.toLocaleString()}\n- Selling Wall: ${sellNum.toLocaleString()}\n- SL: ${slNum.toLocaleString()} | TP1: ${tp1Num.toLocaleString()}`,
+        analysis: analysis.trim() || `Trade setup for ${panelInstrument}.\n- Buying Wall: ${buyNum.toLocaleString()}\n- Selling Wall: ${sellNum.toLocaleString()}\n- SL: ${slNum.toLocaleString()} | TP1: ${tp1Num.toLocaleString()}`,
         status: 'PUBLISHED',
         visibility: 'PUBLIC',
-        tags: [panelInstrument.split('/')[0], direction, effectiveTimeframe],
+        tags: [panelInstrument.split('/')[0], direction],
         traderId: currentUser?.id || '',
         trader: {
           id: currentUser?.id || '',
@@ -211,7 +184,6 @@ export default function TraderDashboardPage() {
         takeProfit: tp1Num || undefined,
         takeProfit2: tp2Num || undefined,
         takeProfit3: tp3Num || undefined,
-        timeframe: effectiveTimeframe,
         strategy: 'Key Price Zones',
         analysis: '',
         status: 'ACTIVE',
@@ -219,7 +191,7 @@ export default function TraderDashboardPage() {
       } as unknown as Prediction;
     }
     return chartPrediction;
-  }, [panelInstrument, activeChartInstrument, buyNum, sellNum, direction, entryPrice, slNum, tp1Num, tp2Num, tp3Num, effectiveTimeframe, chartPrediction]);
+  }, [panelInstrument, activeChartInstrument, buyNum, sellNum, direction, entryPrice, slNum, tp1Num, tp2Num, tp3Num, chartPrediction]);
 
   return (
     <div className="max-w-7xl mx-auto space-y-8">
@@ -267,7 +239,6 @@ export default function TraderDashboardPage() {
             tvSymbol={chartSymbol}
             instrument={activeChartInstrument}
             prediction={activePredictionForChart}
-            timeframe={effectiveTimeframe}
             height={typeof window !== 'undefined' && window.innerWidth < 1024 ? 420 : 700}
             predictionId={activePredictionForChart?.id ?? activeChartInstrument}
           />
@@ -281,11 +252,10 @@ export default function TraderDashboardPage() {
             <button
               type="button"
               onClick={() => setRightTab('create')}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-bold transition-all cursor-pointer ${
-                rightTab === 'create'
-                  ? 'text-[var(--brand-primary)] border-b-2 border-[var(--brand-primary)] bg-[var(--brand-glow)]'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]'
-              }`}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-bold transition-all cursor-pointer ${rightTab === 'create'
+                ? 'text-[var(--brand-primary)] border-b-2 border-[var(--brand-primary)] bg-[var(--brand-glow)]'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]'
+                }`}
             >
               <Sparkles className="w-3.5 h-3.5" />
               Create Setup
@@ -293,11 +263,10 @@ export default function TraderDashboardPage() {
             <button
               type="button"
               onClick={() => setRightTab('ai')}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-bold transition-all cursor-pointer ${
-                rightTab === 'ai'
-                  ? 'text-[var(--brand-primary)] border-b-2 border-[var(--brand-primary)] bg-[var(--brand-glow)]'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]'
-              }`}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-bold transition-all cursor-pointer ${rightTab === 'ai'
+                ? 'text-[var(--brand-primary)] border-b-2 border-[var(--brand-primary)] bg-[var(--brand-glow)]'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]'
+                }`}
             >
               <BarChart2 className="w-3.5 h-3.5" />
               AI Analysis
@@ -312,212 +281,171 @@ export default function TraderDashboardPage() {
               <div className="p-4 space-y-3 relative">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--brand-glow)] rounded-full blur-3xl opacity-20 pointer-events-none -mr-6 -mt-6" />
 
-          {/* Panel header */}
-          <div className="flex items-center justify-between relative z-10 min-w-0">
-            <div className="min-w-0 flex-1">
-              <h3 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2 min-w-0">
-                <span className="truncate">Create Prediction</span>
-                <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] border border-[var(--brand-primary)]/20 flex-shrink-0">
-                  {panelInstrument}
-                </span>
-              </h3>
-              <p className="text-[11px] text-[var(--text-muted)] mt-0.5 truncate">Publish setup to member feeds</p>
-            </div>
-            <span className="flex items-center gap-1 text-[10px] font-bold text-[var(--color-success)] flex-shrink-0 ml-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-success)] animate-pulse" />
-              LIVE
-            </span>
-          </div>
-
-          {/* Instrument pills */}
-          <div className="flex flex-wrap gap-1.5 relative z-10">
-            {CHART_ITEMS.map((item) => {
-              const hasSetup = predictions.some(
-                (p) => p.instrument.toLowerCase() === item.instrument.toLowerCase() &&
-                  (p.status === 'ACTIVE' || p.status === 'PUBLISHED')
-              );
-              return (
-                <button
-                  key={item.instrument}
-                  onClick={() => handleSelectPanelInstrument(item.instrument)}
-                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all cursor-pointer ${panelInstrument === item.instrument
-                    ? 'bg-[var(--brand-primary)] text-white border-[var(--brand-primary)]'
-                    : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)] hover:text-[var(--text-primary)]'
-                    }`}
-                >
-                  {item.label}
-                  {hasSetup && <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-success)]" />}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Direction + Timeframe */}
-          <div className="space-y-1.5 relative z-10">
-            <div className="flex items-center justify-between text-[11px] font-semibold text-[var(--text-secondary)]">
-              <span>Trade Bias</span>
-              <span>Timeframe</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="flex gap-1 bg-[var(--bg-secondary)] p-1 rounded-lg border border-[var(--border-subtle)] flex-1">
-                <button
-                  type="button"
-                  onClick={() => handleDirectionChange('LONG')}
-                  className={`flex-1 flex items-center justify-center gap-1 py-1 px-2 rounded-md text-xs font-bold transition-all cursor-pointer ${direction === 'LONG'
-                    ? 'bg-[var(--color-success-bg)] text-[var(--color-success)] border border-[var(--color-success)]/40'
-                    : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                    }`}
-                >
-                  <TrendingUp className="w-3.5 h-3.5" /> LONG
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDirectionChange('SHORT')}
-                  className={`flex-1 flex items-center justify-center gap-1 py-1 px-2 rounded-md text-xs font-bold transition-all cursor-pointer ${direction === 'SHORT'
-                    ? 'bg-[var(--color-danger-bg)] text-[var(--color-danger)] border border-[var(--color-danger)]/40'
-                    : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                    }`}
-                >
-                  <TrendingDown className="w-3.5 h-3.5" /> SHORT
-                </button>
-              </div>
-
-              {isCustomTimeframe ? (
-                <div className="flex items-center gap-1 min-w-[140px]">
-                  <input
-                    type="number" min="1" value={customTimeValue}
-                    onChange={(e) => setCustomTimeValue(e.target.value)}
-                    className="w-12 bg-[var(--bg-secondary)] text-[var(--text-primary)] border border-[var(--border-subtle)] rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none focus:border-[var(--brand-primary)] text-center"
-                  />
-                  <div className="relative flex-1">
-                    <select
-                      value={customTimeUnit}
-                      onChange={(e) => setCustomTimeUnit(e.target.value as any)}
-                      className="w-full bg-[var(--bg-secondary)] text-[var(--text-primary)] border border-[var(--border-subtle)] rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none focus:border-[var(--brand-primary)] appearance-none pr-5 cursor-pointer"
-                    >
-                      <option value="m">mins</option>
-                      <option value="h">hours</option>
-                    </select>
-                    <ChevronDown className="w-3 h-3 text-[var(--text-muted)] absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                {/* Panel header */}
+                <div className="flex items-center justify-between relative z-10 min-w-0">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2 min-w-0">
+                      <span className="truncate">Create Prediction</span>
+                      <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] border border-[var(--brand-primary)]/20 flex-shrink-0">
+                        {panelInstrument}
+                      </span>
+                    </h3>
+                    <p className="text-[11px] text-[var(--text-muted)] mt-0.5 truncate">Publish setup to member feeds</p>
                   </div>
-                  <button type="button" onClick={() => setIsCustomTimeframe(false)} className="p-1 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)]">
-                    <X className="w-3 h-3" />
+                  <span className="flex items-center gap-1 text-[10px] font-bold text-[var(--color-success)] flex-shrink-0 ml-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-success)] animate-pulse" />
+                    LIVE
+                  </span>
+                </div>
+
+                {/* Instrument pills */}
+                <div className="flex flex-wrap gap-1.5 relative z-10">
+                  {CHART_ITEMS.map((item) => {
+                    const hasSetup = predictions.some(
+                      (p) => p.instrument.toLowerCase() === item.instrument.toLowerCase() &&
+                        (p.status === 'ACTIVE' || p.status === 'PUBLISHED')
+                    );
+                    return (
+                      <button
+                        key={item.instrument}
+                        onClick={() => handleSelectPanelInstrument(item.instrument)}
+                        className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all cursor-pointer ${panelInstrument === item.instrument
+                          ? 'bg-[var(--brand-primary)] text-white border-[var(--brand-primary)]'
+                          : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)] hover:text-[var(--text-primary)]'
+                          }`}
+                      >
+                        {item.label}
+                        {hasSetup && <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-success)]" />}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Direction */}
+                <div className="space-y-1.5 relative z-10">
+                  <div className="text-[11px] font-semibold text-[var(--text-secondary)]">Trade Bias</div>
+                  <div className="flex gap-1 bg-[var(--bg-secondary)] p-1 rounded-lg border border-[var(--border-subtle)]">
+                    <button
+                      type="button"
+                      onClick={() => handleDirectionChange('LONG')}
+                      className={`flex-1 flex items-center justify-center gap-1 py-1 px-2 rounded-md text-xs font-bold transition-all cursor-pointer ${direction === 'LONG'
+                        ? 'bg-[var(--color-success-bg)] text-[var(--color-success)] border border-[var(--color-success)]/40'
+                        : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                        }`}
+                    >
+                      <TrendingUp className="w-3.5 h-3.5" /> LONG
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDirectionChange('SHORT')}
+                      className={`flex-1 flex items-center justify-center gap-1 py-1 px-2 rounded-md text-xs font-bold transition-all cursor-pointer ${direction === 'SHORT'
+                        ? 'bg-[var(--color-danger-bg)] text-[var(--color-danger)] border border-[var(--color-danger)]/40'
+                        : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                        }`}
+                    >
+                      <TrendingDown className="w-3.5 h-3.5" /> SHORT
+                    </button>
+                  </div>
+                </div>
+
+                {/* Buy / Sell zones */}
+                <div className="grid grid-cols-2 gap-2 relative z-10">
+                  <div className="p-2 rounded-xl bg-[var(--color-success-bg)] border border-[var(--color-success)]/20 space-y-1 min-w-0">
+                    <label className="text-[10px] font-bold text-[var(--color-success)] block uppercase truncate">Buying Wall ($)</label>
+                    <input type="number" step="any" value={buyingZone} onChange={(e) => setBuyingZone(e.target.value)}
+                      className="w-full min-w-0 bg-[var(--color-success-bg)] border border-[var(--color-success)]/30 rounded-lg px-2 py-1 font-mono text-xs font-bold text-[var(--color-success)] focus:outline-none focus:border-[var(--color-success)]/60" />
+                  </div>
+                  <div className="p-2 rounded-xl bg-[var(--color-danger-bg)] border border-[var(--color-danger)]/20 space-y-1 min-w-0">
+                    <label className="text-[10px] font-bold text-[var(--color-danger)] block uppercase truncate">Selling Wall ($)</label>
+                    <input type="number" step="any" value={sellingZone} onChange={(e) => setSellingZone(e.target.value)}
+                      className="w-full min-w-0 bg-[var(--color-danger-bg)] border border-[var(--color-danger)]/30 rounded-lg px-2 py-1 font-mono text-xs font-bold text-[var(--color-danger)] focus:outline-none focus:border-[var(--color-danger)]/60" />
+                  </div>
+                </div>
+
+                {/* Entry + Spread */}
+                <div className="p-2.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] flex items-center justify-between gap-2 relative z-10 min-w-0">
+                  <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                    <span className="text-[11px] font-semibold text-[var(--text-muted)] flex-shrink-0">Entry:</span>
+                    <input type="number" step="any" value={entryPrice} onChange={(e) => setEntryPrice(e.target.value)}
+                      className="min-w-0 flex-1 bg-transparent font-mono text-xs font-bold text-[var(--text-primary)] focus:outline-none" />
+                  </div>
+                  <span className={`text-[11px] font-bold font-mono px-2 py-0.5 rounded flex-shrink-0 ${spreadPct >= 0 ? 'text-[var(--color-success)] bg-[var(--color-success-bg)]' : 'text-[var(--color-danger)] bg-[var(--color-danger-bg)]'}`}>
+                    {spreadPct >= 0 ? '+' : ''}{spreadPct.toFixed(2)}%
+                  </span>
+                </div>
+
+                {/* SL + TP1 */}
+                <div className="grid grid-cols-2 gap-2 relative z-10">
+                  <div className="p-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] space-y-1 min-w-0">
+                    <label className="text-[10px] font-bold text-orange-400 block uppercase truncate">Stop Loss ($)</label>
+                    <input type="number" step="any" value={stopLoss} onChange={(e) => setStopLoss(e.target.value)}
+                      className="w-full min-w-0 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg px-2 py-1 font-mono text-xs font-bold text-orange-400 focus:outline-none focus:border-orange-400/50" />
+                  </div>
+                  <div className="p-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] space-y-1 min-w-0">
+                    <label className="text-[10px] font-bold text-emerald-400 block uppercase truncate">TP1 ($) *</label>
+                    <input type="number" step="any" value={takeProfit1} onChange={(e) => setTakeProfit1(e.target.value)}
+                      className="w-full min-w-0 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg px-2 py-1 font-mono text-xs font-bold text-emerald-400 focus:outline-none focus:border-emerald-400/50" />
+                  </div>
+                </div>
+
+                {/* TP2 + TP3 */}
+                <div className="grid grid-cols-2 gap-2 relative z-10">
+                  <div className="p-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] space-y-1 min-w-0">
+                    <label className="text-[10px] font-semibold text-[var(--text-muted)] block uppercase truncate">TP2 ($) opt.</label>
+                    <input type="number" step="any" value={takeProfit2} onChange={(e) => setTakeProfit2(e.target.value)}
+                      placeholder="—"
+                      className="w-full min-w-0 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg px-2 py-1 font-mono text-xs font-bold text-[var(--text-secondary)] focus:outline-none focus:border-[var(--border-strong)] placeholder:text-[var(--text-muted)]" />
+                  </div>
+                  <div className="p-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] space-y-1 min-w-0">
+                    <label className="text-[10px] font-semibold text-[var(--text-muted)] block uppercase truncate">TP3 ($) opt.</label>
+                    <input type="number" step="any" value={takeProfit3} onChange={(e) => setTakeProfit3(e.target.value)}
+                      placeholder="—"
+                      className="w-full min-w-0 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg px-2 py-1 font-mono text-xs font-bold text-[var(--text-secondary)] focus:outline-none focus:border-[var(--border-strong)] placeholder:text-[var(--text-muted)]" />
+                  </div>
+                </div>
+
+                {/* Analysis */}
+                <div className="space-y-1 relative z-10">
+                  <label className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide">Analysis Notes</label>
+                  <textarea
+                    value={analysis}
+                    onChange={(e) => setAnalysis(e.target.value)}
+                    placeholder="Add trade reasoning, key levels, confluence factors..."
+                    rows={3}
+                    className="w-full bg-[var(--bg-secondary)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] rounded-xl px-3 py-2 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--brand-primary)] resize-none transition-all scrollbar-thin"
+                  />
+                </div>
+
+                {/* Existing setup notice */}
+                {existingPanelSetup ? (
+                  <div className="px-2.5 py-1.5 rounded-lg bg-[var(--brand-glow)] border border-[var(--brand-primary)]/20 text-[11px] text-[var(--text-secondary)] flex items-center justify-between relative z-10">
+                    <span>Active: <strong className="text-[var(--text-primary)]">{existingPanelSetup.direction} ({existingPanelSetup.timeframe})</strong></span>
+                    <span className="text-[10px] text-[var(--brand-primary)] font-bold uppercase">Overwrites</span>
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-[var(--text-muted)] text-center relative z-10">
+                    No active setup for <span className="font-semibold text-[var(--text-secondary)]">{panelInstrument}</span>. Ready to publish.
+                  </p>
+                )}
+
+                {/* Action bar */}
+                <div className="flex items-center gap-2 pt-2 border-t border-[var(--border-subtle)] relative z-10">
+                  <Button
+                    variant="primary" size="sm"
+                    className="flex-1 justify-center text-xs"
+                    leftIcon={<Sparkles className={`w-3.5 h-3.5 ${isPublishing ? 'animate-spin' : ''}`} />}
+                    onClick={handlePublishPrediction}
+                    disabled={isPublishing}
+                  >
+                    {isPublishing ? 'Publishing...' : 'Publish Prediction'}
+                  </Button>
+                  <button
+                    type="button" onClick={handleResetForm}
+                    className="px-2.5 py-2 rounded-lg bg-[var(--bg-secondary)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" /> Reset
                   </button>
                 </div>
-              ) : (
-                <div className="relative min-w-[130px]">
-                  <select
-                    value={timeframe}
-                    onChange={(e) => { if (e.target.value === 'custom') setIsCustomTimeframe(true); else setTimeframe(e.target.value); }}
-                    className="w-full bg-[var(--bg-secondary)] text-[var(--text-primary)] border border-[var(--border-subtle)] rounded-lg px-2.5 py-1.5 text-xs font-bold focus:outline-none focus:border-[var(--brand-primary)] appearance-none pr-7 cursor-pointer"
-                  >
-                    {TIMEFRAME_OPTIONS.map((tf) => <option key={tf.value} value={tf.value}>{tf.label}</option>)}
-                    <option value="custom">+ Custom...</option>
-                  </select>
-                  <ChevronDown className="w-3.5 h-3.5 text-[var(--text-muted)] absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Buy / Sell zones */}
-          <div className="grid grid-cols-2 gap-2 relative z-10">
-            <div className="p-2 rounded-xl bg-[var(--color-success-bg)] border border-[var(--color-success)]/20 space-y-1 min-w-0">
-              <label className="text-[10px] font-bold text-[var(--color-success)] block uppercase truncate">Buying Wall ($)</label>
-              <input type="number" step="any" value={buyingZone} onChange={(e) => setBuyingZone(e.target.value)}
-                className="w-full min-w-0 bg-[var(--color-success-bg)] border border-[var(--color-success)]/30 rounded-lg px-2 py-1 font-mono text-xs font-bold text-[var(--color-success)] focus:outline-none focus:border-[var(--color-success)]/60" />
-            </div>
-            <div className="p-2 rounded-xl bg-[var(--color-danger-bg)] border border-[var(--color-danger)]/20 space-y-1 min-w-0">
-              <label className="text-[10px] font-bold text-[var(--color-danger)] block uppercase truncate">Selling Wall ($)</label>
-              <input type="number" step="any" value={sellingZone} onChange={(e) => setSellingZone(e.target.value)}
-                className="w-full min-w-0 bg-[var(--color-danger-bg)] border border-[var(--color-danger)]/30 rounded-lg px-2 py-1 font-mono text-xs font-bold text-[var(--color-danger)] focus:outline-none focus:border-[var(--color-danger)]/60" />
-            </div>
-          </div>
-
-          {/* Entry + Spread */}
-          <div className="p-2.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] flex items-center justify-between gap-2 relative z-10 min-w-0">
-            <div className="flex items-center gap-1.5 min-w-0 flex-1">
-              <span className="text-[11px] font-semibold text-[var(--text-muted)] flex-shrink-0">Entry:</span>
-              <input type="number" step="any" value={entryPrice} onChange={(e) => setEntryPrice(e.target.value)}
-                className="min-w-0 flex-1 bg-transparent font-mono text-xs font-bold text-[var(--text-primary)] focus:outline-none" />
-            </div>
-            <span className={`text-[11px] font-bold font-mono px-2 py-0.5 rounded flex-shrink-0 ${spreadPct >= 0 ? 'text-[var(--color-success)] bg-[var(--color-success-bg)]' : 'text-[var(--color-danger)] bg-[var(--color-danger-bg)]'}`}>
-              {spreadPct >= 0 ? '+' : ''}{spreadPct.toFixed(2)}%
-            </span>
-          </div>
-
-          {/* SL + TP1 */}
-          <div className="grid grid-cols-2 gap-2 relative z-10">
-            <div className="p-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] space-y-1 min-w-0">
-              <label className="text-[10px] font-bold text-orange-400 block uppercase truncate">Stop Loss ($)</label>
-              <input type="number" step="any" value={stopLoss} onChange={(e) => setStopLoss(e.target.value)}
-                className="w-full min-w-0 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg px-2 py-1 font-mono text-xs font-bold text-orange-400 focus:outline-none focus:border-orange-400/50" />
-            </div>
-            <div className="p-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] space-y-1 min-w-0">
-              <label className="text-[10px] font-bold text-emerald-400 block uppercase truncate">TP1 ($) *</label>
-              <input type="number" step="any" value={takeProfit1} onChange={(e) => setTakeProfit1(e.target.value)}
-                className="w-full min-w-0 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg px-2 py-1 font-mono text-xs font-bold text-emerald-400 focus:outline-none focus:border-emerald-400/50" />
-            </div>
-          </div>
-
-          {/* TP2 + TP3 */}
-          <div className="grid grid-cols-2 gap-2 relative z-10">
-            <div className="p-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] space-y-1 min-w-0">
-              <label className="text-[10px] font-semibold text-[var(--text-muted)] block uppercase truncate">TP2 ($) opt.</label>
-              <input type="number" step="any" value={takeProfit2} onChange={(e) => setTakeProfit2(e.target.value)}
-                placeholder="—"
-                className="w-full min-w-0 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg px-2 py-1 font-mono text-xs font-bold text-[var(--text-secondary)] focus:outline-none focus:border-[var(--border-strong)] placeholder:text-[var(--text-muted)]" />
-            </div>
-            <div className="p-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] space-y-1 min-w-0">
-              <label className="text-[10px] font-semibold text-[var(--text-muted)] block uppercase truncate">TP3 ($) opt.</label>
-              <input type="number" step="any" value={takeProfit3} onChange={(e) => setTakeProfit3(e.target.value)}
-                placeholder="—"
-                className="w-full min-w-0 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg px-2 py-1 font-mono text-xs font-bold text-[var(--text-secondary)] focus:outline-none focus:border-[var(--border-strong)] placeholder:text-[var(--text-muted)]" />
-            </div>
-          </div>
-
-          {/* Analysis */}
-          <div className="space-y-1 relative z-10">
-            <label className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide">Analysis Notes</label>
-            <textarea
-              value={analysis}
-              onChange={(e) => setAnalysis(e.target.value)}
-              placeholder="Add trade reasoning, key levels, confluence factors..."
-              rows={3}
-              className="w-full bg-[var(--bg-secondary)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] rounded-xl px-3 py-2 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--brand-primary)] resize-none transition-all scrollbar-thin"
-            />
-          </div>
-
-          {/* Existing setup notice */}
-          {existingPanelSetup ? (
-            <div className="px-2.5 py-1.5 rounded-lg bg-[var(--brand-glow)] border border-[var(--brand-primary)]/20 text-[11px] text-[var(--text-secondary)] flex items-center justify-between relative z-10">
-              <span>Active: <strong className="text-[var(--text-primary)]">{existingPanelSetup.direction} ({existingPanelSetup.timeframe})</strong></span>
-              <span className="text-[10px] text-[var(--brand-primary)] font-bold uppercase">Overwrites</span>
-            </div>
-          ) : (
-            <p className="text-[11px] text-[var(--text-muted)] text-center relative z-10">
-              No active setup for <span className="font-semibold text-[var(--text-secondary)]">{panelInstrument}</span>. Ready to publish.
-            </p>
-          )}
-
-          {/* Action bar */}
-          <div className="flex items-center gap-2 pt-2 border-t border-[var(--border-subtle)] relative z-10">
-            <Button
-              variant="primary" size="sm"
-              className="flex-1 justify-center text-xs"
-              leftIcon={<Sparkles className={`w-3.5 h-3.5 ${isPublishing ? 'animate-spin' : ''}`} />}
-              onClick={handlePublishPrediction}
-              disabled={isPublishing}
-            >
-              {isPublishing ? 'Publishing...' : 'Publish Prediction'}
-            </Button>
-            <button
-              type="button" onClick={handleResetForm}
-              className="px-2.5 py-2 rounded-lg bg-[var(--bg-secondary)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
-            >
-              <RotateCcw className="w-3.5 h-3.5" /> Reset
-            </button>
-          </div>
               </div>
             )}
 

@@ -15,7 +15,7 @@ const predictionSchema = z.object({
   instrument: z.string().min(1).max(64),
   direction: z.string().min(1).max(32),
   strategy: z.string().max(128).optional(),
-  timeframe: z.string().max(64).optional(),
+  entryPrice: z.number().finite().optional(),
   buyingZone: z.number().finite().optional(),
   sellingZone: z.number().finite().optional(),
   stopLoss: z.number().finite().optional(),

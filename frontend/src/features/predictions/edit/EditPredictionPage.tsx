@@ -7,7 +7,7 @@ import { Input } from '../../../components/ui/Input';
 import { Skeleton } from '../../../components/ui/Skeleton';
 import { ErrorState } from '../../../components/ui/ErrorState';
 import { SimpleChart } from '../../../components/charts/SimpleChart';
-import { INSTRUMENTS, TIMEFRAMES, STRATEGIES } from '../../../constants';
+import { INSTRUMENTS, STRATEGIES } from '../../../constants';
 import { usePredictionDetail, useUpdatePrediction } from '../../../hooks/usePredictionsQuery';
 import { useMarketStore } from '../../../state/useMarketStore';
 import { useUIStore } from '../../../state/useUIStore';
@@ -29,7 +29,6 @@ export default function EditPredictionPage() {
   const [entryPrice, setEntryPrice] = useState<string>('');
   const [buyingZone, setBuyingZone] = useState<string>('');
   const [sellingZone, setSellingZone] = useState<string>('');
-  const [timeframe, setTimeframe] = useState('4h');
   const [strategy, setStrategy] = useState('Smart Money Concepts (SMC)');
   const [visibility, setVisibility] = useState<PredictionVisibility>('PUBLIC');
   const [analysis, setAnalysis] = useState('');
@@ -45,7 +44,6 @@ export default function EditPredictionPage() {
       setEntryPrice(entry.toString());
       setBuyingZone(prediction.buyingZone ? prediction.buyingZone.toString() : (entry * 0.97).toFixed(2));
       setSellingZone(prediction.sellingZone ? prediction.sellingZone.toString() : (entry * 1.05).toFixed(2));
-      setTimeframe(prediction.timeframe);
       setStrategy(prediction.strategy);
       setVisibility(prediction.visibility);
       setAnalysis(prediction.analysis);
@@ -78,7 +76,6 @@ export default function EditPredictionPage() {
           entryPrice: parsedEntry > 0 ? parsedEntry : parsedBuying,
           buyingZone: parsedBuying,
           sellingZone: parsedSelling,
-          timeframe,
           strategy,
           visibility,
           analysis,
@@ -178,8 +175,8 @@ export default function EditPredictionPage() {
                     type="button"
                     onClick={() => setDirection('LONG')}
                     className={`flex items-center justify-center gap-1 py-1.5 text-xs font-bold rounded-lg transition-all ${direction === 'LONG'
-                        ? 'bg-[var(--color-success)] text-white shadow-md'
-                        : 'text-[var(--text-muted)]'
+                      ? 'bg-[var(--color-success)] text-white shadow-md'
+                      : 'text-[var(--text-muted)]'
                       }`}
                   >
                     <TrendingUp className="w-3.5 h-3.5" /> LONG
@@ -188,28 +185,13 @@ export default function EditPredictionPage() {
                     type="button"
                     onClick={() => setDirection('SHORT')}
                     className={`flex items-center justify-center gap-1 py-1.5 text-xs font-bold rounded-lg transition-all ${direction === 'SHORT'
-                        ? 'bg-[var(--color-danger)] text-white shadow-md'
-                        : 'text-[var(--text-muted)]'
+                      ? 'bg-[var(--color-danger)] text-white shadow-md'
+                      : 'text-[var(--text-muted)]'
                       }`}
                   >
                     <TrendingDown className="w-3.5 h-3.5" /> SHORT
                   </button>
                 </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-medium text-[var(--text-secondary)] block mb-1.5">
-                  Timeframe
-                </label>
-                <select
-                  value={timeframe}
-                  onChange={(e) => setTimeframe(e.target.value)}
-                  className="w-full bg-[var(--bg-surface)] text-[var(--text-primary)] border border-[var(--border-subtle)] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]"
-                >
-                  {TIMEFRAMES.map((tf) => (
-                    <option key={tf} value={tf}>{tf}</option>
-                  ))}
-                </select>
               </div>
             </div>
 

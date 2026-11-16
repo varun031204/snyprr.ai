@@ -22,7 +22,8 @@ export interface GeminiAnalysisResult {
     overview: string;
     riskReward: string;
     sentiment: string;
-    verdict: 'BULLISH' | 'BEARISH' | 'NEUTRAL' | 'CAUTION';
+    verdict: 'LONG' | 'SHORT' | 'NEUTRAL' | 'CAUTION';
+    entry?: string;
     keyPoints: string[];
 }
 
@@ -51,7 +52,7 @@ export async function analyzeTraderSetup(prediction: Prediction): Promise<Gemini
                 instrument: prediction.instrument,
                 direction: prediction.direction,
                 strategy: prediction.strategy,
-                timeframe: prediction.timeframe,
+                entryPrice: prediction.entryPrice,
                 buyingZone: prediction.buyingZone,
                 sellingZone: prediction.sellingZone,
                 stopLoss: prediction.stopLoss,

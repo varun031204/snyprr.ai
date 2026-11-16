@@ -36,15 +36,16 @@ export interface GeminiAnalysisResult {
   overview: string;
   riskReward: string;
   sentiment: string;
-  verdict: 'BULLISH' | 'BEARISH' | 'NEUTRAL' | 'CAUTION';
+  verdict: 'LONG' | 'SHORT' | 'NEUTRAL' | 'CAUTION';
   keyPoints: string[];
+  entry?: string;
 }
 
 export interface PredictionData {
   instrument: string;
   direction: string;
   strategy?: string;
-  timeframe?: string;
+  entryPrice?: number;
   buyingZone?: number;
   sellingZone?: number;
   stopLoss?: number;
@@ -283,6 +284,7 @@ async function callGemini(
 function buildAnalysisPrompt(prediction: PredictionData): string {
   const buyZone = prediction.buyingZone ?? 0;
   const sellZone = prediction.sellingZone ?? 0;
+  const entry = prediction.entryPrice;
   const sl = prediction.stopLoss;
   const tp = prediction.takeProfit;
   const rr = prediction.riskRewardRatio?.toFixed(2) ?? 'N/A';
@@ -293,7 +295,7 @@ TRADE SETUP:
 - Instrument: ${prediction.instrument}
 - Direction: ${prediction.direction}
 - Strategy: ${prediction.strategy ?? 'N/A'}
-- Timeframe: ${prediction.timeframe ?? 'N/A'}
+- Entry Price: ${entry != null ? entry : 'N/A'}
 - Buying Zone: ${buyZone}
 - Selling Zone: ${sellZone}
 - Stop Loss: ${sl ?? 'N/A'}
@@ -308,7 +310,8 @@ Respond strictly in this JSON format (no markdown, no extra text outside the JSO
   "overview": "<2-3 sentence summary grounded in the trader's own analysis notes>",
   "riskReward": "<one sentence evaluating whether the R:R is attractive>",
   "sentiment": "<one sentence on current market sentiment for this asset>",
-  "verdict": "<one of: BULLISH | BEARISH | NEUTRAL | CAUTION>",
+  "verdict": "<one of: LONG | SHORT | NEUTRAL | CAUTION>",
+  "entry": "<recommended entry price or range based on the setup, e.g. '91,500 – 92,000'>",
   "keyPoints": ["<concise point 1>", "<concise point 2>", "<concise point 3>", "<concise point 4>"]
 }`;
 }
@@ -377,6 +380,7 @@ export async function analyzeTraderSetup(prediction: PredictionData): Promise<Ge
       riskReward: 'Unable to parse structured response.',
       sentiment: '',
       verdict: 'NEUTRAL',
+      entry: undefined,
       keyPoints: [],
     };
   }
